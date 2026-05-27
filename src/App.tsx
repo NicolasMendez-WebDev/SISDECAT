@@ -423,7 +423,7 @@ export default function App() {
        const getNewId = (oldId: string, prefix: string) => {
          if (!oldId) return undefined;
          if (!idMap.has(oldId)) {
-           idMap.set(oldId, crypto.randomUUID());
+           idMap.set(oldId, Math.floor(100000 + Math.random() * 900000).toString());
          }
          return idMap.get(oldId);
        };
@@ -444,7 +444,7 @@ export default function App() {
        const newRelaciones = relaciones.filter(r => r.vigenciaId === sourceVigenciaId && (sourceProcData.some(p => p.id === r.childId) || sourcePcdData.some(p => p.id === r.childId) || sourceActData.some(p => p.id === r.childId)))
        .map(r => ({
            ...r,
-           id: crypto.randomUUID(),
+           id: Math.floor(100000 + Math.random() * 900000).toString(),
            childId: idMap.get(r.childId) || r.childId,
            parentId: idMap.get(r.parentId) || r.parentId,
            vigenciaId: v.IdVigencia,
@@ -575,9 +575,24 @@ export default function App() {
       if (type === "Procedimiento") newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc));
       if (type === "Actividad") newActs = actData.map((a) => (a.id === id ? { ...a, ...data } : a));
     } else {
-      const newId = crypto.randomUUID();
+      const newId = Math.floor(100000 + Math.random() * 900000).toString();
       modifiedId = newId;
-      const newItem = { id: newId, ...data, activo: true, vigenciaId: currentVigenciaView?.IdVigencia };
+      
+      let calculatedLevel = 1;
+      if (type === "Organismo") calculatedLevel = 1;
+      else if (type === "Dependencia") calculatedLevel = data.parentId ? 2 : 2;
+      else if (type === "Proceso") calculatedLevel = 2; // Nivel 2
+      else if (type === "Procedimiento") calculatedLevel = 3; // Nivel 3
+      else if (type === "Actividad") calculatedLevel = 4; // Nivel 4
+
+      const newItem = { 
+        id: newId, 
+        ...data, 
+        activo: true, 
+        vigenciaId: currentVigenciaView?.IdVigencia,
+        level: calculatedLevel,
+        nivel: calculatedLevel
+      };
 
       if (type === "Organismo") {
         newOrgs = [...orgData, newItem];
@@ -684,24 +699,29 @@ export default function App() {
 
         if (!codigo || !nombre) return;
         
+        let nodeUuid = codigo; // Usar codigo directo corto en las importaciones
+        let parentUuid = padre ? padre : null;
+
         if (nivel === '0' || nivel === '1' || !padre || padre === codigo) {
           // Organismo usually root
           newOrgs.push({
-             id: codigo,
+             id: nodeUuid,
              codigo: codigo,
              nombre,
              activo: true,
+             level: 1,
              vigenciaId: currentVigenciaView?.IdVigencia,
              fechaCreacion: new Date().toISOString()
           });
         } else {
           // Dependencia
           newDeps.push({
-             id: codigo,
+             id: nodeUuid,
              codigo: codigo,
              nombre,
              activo: true,
-             parentId: padre || undefined,
+             level: 2,
+             parentId: parentUuid || undefined,
              vigenciaId: currentVigenciaView?.IdVigencia,
              fechaCreacion: new Date().toISOString()
           });
@@ -772,35 +792,42 @@ export default function App() {
 
         if (!codigo || !nombre) return;
         
+        let nodeUuid = codigo;
+        
         if (nivel === '1' || nivel === '0') return; // Skip Level 1 inside here as they are just types
+
+        let parentUuid = padre ? padre : null;
 
         if (nivel === '2') {
           const tipo = tiposProceso[padre] || "Misional";
           newProcs.push({
-             id: codigo,
+             id: nodeUuid,
              codigo: codigo,
              nombre,
              descripcion: `Tipo de proceso: ${tipo}`,
              activo: true,
+             nivel: 2,
              tipo: tipo, // Custom field just in case
              vigenciaId: currentVigenciaView?.IdVigencia,
           });
         } else if (nivel === '3') {
           newPcds.push({
-             id: codigo,
+             id: nodeUuid,
              codigo: codigo,
              nombre,
-             procesoId: padre || undefined,
+             procesoId: parentUuid || undefined,
              activo: true,
+             nivel: 3,
              vigenciaId: currentVigenciaView?.IdVigencia,
           });
         } else if (nivel === '4' || parseInt(nivel) > 4) {
           newActs.push({
-             id: codigo,
+             id: nodeUuid,
              codigo: codigo,
              nombre,
-             procedimientoId: padre || undefined,
+             procedimientoId: parentUuid || undefined,
              activo: true,
+             nivel: 4,
              vigenciaId: currentVigenciaView?.IdVigencia,
           });
         }
@@ -817,28 +844,37 @@ export default function App() {
   
           if (!codigo || !nombre) return;
   
+          let nodeUuid = codigo;
+          let parentUuid = padre ? padre : null;
+
           if (!padre || codigo === padre || nivel === '1' || String(nivel).toLowerCase().includes('proceso')) {
             newProcs.push({
-               id: "proc_" + codigo,
+               id: nodeUuid,
+               codigo: codigo,
                nombre,
                descripcion: "Importado masivamente",
-               estado: "Activo",
+               activo: true,
+               nivel: 2,
                vigenciaId: currentVigenciaView?.IdVigencia,
             });
           } else if (nivel === '2' || nivel === '3' || String(nivel).toLowerCase().includes('procedimiento')) {
             newPcds.push({
-               id: "pcd_" + codigo,
+               id: nodeUuid,
+               codigo: codigo,
                nombre,
-               procesoId: padre ? "proc_" + padre : undefined,
-               estado: "Activo",
+               procesoId: parentUuid || undefined,
+               activo: true,
+               nivel: 3,
                vigenciaId: currentVigenciaView?.IdVigencia,
             });
           } else {
             newActs.push({
-               id: "act_" + codigo,
+               id: nodeUuid,
+               codigo: codigo,
                nombre,
-               procedimientoId: padre ? "pcd_" + padre : undefined,
-               estado: "Activo",
+               procedimientoId: parentUuid || undefined,
+               activo: true,
+               nivel: 4,
                vigenciaId: currentVigenciaView?.IdVigencia,
             });
           }
@@ -1683,7 +1719,7 @@ export default function App() {
                          const randomlySelectedUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
 
                          generatedCargas.push({
-                            id: crypto.randomUUID(),
+                            id: Math.floor(100000 + Math.random() * 900000).toString(),
                             vigenciaId: currentVigenciaView.IdVigencia,
                             organismoId: selectedPath.orgId,
                             dependenciaId: selectedPath.depId,
