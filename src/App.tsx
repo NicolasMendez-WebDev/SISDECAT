@@ -151,89 +151,110 @@ export default function App() {
       try {
         setIsLoadingData(true);
         // Load default structure
-        const { vigenciasMock, mapaRelacionesMock, usuariosMock, vigenciasUsuariosMock } = await import('./data/mockData');
-        
-        const defaultVigenciaId = vigenciasMock[0]?.IdVigencia;
-        setOrgData(organismos.map(o => ({ ...o, vigenciaId: defaultVigenciaId })));
-        setDepData(dependencias.map(d => ({ ...d, vigenciaId: defaultVigenciaId })));
-        setProcData(procesos.map(p => ({ ...p, vigenciaId: defaultVigenciaId })));
-        setPcdData(procedimientos.map(p => ({ ...p, vigenciaId: defaultVigenciaId })));
-        setActData(actividades.map(a => ({ ...a, vigenciaId: defaultVigenciaId })));
-        setVigencias(vigenciasMock);
-        setUsuarios(usuariosMock as User[]);
-        if(vigenciasUsuariosMock) {
-          setVigenciasUsuarios(vigenciasUsuariosMock);
-        }
+        if (import.meta.env.PROD) {
+          // Initialize empty
+          setOrgData([]);
+          setDepData([]);
+          setProcData([]);
+          setPcdData([]);
+          setActData([]);
+          setVigencias([]);
+          setUsuarios([]);
+          setVigenciasUsuarios([]);
+          setRelaciones([]);
 
-        // Populate whitelist relationships from mapa (only exact explicit mappings)
-        const mappedRels: any[] = [];
-        mapaRelacionesMock.forEach(m => {
-          let type = "Proceso";
-          if(m.IdNodoProceso.startsWith('proc')) type = "Proceso";
-          if(m.IdNodoProceso.startsWith('pcd')) type = "Procedimiento";
-          if(m.IdNodoProceso.startsWith('act')) type = "Actividad";
-          
-          if (type === "Procedimiento") {
-              const procedimiento = procedimientos.find(p => p.id === m.IdNodoProceso);
-              if (procedimiento && procedimiento.procesoId) {
-                 const procesoId = procedimiento.procesoId;
-                 
-                 const existingRel = mappedRels.find(r => r.parentId === m.IdNodoOrg && r.childId === procesoId);
-                 if (existingRel) {
-                     if (!existingRel.includedChildren) existingRel.includedChildren = [];
-                     if (!existingRel.includedChildren.includes(m.IdNodoProceso)) {
-                         existingRel.includedChildren.push(m.IdNodoProceso);
-                     }
-                 } else {
-                     mappedRels.push({
-                         type: "Proceso",
-                         childId: procesoId,
-                         parentId: m.IdNodoOrg,
-                         includedChildren: [m.IdNodoProceso]
-                     });
-                 }
-                 return;
-              }
+          try {
+            const { captureService } = await import("./application/services/captureService");
+            const existingCargas = await captureService.getCargas();
+            setCargasTrabajo(existingCargas || []);
+          } catch (e) {
+            setCargasTrabajo([]);
           }
+        } else {
+          const { vigenciasMock, mapaRelacionesMock, usuariosMock, vigenciasUsuariosMock } = await import('./data/mockData');
           
-          // Add default explicit relationship for UI display/logic independently of group wrapper
-          mappedRels.push({
-             type,
-             childId: m.IdNodoProceso,
-             parentId: m.IdNodoOrg,
-          });
-        });
-        
-        // Remove duplicates if any
-        const validRels: any[] = [];
-        mappedRels.forEach(newRel => {
-           newRel.vigenciaId = defaultVigenciaId;
-           const existing = validRels.find(r => r.childId === newRel.childId && r.parentId === newRel.parentId && r.vigenciaId === newRel.vigenciaId);
-           if (!existing) {
-               validRels.push(newRel);
-           } else if (newRel.includedChildren) {
-               if (!existing.includedChildren) existing.includedChildren = [];
-               newRel.includedChildren.forEach((ic: string) => {
-                   if (!existing.includedChildren.includes(ic)) {
-                       existing.includedChildren.push(ic);
+          const defaultVigenciaId = vigenciasMock[0]?.IdVigencia;
+          setOrgData(organismos.map(o => ({ ...o, vigenciaId: defaultVigenciaId })));
+          setDepData(dependencias.map(d => ({ ...d, vigenciaId: defaultVigenciaId })));
+          setProcData(procesos.map(p => ({ ...p, vigenciaId: defaultVigenciaId })));
+          setPcdData(procedimientos.map(p => ({ ...p, vigenciaId: defaultVigenciaId })));
+          setActData(actividades.map(a => ({ ...a, vigenciaId: defaultVigenciaId })));
+          setVigencias(vigenciasMock);
+          setUsuarios(usuariosMock as User[]);
+          if(vigenciasUsuariosMock) {
+            setVigenciasUsuarios(vigenciasUsuariosMock);
+          }
+
+          // Populate whitelist relationships from mapa (only exact explicit mappings)
+          const mappedRels: any[] = [];
+          mapaRelacionesMock.forEach(m => {
+            let type = "Proceso";
+            if(m.IdNodoProceso.startsWith('proc')) type = "Proceso";
+            if(m.IdNodoProceso.startsWith('pcd')) type = "Procedimiento";
+            if(m.IdNodoProceso.startsWith('act')) type = "Actividad";
+            
+            if (type === "Procedimiento") {
+                const procedimiento = procedimientos.find(p => p.id === m.IdNodoProceso);
+                if (procedimiento && procedimiento.procesoId) {
+                   const procesoId = procedimiento.procesoId;
+                   
+                   const existingRel = mappedRels.find(r => r.parentId === m.IdNodoOrg && r.childId === procesoId);
+                   if (existingRel) {
+                       if (!existingRel.includedChildren) existingRel.includedChildren = [];
+                       if (!existingRel.includedChildren.includes(m.IdNodoProceso)) {
+                           existingRel.includedChildren.push(m.IdNodoProceso);
+                       }
+                   } else {
+                       mappedRels.push({
+                           type: "Proceso",
+                           childId: procesoId,
+                           parentId: m.IdNodoOrg,
+                           includedChildren: [m.IdNodoProceso]
+                       });
                    }
-               });
-           }
-        });
+                   return;
+                }
+            }
+            
+            // Add default explicit relationship for UI display/logic independently of group wrapper
+            mappedRels.push({
+               type,
+               childId: m.IdNodoProceso,
+               parentId: m.IdNodoOrg,
+            });
+          });
+          
+          // Remove duplicates if any
+          const validRels: any[] = [];
+          mappedRels.forEach(newRel => {
+             newRel.vigenciaId = defaultVigenciaId;
+             const existing = validRels.find(r => r.childId === newRel.childId && r.parentId === newRel.parentId && r.vigenciaId === newRel.vigenciaId);
+             if (!existing) {
+                 validRels.push(newRel);
+             } else if (newRel.includedChildren) {
+                 if (!existing.includedChildren) existing.includedChildren = [];
+                 newRel.includedChildren.forEach((ic: string) => {
+                     if (!existing.includedChildren.includes(ic)) {
+                         existing.includedChildren.push(ic);
+                     }
+                 });
+             }
+          });
 
-        setRelaciones(validRels);
+          setRelaciones(validRels);
 
-        // Fetch local persitence loads
-        const { captureService } = await import("./application/services/captureService");
-        
-        let existingCargas = await captureService.getCargas();
-        // Cargar datos de prueba únicamente si no hay registros
-        if (existingCargas.length === 0) {
-          const { cargasTrabajoMock } = await import('./data/mockData');
-          await captureService.initialize(cargasTrabajoMock);
-          existingCargas = cargasTrabajoMock;
+          // Fetch local persitence loads
+          const { captureService } = await import("./application/services/captureService");
+          
+          let existingCargas = await captureService.getCargas();
+          // Cargar datos de prueba únicamente si no hay registros
+          if (existingCargas.length === 0) {
+            const { cargasTrabajoMock } = await import('./data/mockData');
+            await captureService.initialize(cargasTrabajoMock);
+            existingCargas = cargasTrabajoMock;
+          }
+          setCargasTrabajo(existingCargas);
         }
-        setCargasTrabajo(existingCargas);
         
       } catch (error) {
         console.error("Error loading mock data", error);

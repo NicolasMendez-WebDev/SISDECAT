@@ -24,13 +24,19 @@ const saveLocalUsers = (users: LocalUser[]) => {
 export const AuthService = {
   async register(email: string, password: string, nombre: string): Promise<UserType> {
     if (supabase) {
+      // Logic inside Supabase should ideally assign role using triggers or functions 
+      // but for now, we pass it in metadata if we want. It's safer to just let it be Funcionario unless it's the first.
+      const { data: usersData } = await supabase.from('profiles').select('id', { count: 'exact', head: true });
+      const isFirstUser = usersData === null || usersData === undefined || usersData.length === 0; // rough proxy
+      const assignedRole = isFirstUser ? 'AdminFuncional' : 'Funcionario';
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: nombre,
-            rol: 'Funcionario'
+            rol: assignedRole
           }
         }
       });
@@ -41,7 +47,7 @@ export const AuthService = {
         id: data.user.id,
         nombre: data.user.user_metadata?.full_name || nombre,
         email: data.user.email!,
-        rol: data.user.user_metadata?.rol || 'Funcionario'
+        rol: data.user.user_metadata?.rol || assignedRole
       };
     } else {
       // Mock Local Storage Auth
@@ -50,14 +56,18 @@ export const AuthService = {
         throw new Error("El correo ya está registrado.");
       }
       
+      const isFirstUser = users.length === 0;
+      const assignedRole = isFirstUser ? 'AdminFuncional' : 'Funcionario';
+
       const newUser: LocalUser = {
         id: `USR-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
         email,
         nombre,
-        rol: 'Funcionario',
+        rol: assignedRole,
         passwordHash: btoa(password), // simple mock hash
       };
       saveLocalUsers([...users, newUser]);
+
       return {
         id: newUser.id,
         nombre: newUser.nombre,
@@ -68,8 +78,8 @@ export const AuthService = {
   },
 
   async login(email: string, password: string, globalUsers: UserType[]): Promise<UserType> {
-    // Backdoor for developer testing
-    if ((email === "desarrollador" || email === "admin")) {
+    // Backdoor for developer testing ONLY in dev
+    if (!import.meta.env.PROD && (email === "desarrollador" || email === "admin")) {
       if (password === "admin123") {
         return {
           id: "USR-DEV",
