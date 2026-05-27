@@ -151,8 +151,30 @@ export default function App() {
       try {
         setIsLoadingData(true);
         // Load default structure
-        if (import.meta.env.PROD) {
+        const useRealDatabase = !!import.meta.env.VITE_SUPABASE_URL;
+        
+        if (useRealDatabase) {
           try {
+            const { supabase } = await import('./lib/supabaseClient');
+            if (supabase) {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session && session.user) {
+                setCurrentUser({
+                   id: session.user.id,
+                   nombre: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || "Usuario",
+                   email: session.user.email!,
+                   rol: session.user.user_metadata?.rol || 'Funcionario'
+                });
+              }
+            } else {
+              const localSessionString = localStorage.getItem('mockSession');
+              if (localSessionString) {
+                try {
+                   setCurrentUser(JSON.parse(localSessionString));
+                } catch(e) {}
+              }
+            }
+
             const { DatabaseService } = await import("./application/services/DatabaseService");
             const vDb = await DatabaseService.getVigencias();
             setVigencias(vDb || []);
@@ -1138,39 +1160,46 @@ export default function App() {
     });
   };
 
-  const executeDeleteStructure = (type: string, id: string) => {
+  const executeDeleteStructure = async (type: string, id: string) => {
     let itemName = "Elemento";
+    const changeToInactive = (item: any) => item.id === id ? { ...item, Activo: false, estado: "Inactivo" } : item;
+
+    let updatedList: any[] = [];
     if (type === "Organismo") {
       itemName = orgData.find((o) => o.id === id)?.nombre || itemName;
-      setOrgData(
-        orgData.map((o) => (o.id === id ? { ...o, estado: "Inactivo" } : o)),
-      );
+      updatedList = orgData.map(changeToInactive);
+      setOrgData(updatedList);
     }
     if (type === "Dependencia") {
       itemName = depData.find((d) => d.id === id)?.nombre || itemName;
-      setDepData(
-        depData.map((d) => (d.id === id ? { ...d, estado: "Inactivo" } : d)),
-      );
+      updatedList = depData.map(changeToInactive);
+      setDepData(updatedList);
     }
     if (type === "Proceso") {
       itemName = procData.find((p) => p.id === id)?.nombre || itemName;
-      setProcData(
-        procData.map((p) => (p.id === id ? { ...p, estado: "Inactivo" } : p)),
-      );
+      updatedList = procData.map(changeToInactive);
+      setProcData(updatedList);
     }
     if (type === "Procedimiento") {
       itemName = pcdData.find((pc) => pc.id === id)?.nombre || itemName;
-      setPcdData(
-        pcdData.map((pc) =>
-          pc.id === id ? { ...pc, estado: "Inactivo" } : pc,
-        ),
-      );
+      updatedList = pcdData.map(changeToInactive);
+      setPcdData(updatedList);
     }
     if (type === "Actividad") {
       itemName = actData.find((a) => a.id === id)?.nombre || itemName;
-      setActData(
-        actData.map((a) => (a.id === id ? { ...a, estado: "Inactivo" } : a)),
-      );
+      updatedList = actData.map(changeToInactive);
+      setActData(updatedList);
+    }
+
+    try {
+      const { DatabaseService } = await import("./application/services/DatabaseService");
+      if (type === "Organismo" || type === "Dependencia") {
+         await DatabaseService.saveEstructuraOrg(updatedList);
+      } else {
+         await DatabaseService.saveEstructuraProc(updatedList);
+      }
+    } catch(e) {
+      console.warn("Could not save deletion to DB", e);
     }
 
     showToast(`${type} desactivado exitosamente.`, "success", {
@@ -1226,6 +1255,9 @@ export default function App() {
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
+    if (!import.meta.env.VITE_SUPABASE_URL) {
+      localStorage.setItem('mockSession', JSON.stringify(user));
+    }
     setSelectedVigenciaId(null);
     if (!usuarios.find(u => u.id === user.id)) {
       setUsuarios([...usuarios, user]);
@@ -1236,17 +1268,28 @@ export default function App() {
     if (activeVigencia) {
       const alreadyEnrolled = vigenciasUsuarios.some(vu => vu.idUsuario === user.id && vu.idVigencia === activeVigencia.IdVigencia);
       if (!alreadyEnrolled) {
-        // Developer / Mock Admins retain their global roles in the vigencia so they don't get locked out
-        const isMockAdmin = user.id.startsWith("USR-DEV") || (user.id.startsWith("USR-00") && user.rol !== "Funcionario");
+        // Admins retain their global roles in the vigencia so they don't get locked out
+        const isAdmin = user.rol === "AdminFuncional" || user.rol === "Administrador";
         
         const newVu: any = {
           idVigenciaUsuario: `VU-${user.id}-${activeVigencia.IdVigencia}-${Date.now()}`,
           idVigencia: activeVigencia.IdVigencia,
           idUsuario: user.id,
-          rol: isMockAdmin ? user.rol : 'Funcionario',
+          rol: isAdmin ? user.rol : 'Funcionario',
           idDependencia: ''
         };
         setVigenciasUsuarios(prev => [...prev, newVu]);
+
+        import("./application/services/DatabaseService").then(({ DatabaseService }) => {
+          DatabaseService.saveUsuarioDependencia({
+             IdUsuarioDep: newVu.idVigenciaUsuario,
+             IdVigencia: newVu.idVigencia,
+             EntraIdObjectId: newVu.idUsuario,
+             IdNodoOrg: newVu.idDependencia || null,
+             RolFuncional: newVu.rol,
+             Activo: true
+          }).catch(e => console.warn("Failed to save auto-enrollment to DB", e));
+        });
       }
     }
 
@@ -1254,6 +1297,15 @@ export default function App() {
       setActiveModule("inicio");
     } else {
       setActiveModule("dashboard");
+    }
+  };
+
+  const handleLogout = async () => {
+    setCurrentUser(null);
+    localStorage.removeItem('mockSession');
+    const { supabase } = await import('./lib/supabaseClient');
+    if (supabase) {
+       await supabase.auth.signOut();
     }
   };
 
@@ -1309,7 +1361,7 @@ export default function App() {
         currentUser={effectiveUser!}
         activeModule={activeModule}
         setActiveModule={setActiveModule}
-        onLogout={() => setCurrentUser(null)}
+        onLogout={handleLogout}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -1317,7 +1369,7 @@ export default function App() {
           notifications={notifications}
           onViewElement={handleViewElement}
           currentUser={effectiveUser!}
-          onLogout={() => setCurrentUser(null)}
+          onLogout={handleLogout}
           activeVigencia={currentVigenciaView}
           onSelectVigencia={(id) => setSelectedVigenciaId(id)}
           vigencias={availableVigencias}
