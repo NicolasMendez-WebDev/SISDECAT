@@ -399,8 +399,10 @@ export default function App() {
     try {
       const { DatabaseService } = await import("./application/services/DatabaseService");
       await DatabaseService.saveVigencia(v);
-    } catch(e) {
-      console.warn("Could not push vigencia to API", e);
+      showToast("Vigencia guardada exitosamente en la base de datos.", "success");
+    } catch(e: any) {
+      console.error("Could not push vigencia to API", e);
+      showToast(`Error de conexión al servidor: ${e.message}`, "error");
     }
 
     if (sourceVigenciaId) {
@@ -450,8 +452,9 @@ export default function App() {
            await DatabaseService.saveEstructuraOrg([...newOrgData, ...newDepData]);
            await DatabaseService.saveEstructuraProc([...newProcData, ...newPcdData, ...newActData]);
            await DatabaseService.saveMapaRelaciones(newRelaciones);
-       } catch (e) {
-           console.warn("Could not save cloned structures to DB", e);
+       } catch (e: any) {
+           console.error("Could not save cloned structures to DB", e);
+           showToast(`Error al clonar estructura en la base de datos: ${e.message}`, "error");
        }
     }
     showToast('Nueva Vigencia Registrada', 'success');
@@ -601,8 +604,9 @@ export default function App() {
       } else {
          await DatabaseService.saveEstructuraProc([...newProcs, ...newPcds, ...newActs]);
       }
-    } catch(e) {
-      console.warn("Could not push structure update to API", e);
+    } catch(e: any) {
+      console.error("Could not push structure update to API", e);
+      showToast(`Error local, asegúrese de tener conexión: ${e.message}`, "error");
     }
 
     const actionText = mode === "edit" ? "actualizado" : "creado";
@@ -993,7 +997,8 @@ export default function App() {
     // Save to DatabaseService
     import("./application/services/DatabaseService").then(({ DatabaseService }) => {
        DatabaseService.saveMapaRelaciones(modifiedRelations).catch(e => {
-          console.warn("Could not save mapped relations remotely", e);
+          console.error("Could not save mapped relations remotely", e);
+          showToast(`Error guardando relaciones: ${e.message}`, "error");
        });
     });
 
@@ -1095,7 +1100,10 @@ export default function App() {
       
       // Sync Delete in background
       import("./application/services/DatabaseService").then(({ DatabaseService }) => {
-          DatabaseService.saveMapaRelaciones(newRels);
+          DatabaseService.saveMapaRelaciones(newRels).catch(e => {
+             console.error("Error al sincronizar borrado", e);
+             showToast(`Error de conexión al eliminar: ${e.message}`, "error");
+          });
       });
     } else {
       // If it's a base relationship, we just hide it from the UI for this specific contextual path
@@ -1198,8 +1206,9 @@ export default function App() {
       } else {
          await DatabaseService.saveEstructuraProc(updatedList);
       }
-    } catch(e) {
-      console.warn("Could not save deletion to DB", e);
+    } catch(e: any) {
+      console.error("Could not save deletion to DB", e);
+      showToast(`Error remoto al desactivar: ${e.message}`, "error");
     }
 
     showToast(`${type} desactivado exitosamente.`, "success", {
@@ -1288,7 +1297,9 @@ export default function App() {
              IdNodoOrg: newVu.idDependencia || null,
              RolFuncional: newVu.rol,
              Activo: true
-          }).catch(e => console.warn("Failed to save auto-enrollment to DB", e));
+          }).catch((e: any) => {
+             console.error("Failed to save auto-enrollment to DB", e);
+          });
         });
       }
     }

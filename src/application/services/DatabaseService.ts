@@ -29,9 +29,9 @@ export const DatabaseService = {
       }, { onConflict: 'IdVigencia' }).select();
       if (error) throw error;
       return data && data[0] ? data[0] : v;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error saving vigencia", e);
-      return v;
+      throw new Error(e.message || "Error guardando vigencia en Supabase");
     }
   },
 
@@ -61,8 +61,9 @@ export const DatabaseService = {
       }));
       const { error } = await supabase.schema('Org').from('EstructuraJerarquica').upsert(format, { onConflict: 'IdNodoOrg' });
       if (error) throw error;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error saving org", e);
+      throw new Error(e.message || "Error al guardar estructura jerárquica");
     }
     return nodos;
   },
@@ -95,8 +96,9 @@ export const DatabaseService = {
       }));
       const { error } = await supabase.schema('Cat').from('EstructuraProcesos').upsert(format, { onConflict: 'IdNodoProceso' });
       if (error) throw error;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error saving proc", e);
+      throw new Error(e.message || "Error al guardar estructura de procesos");
     }
     return nodos;
   },
@@ -126,9 +128,41 @@ export const DatabaseService = {
       
       const { error } = await supabase.schema('Org').from('MapaRelaciones').upsert(format, { onConflict: 'IdVigencia,IdNodoOrg,IdNodoProceso' });
       if (error) throw error;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error saving mapa", e);
+      throw new Error(e.message || "Error al guardar mapa de relaciones");
     }
     return relaciones;
+  },
+
+  getUsuariosDependencia: async () => {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia').select('*');
+      if (error) throw error;
+      return data || [];
+    } catch (e: any) {
+      console.error("Error fetching usuarios dependencia", e);
+      return [];
+    }
+  },
+
+  saveUsuarioDependencia: async (vu: any) => {
+    if (!supabase) return vu;
+    try {
+      const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia').upsert({
+        IdUsuarioDep: vu.IdUsuarioDep,
+        IdVigencia: vu.IdVigencia,
+        EntraIdObjectId: vu.EntraIdObjectId,
+        IdNodoOrg: vu.IdNodoOrg || null,
+        RolFuncional: vu.RolFuncional || 'Funcionario',
+        Activo: vu.Activo ?? true
+      }, { onConflict: 'IdUsuarioDep' }).select();
+      if (error) throw error;
+      return data?.[0] || vu;
+    } catch (e: any) {
+      console.error("Error saving usuario dependencia", e);
+      throw new Error(e.message || "Error al guardar asignación de usuario");
+    }
   }
 };
