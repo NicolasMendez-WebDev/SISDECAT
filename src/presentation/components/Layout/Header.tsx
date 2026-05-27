@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [], onViewElemen
       <div className="flex items-center gap-4">
         <div className="hidden md:flex items-center gap-2 text-sm text-slate-500">
           <Building2 size={16} />
-          <span>SISDECAT</span>
+          <span>SDMCT</span>
           <ChevronRight size={14} />
           <span className="font-medium text-slate-700">Sistema digital para la medición de cargas de trabajo.</span>
         </div>
