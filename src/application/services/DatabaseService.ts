@@ -19,7 +19,7 @@ export const DatabaseService = {
        return v;
     }
     try {
-      const { data, error } = await supabase.schema('Conf').from('Vigencias').upsert({
+      const payload = {
         IdVigencia: v.IdVigencia || v.id,
         Nombre: v.Nombre || v.nombre || 'Nueva Vigencia',
         Anio: v.Anio || v.anio || new Date().getFullYear(),
@@ -29,9 +29,22 @@ export const DatabaseService = {
         Param_HorasEfectivas: v.Param_HorasEfectivas || 167.2,
         Param_JornadaDiaria: v.Param_JornadaDiaria || 8.8,
         Activo: v.Activo ?? true
-      }, { onConflict: 'IdVigencia' }).select();
-      if (error) throw error;
-      return data && data[0] ? data[0] : v;
+      };
+      console.log("Supabase UPSERT payload:", payload);
+      
+      // Try regular upsert first
+      const resp = await supabase.schema('Conf').from('Vigencias').upsert(payload).select();
+      
+      console.log("Supabase UPSERT response:", resp);
+      
+      if (resp.error) throw resp.error;
+      
+      if (!resp.data || resp.data.length === 0) {
+        console.warn("UPSERT succeeded but returned no rows. Did the RLS policy block SELECT, or was it an empty update?");
+        return v;
+      }
+      
+      return resp.data[0];
     } catch (e: any) {
       console.error("Error saving vigencia", e);
       throw new Error(e.message || "Error guardando vigencia en Supabase");
