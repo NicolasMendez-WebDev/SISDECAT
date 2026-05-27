@@ -1,0 +1,387 @@
+// ==========================================================================
+// SISTEMA DIGITAL DE MEDICIÓN DE CARGAS DE TRABAJO (SDMCT)
+// Schema Prisma - Modelo de Acceso a Datos
+// ==========================================================================
+// Motor:    Microsoft SQL Server 2019+ (On-Premise)
+// Cliente:  Gobernación de Antioquia
+//
+// Convenciones aplicadas:
+//   - PascalCase en modelos y campos para alineación con DDL SQL Server
+//   - @@map y @map para mapear esquemas y nombres físicos exactos
+//   - @db.* para tipos nativos SQL Server con precisión declarada
+//   - Relaciones nombradas explícitamente cuando hay ambigüedad
+// ==========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "sqlserver"
+  schemas  = ["Conf", "Org", "Cat", "Ops", "Imp", "Aud", "Sec"]
+  // Ejemplo:
+  // sqlserver://server.antioquia.gov.co:1433;database=SDMCT;user=svc_sdmct;password=***;encrypt=true;trustServerCertificate=false
+}
+
+// ==========================================================================
+// CONFIGURACIÓN Y PARÁMETROS METODOLÓGICOS (Conf)
+// ==========================================================================
+
+model Vigencias {
+  IdVigencia            String     @id @default(dbgenerated("NEWID()")) @db.UniqueIdentifier
+  Nombre                String     @db.NVarChar(100)
+  Anio                  Int
+  Estado                String     @default("Borrador") @db.NVarChar(20)
+  FechaInicio           DateTime   @db.Date
+  FechaCierre           DateTime?  @db.Date
+
+  Param_TS              Decimal    @default(0.07)  @db.Decimal(5, 4)
+  Param_HorasEfectivas  Decimal    @default(167.2) @db.Decimal(6, 2)
+  Param_JornadaDiaria   Decimal    @default(8.8)   @db.Decimal(4, 2)
+
+  CreatedBy             String     @db.NVarChar(100)
+  CreatedAt             DateTime   @default(dbgenerated("SYSDATETIME()")) @db.DateTime2
+  UpdatedBy             String?    @db.NVarChar(100)
+  UpdatedAt             DateTime?  @db.DateTime2
+
+  Activo                Boolean    @default(true)
+
+  // Relaciones inversas
+  FactoresFrecuencia    FactoresFrecuencia[]
+  EstructuraJerarquica  EstructuraJerarquica[]
+  EstructuraProcesos    EstructuraProcesos[]
+  MapaRelaciones        MapaRelaciones[]
+  Cargos                Cargos[]
+  CargasTrabajo         CargasTrabajo[]
+  UsuariosDependencia   UsuariosDependencia[]
+  LotesCarga            LotesCarga[]
+
+  @@map("Vigencias")
+  @@schema("Conf")
+}
+
+model FactoresFrecuencia {
+  IdFactor       Int       @id @default(autoincrement())
+  IdVigencia     String    @db.UniqueIdentifier
+  Nombre         String    @db.NVarChar(50)
+  FactorMensual  Decimal   @db.Decimal(18, 6)
+  EsSistema      Boolean   @default(true)
+  Activo         Boolean   @default(true)
+
+  Vigencia       Vigencias        @relation(fields: [IdVigencia], references: [IdVigencia])
+  CargasTrabajo  CargasTrabajo[]
+
+  @@unique([IdVigencia, Nombre], map: "UQ_FactoresFrec_VigNombre")
+  @@map("FactoresFrecuencia")
+  @@schema("Conf")
+}
+
+model TiposProceso {
+  IdTipoProceso  Int       @id @default(autoincrement())
+  Codigo         String    @unique @db.NVarChar(20)
+  Nombre         String    @db.NVarChar(100)
+  Descripcion    String?   @db.NVarChar(500)
+  EsSistema      Boolean   @default(false)
+  Activo         Boolean   @default(true)
+
+  Procesos       EstructuraProcesos[]
+
+  @@map("TiposProceso")
+  @@schema("Conf")
+}
+
+// ==========================================================================
+// SEGURIDAD - MAPEO ENTRA ID ↔ DEPENDENCIA (Sec)
+// ==========================================================================
+
+model UsuariosDependencia {
+  IdUsuarioDep      BigInt    @id @default(autoincrement())
+  IdVigencia        String    @db.UniqueIdentifier
+  EntraIdObjectId   String    @db.NVarChar(100)
+  UPN               String    @db.NVarChar(200)
+  IdNodoOrg         String    @db.UniqueIdentifier
+  RolFuncional      String    @db.NVarChar(50)
+  FechaAsignacion   DateTime  @default(dbgenerated("SYSDATETIME()")) @db.DateTime2
+  FechaRevocacion   DateTime? @db.DateTime2
+  Activo            Boolean   @default(true)
+
+  Vigencia          Vigencias             @relation(fields: [IdVigencia], references: [IdVigencia], onDelete: NoAction, onUpdate: NoAction)
+  NodoOrg           EstructuraJerarquica  @relation(fields: [IdNodoOrg],  references: [IdNodoOrg], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([EntraIdObjectId], map: "IX_UsrDep_EntraId_Activo")
+  @@map("UsuariosDependencia")
+  @@schema("Sec")
+}
+
+// ==========================================================================
+// ESTRUCTURAS RECURSIVAS (Org / Cat)
+// ==========================================================================
+
+model EstructuraJerarquica {
+  IdNodoOrg       String     @id @default(dbgenerated("NEWID()")) @db.UniqueIdentifier
+  IdVigencia      String     @db.UniqueIdentifier
+  IdPadre         String?    @db.UniqueIdentifier
+  Nivel           Int
+  CodigoInterno   String     @db.NVarChar(50)
+  Nombre          String     @db.NVarChar(200)
+  Activo          Boolean    @default(true)
+
+  Vigencia        Vigencias              @relation(fields: [IdVigencia], references: [IdVigencia])
+  Padre           EstructuraJerarquica?  @relation("OrgPadreHijo", fields: [IdPadre], references: [IdNodoOrg], onDelete: NoAction, onUpdate: NoAction)
+  Hijos           EstructuraJerarquica[] @relation("OrgPadreHijo")
+
+  MapaRelaciones        MapaRelaciones[]
+  UsuariosDependencia   UsuariosDependencia[]
+
+  @@unique([IdVigencia, CodigoInterno], map: "UQ_EstrOrg_VigCodigo")
+  @@map("EstructuraJerarquica")
+  @@schema("Org")
+}
+
+model EstructuraProcesos {
+  IdNodoProceso   String     @id @default(dbgenerated("NEWID()")) @db.UniqueIdentifier
+  IdVigencia      String     @db.UniqueIdentifier
+  IdPadre         String?    @db.UniqueIdentifier
+  IdTipoProceso   Int?
+  Nivel           Int
+  CodigoInterno   String     @db.NVarChar(50)
+  Nombre          String     @db.NVarChar(Max)
+  Producto        String?    @db.NVarChar(200)
+  Activo          Boolean    @default(true)
+
+  Vigencia        Vigencias            @relation(fields: [IdVigencia], references: [IdVigencia])
+  Padre           EstructuraProcesos?  @relation("ProcPadreHijo", fields: [IdPadre], references: [IdNodoProceso], onDelete: NoAction, onUpdate: NoAction)
+  Hijos           EstructuraProcesos[] @relation("ProcPadreHijo")
+  TipoProceso     TiposProceso?        @relation(fields: [IdTipoProceso], references: [IdTipoProceso])
+
+  MapaRelaciones  MapaRelaciones[]
+
+  @@unique([IdVigencia, CodigoInterno], map: "UQ_EstrProc_VigCodigo")
+  @@map("EstructuraProcesos")
+  @@schema("Cat")
+}
+
+model MapaRelaciones {
+  IdMapa                BigInt    @id @default(autoincrement())
+  IdVigencia            String    @db.UniqueIdentifier
+  IdNodoOrg             String    @db.UniqueIdentifier
+  IdNodoProceso         String    @db.UniqueIdentifier
+  ObservacionRelacion   String?   @db.NVarChar(500)
+  Activo                Boolean   @default(true)
+  CreatedBy             String    @db.NVarChar(100)
+  CreatedAt             DateTime  @default(dbgenerated("SYSDATETIME()")) @db.DateTime2
+
+  Vigencia        Vigencias              @relation(fields: [IdVigencia], references: [IdVigencia], onDelete: NoAction, onUpdate: NoAction)
+  NodoOrg         EstructuraJerarquica   @relation(fields: [IdNodoOrg], references: [IdNodoOrg], onDelete: NoAction, onUpdate: NoAction)
+  NodoProceso    EstructuraProcesos     @relation(fields: [IdNodoProceso], references: [IdNodoProceso], onDelete: NoAction, onUpdate: NoAction)
+
+  CargasTrabajo   CargasTrabajo[]
+
+  @@unique([IdVigencia, IdNodoOrg, IdNodoProceso], map: "UQ_MapaRel_Unico")
+  @@map("MapaRelaciones")
+  @@schema("Org")
+}
+
+model Cargos {
+  IdCargo           Int       @id @default(autoincrement())
+  IdVigencia        String    @db.UniqueIdentifier
+  CodigoDANE        String?   @db.NVarChar(20)
+  Denominacion      String    @db.NVarChar(200)
+  Grado             String?   @db.NVarChar(20)
+  NivelJerarquico   String    @db.NVarChar(50)
+  Activo            Boolean   @default(true)
+  CreatedBy         String    @db.NVarChar(100)
+  CreatedAt         DateTime  @default(dbgenerated("SYSDATETIME()")) @db.DateTime2
+
+  Vigencia        Vigencias        @relation(fields: [IdVigencia], references: [IdVigencia])
+  CargasTrabajo   CargasTrabajo[]
+
+  @@unique([IdVigencia, Denominacion, Grado], map: "UQ_Cargos_VigDenomGrado")
+  @@map("Cargos")
+  @@schema("Org")
+}
+
+// ==========================================================================
+// OPERACIÓN TRANSACCIONAL (Ops)
+// ==========================================================================
+
+model CargasTrabajo {
+  IdCarga              String    @id @default(dbgenerated("NEWID()")) @db.UniqueIdentifier
+  IdVigencia           String    @db.UniqueIdentifier
+  IdMapa               BigInt
+  IdCargoEjecutor      Int
+  IdFactorFrecuencia   Int
+
+  Volumen              Int
+  UnidadTiempoInput    String    @db.NVarChar(10)
+
+  Tmin_Horas           Decimal   @db.Decimal(18, 6)
+  Tnorm_Horas          Decimal   @db.Decimal(18, 6)
+  Tmax_Horas           Decimal   @db.Decimal(18, 6)
+
+  // Calculados por trigger - solo lectura desde la aplicación
+  TR_Calculado         Decimal?  @db.Decimal(18, 6)
+  TE_Calculado         Decimal?  @db.Decimal(18, 6)
+  CargaTotalMensual    Decimal?  @db.Decimal(18, 6)
+  ETP_Requerido        Decimal?  @db.Decimal(18, 6)
+
+  // Snapshots metodológicos
+  Snapshot_TS          Decimal?  @db.Decimal(5, 4)
+  Snapshot_HorasEfec   Decimal?  @db.Decimal(6, 2)
+  Snapshot_FactorMens  Decimal?  @db.Decimal(18, 6)
+
+  // Flags de calidad
+  IsFlatTime           Boolean   @default(false)
+  IsExtendedDay        Boolean   @default(false)
+  IsFlagged            Boolean   @default(false)
+  Activo               Boolean   @default(true)
+
+  // Auditoría
+  CreatedBy            String    @db.NVarChar(100)
+  CreatedAt            DateTime  @default(dbgenerated("SYSDATETIME()")) @db.DateTime2
+  UpdatedBy            String?   @db.NVarChar(100)
+  UpdatedAt            DateTime? @db.DateTime2
+  IPOrigen             String?   @db.NVarChar(50)
+
+  Vigencia          Vigencias            @relation(fields: [IdVigencia], references: [IdVigencia], onDelete: NoAction, onUpdate: NoAction)
+  Mapa              MapaRelaciones       @relation(fields: [IdMapa], references: [IdMapa], onDelete: NoAction, onUpdate: NoAction)
+  CargoEjecutor     Cargos               @relation(fields: [IdCargoEjecutor], references: [IdCargo], onDelete: NoAction, onUpdate: NoAction)
+  FactorFrecuencia  FactoresFrecuencia   @relation(fields: [IdFactorFrecuencia], references: [IdFactor], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([IdVigencia, IdMapa],          map: "IX_Cargas_Vigencia_Mapa")
+  @@index([IdVigencia, IdCargoEjecutor], map: "IX_Cargas_Vigencia_Cargo")
+  @@index([CreatedAt(sort: Desc), CreatedBy], map: "IX_Cargas_Auditoria_Created")
+  @@map("CargasTrabajo")
+  @@schema("Ops")
+}
+
+// ==========================================================================
+// AUDITORÍA INMUTABLE (Aud)
+// ==========================================================================
+// Esta tabla es escrita exclusivamente por triggers SQL Server.
+// Desde Prisma se debe usar SOLO en modo lectura (consultas de auditoría).
+
+model AuditLogs {
+  IdAudit         BigInt    @id @default(autoincrement())
+  Tabla           String    @db.NVarChar(100)
+  Operacion       String    @db.NVarChar(10)
+  IdRegistro      String    @db.NVarChar(50)
+  ValorAnterior   String?   @db.NVarChar(Max)
+  ValorNuevo      String?   @db.NVarChar(Max)
+  UsuarioId       String    @db.NVarChar(200)
+  IPOrigen        String?   @db.NVarChar(50)
+  FechaHora       DateTime  @default(dbgenerated("SYSDATETIME()")) @db.DateTime2
+
+  @@index([Tabla, FechaHora(sort: Desc)],     map: "IX_AuditLogs_TablaFecha")
+  @@index([UsuarioId, FechaHora(sort: Desc)], map: "IX_AuditLogs_Usuario")
+  @@map("AuditLogs")
+  @@schema("Aud")
+}
+
+// ==========================================================================
+// IMPORTACIÓN - STAGING FORENSE (Imp)
+// ==========================================================================
+
+model LotesCarga {
+  IdLote            BigInt    @id @default(autoincrement())
+  IdVigencia        String    @db.UniqueIdentifier
+  TipoLote          String    @db.NVarChar(50)
+  NombreArchivo     String?   @db.NVarChar(300)
+  TotalRegistros    Int?
+  Estado            String    @default("Pendiente") @db.NVarChar(20)
+  MensajeError      String?   @db.NVarChar(Max)
+  UsuarioCarga      String    @db.NVarChar(200)
+  FechaInicio       DateTime  @default(dbgenerated("SYSDATETIME()")) @db.DateTime2
+  FechaFin          DateTime? @db.DateTime2
+  IPOrigen          String?   @db.NVarChar(50)
+
+  Vigencia                Vigencias                 @relation(fields: [IdVigencia], references: [IdVigencia])
+  Staging_EstructuraOrg   Staging_EstructuraOrg[]
+  Staging_EstructuraProc  Staging_EstructuraProc[]
+  Staging_Rel_OrgProc     Staging_Rel_OrgProc[]
+  Staging_Rel_DepProc     Staging_Rel_DepProc[]
+
+  @@map("LotesCarga")
+  @@schema("Imp")
+}
+
+model Staging_EstructuraOrg {
+  IdStaging              BigInt    @id @default(autoincrement())
+  IdLote                 BigInt
+  IdVigencia             String    @db.UniqueIdentifier
+  Codigo                 String?   @db.NVarChar(50)
+  CodigoPadre            String?   @db.NVarChar(50)
+  Nombre                 String?   @db.NVarChar(200)
+  Nivel                  Int?
+
+  EstadoProcesamiento    String    @default("Pendiente") @db.NVarChar(20)
+  MensajeProcesamiento   String?   @db.NVarChar(500)
+  FechaProcesamiento     DateTime? @db.DateTime2
+  IdNodoOrgCreado        String?   @db.UniqueIdentifier
+
+  Lote  LotesCarga  @relation(fields: [IdLote], references: [IdLote])
+
+  @@map("Staging_EstructuraOrg")
+  @@schema("Imp")
+}
+
+model Staging_EstructuraProc {
+  IdStaging              BigInt    @id @default(autoincrement())
+  IdLote                 BigInt
+  IdVigencia             String    @db.UniqueIdentifier
+  Codigo                 String?   @db.NVarChar(50)
+  CodigoPadre            String?   @db.NVarChar(50)
+  Nombre                 String?   @db.NVarChar(Max)
+  Producto               String?   @db.NVarChar(200)
+  TipoProceso            String?   @db.NVarChar(50)
+  Nivel                  Int?
+
+  EstadoProcesamiento    String    @default("Pendiente") @db.NVarChar(20)
+  MensajeProcesamiento   String?   @db.NVarChar(500)
+  FechaProcesamiento     DateTime? @db.DateTime2
+  IdNodoProcCreado       String?   @db.UniqueIdentifier
+
+  Lote  LotesCarga  @relation(fields: [IdLote], references: [IdLote])
+
+  @@map("Staging_EstructuraProc")
+  @@schema("Imp")
+}
+
+model Staging_Rel_OrgProc {
+  IdStaging              BigInt    @id @default(autoincrement())
+  IdLote                 BigInt
+  IdVigencia             String    @db.UniqueIdentifier
+  CodigoOrg              String?   @db.NVarChar(50)
+  CodigoProc             String?   @db.NVarChar(50)
+  ObservacionRelacion    String?   @db.NVarChar(500)
+
+  EstadoProcesamiento    String    @default("Pendiente") @db.NVarChar(20)
+  MensajeProcesamiento   String?   @db.NVarChar(500)
+  FechaProcesamiento     DateTime? @db.DateTime2
+  IdMapaCreado           BigInt?
+
+  Lote  LotesCarga  @relation(fields: [IdLote], references: [IdLote])
+
+  @@map("Staging_Rel_OrgProc")
+  @@schema("Imp")
+}
+
+model Staging_Rel_DepProc {
+  IdStaging              BigInt    @id @default(autoincrement())
+  IdLote                 BigInt
+  IdVigencia             String    @db.UniqueIdentifier
+  CodigoDep              String?   @db.NVarChar(50)
+  CodigoProc             String?   @db.NVarChar(50)
+  ObservacionRelacion    String?   @db.NVarChar(500)
+
+  EstadoProcesamiento    String    @default("Pendiente") @db.NVarChar(20)
+  MensajeProcesamiento   String?   @db.NVarChar(500)
+  FechaProcesamiento     DateTime? @db.DateTime2
+  IdMapaCreado           BigInt?
+
+  Lote  LotesCarga  @relation(fields: [IdLote], references: [IdLote])
+
+  @@map("Staging_Rel_DepProc")
+  @@schema("Imp")
+}

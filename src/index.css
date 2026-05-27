@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Primary Colors */
+  --color-brand-green: #018d38;
+  --color-brand-dark: #0b5640;
+  --color-brand-mint: #3AF9A2;
+  
+  /* Secondary Colors */
+  --color-brand-blue: #3561ab;
+  --color-brand-lightblue: #8FCAF0;
+  --color-brand-orange: #f28e18;
+  --color-brand-purple: #8b4a97;
+  --color-brand-olive: #B0942B;
+
+  /* Mapping old institutional colors to the new primary brand color (Green) */
+  --color-institutional-blue: #018d38; 
+  --color-institutional-green: #0b5640;
+  
+  --color-institutional-dark: #0b5640;
+  --color-institutional-bg: #f7fafc;
+  
+  /* Standardized Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[var(--color-institutional-bg)] text-slate-800 font-sans antialiased;
+  }
+  
+  /* Ensure consistent headings */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+/* Custom scrollbar for a cleaner look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+}
+
+.resizable-th {
+  resize: horizontal;
+  overflow: auto;
+  min-width: 120px;
+}
+.resizable-th::-webkit-scrollbar {
+  height: 4px; /* Thin scrollbar for the table header */
+}
+.resizable-th::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+.resizable-th:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(203, 213, 225, 0.8);
+}
