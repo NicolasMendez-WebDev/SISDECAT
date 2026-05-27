@@ -194,12 +194,21 @@ export default function App() {
               vigenciaId: x.IdVigencia,
               codigo: x.CodigoInterno,
               nombre: x.Nombre,
-              padreId: x.IdPadre,
+              parentId: x.IdPadre,
               level: x.Nivel,
               activo: x.Activo
             }));
             setOrgData(fetchedOrgs);
             setDepData(fetchedDeps);
+
+            const mapaDb = await DatabaseService.getMapaRelaciones();
+            const mappedRels = mapaDb.map(m => ({
+               vigenciaId: m.IdVigencia,
+               parentId: m.IdNodoOrg,
+               childId: m.IdNodoProceso,
+               type: m.ObservacionRelacion || "Proceso"
+            }));
+            setRelaciones(mappedRels);
 
             const procDb = await DatabaseService.getEstructuraProc();
             const fetchedMacros = procDb.filter(x => x.Nivel === 1).map(x => ({
@@ -207,6 +216,7 @@ export default function App() {
                vigenciaId: x.IdVigencia,
                codigo: x.CodigoInterno,
                nombre: x.Nombre,
+               dependenciaId: mappedRels.find(r => r.childId === x.IdNodoProceso)?.parentId || null,
                level: 1
             }));
             const fetchedProcs = procDb.filter(x => x.Nivel === 2).map(x => ({
@@ -250,15 +260,6 @@ export default function App() {
                } as User;
             });
             setUsuarios(uniqueUsers);
-
-            const mapaDb = await DatabaseService.getMapaRelaciones();
-            const mappedRels = mapaDb.map(m => ({
-               vigenciaId: m.IdVigencia,
-               parentId: m.IdNodoOrg,
-               childId: m.IdNodoProceso,
-               type: m.ObservacionRelacion || "Proceso"
-            }));
-            setRelaciones(mappedRels);
 
             const { captureService } = await import("./application/services/captureService");
             const existingCargas = await captureService.getCargas();
@@ -598,12 +599,26 @@ export default function App() {
     setPcdData(newPcds);
     setActData(newActs);
 
+    let newRels = [...relaciones];
+    if (mode === "create" && type === "Proceso" && data.parentId) {
+       newRels.push({
+           type: "Proceso",
+           childId: modifiedId!,
+           parentId: data.parentId,
+           vigenciaId: currentVigenciaView?.IdVigencia
+       });
+       setRelaciones(newRels);
+    }
+
     try {
       const { DatabaseService } = await import("./application/services/DatabaseService");
       if (type === "Organismo" || type === "Dependencia") {
          await DatabaseService.saveEstructuraOrg([...newOrgs, ...newDeps]);
       } else {
          await DatabaseService.saveEstructuraProc([...newProcs, ...newPcds, ...newActs]);
+         if (mode === "create" && type === "Proceso" && data.parentId) {
+            await DatabaseService.saveMapaRelaciones(newRels);
+         }
       }
     } catch(e: any) {
       console.error("Could not push structure update to API", e);

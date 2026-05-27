@@ -69,8 +69,8 @@ export const DatabaseService = {
       const format = nodos.map(n => ({
         IdNodoOrg: n.IdNodoOrg || n.id,
         IdVigencia: n.IdVigencia || n.vigenciaId,
-        IdPadre: n.IdPadre || n.padreId || null,
-        Nivel: n.Nivel || n.nivel || 1,
+        IdPadre: n.IdPadre || n.parentId || null,
+        Nivel: n.Nivel || n.level || (n.parentId ? 2 : 1),
         CodigoInterno: n.CodigoInterno || n.codigo || 'S/N',
         Nombre: n.Nombre || n.nombre || 'Nodo',
         Activo: n.Activo ?? true
