@@ -575,7 +575,7 @@ export default function App() {
       if (type === "Procedimiento") newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc));
       if (type === "Actividad") newActs = actData.map((a) => (a.id === id ? { ...a, ...data } : a));
     } else {
-      const newId = Math.floor(100000 + Math.random() * 900000).toString();
+      const newId = crypto.randomUUID();
       modifiedId = newId;
       
       let calculatedLevel = 1;
@@ -699,8 +699,20 @@ export default function App() {
 
         if (!codigo || !nombre) return;
         
-        let nodeUuid = codigo; // Usar codigo directo corto en las importaciones
-        let parentUuid = padre ? padre : null;
+        let nodeUuid = idCodeMap.get(codigo);
+        if (!nodeUuid) {
+           nodeUuid = crypto.randomUUID();
+           idCodeMap.set(codigo, nodeUuid);
+        }
+        
+        let parentUuid = null;
+        if (padre && padre !== codigo) {
+           parentUuid = idCodeMap.get(padre);
+           if (!parentUuid) {
+              parentUuid = crypto.randomUUID();
+              idCodeMap.set(padre, parentUuid);
+           }
+        }
 
         if (nivel === '0' || nivel === '1' || !padre || padre === codigo) {
           // Organismo usually root
@@ -792,11 +804,22 @@ export default function App() {
 
         if (!codigo || !nombre) return;
         
-        let nodeUuid = codigo;
+        let nodeUuid = idCodeMap.get(codigo);
+        if (!nodeUuid) {
+           nodeUuid = crypto.randomUUID();
+           idCodeMap.set(codigo, nodeUuid);
+        }
         
         if (nivel === '1' || nivel === '0') return; // Skip Level 1 inside here as they are just types
 
-        let parentUuid = padre ? padre : null;
+        let parentUuid = null;
+        if (padre) {
+           parentUuid = idCodeMap.get(padre);
+           if (!parentUuid) {
+              parentUuid = crypto.randomUUID();
+              idCodeMap.set(padre, parentUuid);
+           }
+        }
 
         if (nivel === '2') {
           const tipo = tiposProceso[padre] || "Misional";
@@ -844,8 +867,19 @@ export default function App() {
   
           if (!codigo || !nombre) return;
   
-          let nodeUuid = codigo;
-          let parentUuid = padre ? padre : null;
+          let nodeUuid = idCodeMap.get(codigo);
+          if (!nodeUuid) {
+             nodeUuid = crypto.randomUUID();
+             idCodeMap.set(codigo, nodeUuid);
+          }
+          let parentUuid = null;
+          if (padre) {
+             parentUuid = idCodeMap.get(padre);
+             if (!parentUuid) {
+                parentUuid = crypto.randomUUID();
+                idCodeMap.set(padre, parentUuid);
+             }
+          }
 
           if (!padre || codigo === padre || nivel === '1' || String(nivel).toLowerCase().includes('proceso')) {
             newProcs.push({
@@ -1719,7 +1753,7 @@ export default function App() {
                          const randomlySelectedUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
 
                          generatedCargas.push({
-                            id: Math.floor(100000 + Math.random() * 900000).toString(),
+                            id: crypto.randomUUID(),
                             vigenciaId: currentVigenciaView.IdVigencia,
                             organismoId: selectedPath.orgId,
                             dependenciaId: selectedPath.depId,
