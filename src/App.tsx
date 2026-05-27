@@ -580,10 +580,6 @@ export default function App() {
       const newItem = { id: newId, ...data, activo: true, vigenciaId: currentVigenciaView?.IdVigencia };
 
       if (type === "Organismo") {
-        if (!data.parentId) {
-          const rootOrg = orgData.find((o) => !o.parentId);
-          if (rootOrg) newItem.parentId = rootOrg.id;
-        }
         newOrgs = [...orgData, newItem];
       } else if (type === "Dependencia") {
         newDeps = [...depData, newItem];
@@ -596,12 +592,6 @@ export default function App() {
       }
     }
 
-    setOrgData(newOrgs);
-    setDepData(newDeps);
-    setProcData(newProcs);
-    setPcdData(newPcds);
-    setActData(newActs);
-
     let newRels = [...relaciones];
     if (mode === "create" && type === "Proceso" && data.parentId) {
        newRels.push({
@@ -610,7 +600,6 @@ export default function App() {
            parentId: data.parentId,
            vigenciaId: currentVigenciaView?.IdVigencia
        });
-       setRelaciones(newRels);
     }
 
     try {
@@ -623,9 +612,19 @@ export default function App() {
             await DatabaseService.saveMapaRelaciones(newRels);
          }
       }
+      
+      setOrgData(newOrgs);
+      setDepData(newDeps);
+      setProcData(newProcs);
+      setPcdData(newPcds);
+      setActData(newActs);
+      if (mode === "create" && type === "Proceso" && data.parentId) {
+         setRelaciones(newRels);
+      }
     } catch(e: any) {
       console.error("Could not push structure update to API", e);
-      showToast(`Error local, asegúrese de tener conexión: ${e.message}`, "error");
+      showToast(`Error al guardar en base de datos: ${e.message}`, "error");
+      return; // DO NOT update state or show success toast if it fails
     }
 
     const actionText = mode === "edit" ? "actualizado" : "creado";
@@ -1220,27 +1219,22 @@ export default function App() {
     if (type === "Organismo") {
       itemName = orgData.find((o) => o.id === id)?.nombre || itemName;
       updatedList = orgData.map(changeToInactive);
-      setOrgData(updatedList);
     }
     if (type === "Dependencia") {
       itemName = depData.find((d) => d.id === id)?.nombre || itemName;
       updatedList = depData.map(changeToInactive);
-      setDepData(updatedList);
     }
     if (type === "Proceso") {
       itemName = procData.find((p) => p.id === id)?.nombre || itemName;
       updatedList = procData.map(changeToInactive);
-      setProcData(updatedList);
     }
     if (type === "Procedimiento") {
       itemName = pcdData.find((pc) => pc.id === id)?.nombre || itemName;
       updatedList = pcdData.map(changeToInactive);
-      setPcdData(updatedList);
     }
     if (type === "Actividad") {
       itemName = actData.find((a) => a.id === id)?.nombre || itemName;
       updatedList = actData.map(changeToInactive);
-      setActData(updatedList);
     }
 
     try {
@@ -1250,9 +1244,18 @@ export default function App() {
       } else {
          await DatabaseService.saveEstructuraProc(updatedList);
       }
+      
+      // Only apply state updates if save succeeds
+      if (type === "Organismo") setOrgData(updatedList);
+      if (type === "Dependencia") setDepData(updatedList);
+      if (type === "Proceso") setProcData(updatedList);
+      if (type === "Procedimiento") setPcdData(updatedList);
+      if (type === "Actividad") setActData(updatedList);
+      
     } catch(e: any) {
       console.error("Could not save deletion to DB", e);
-        showToast(`Error remoto al eliminar: ${e.message}`, "error");
+      showToast(`Error remoto al eliminar: ${e.message}`, "error");
+      return; // DO NOT update state or show success toast if it fails
     }
 
     showToast(`${type} eliminado exitosamente.`, "success", {
