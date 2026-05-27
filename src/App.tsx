@@ -1252,22 +1252,22 @@ export default function App() {
       }
     } catch(e: any) {
       console.error("Could not save deletion to DB", e);
-      showToast(`Error remoto al desactivar: ${e.message}`, "error");
+        showToast(`Error remoto al eliminar: ${e.message}`, "error");
     }
 
-    showToast(`${type} desactivado exitosamente.`, "success", {
+    showToast(`${type} eliminado exitosamente.`, "success", {
       type,
       name: itemName,
-      action: "desactivado",
+      action: "eliminado",
     });
   };
 
   const handleDeleteStructure = (type: string, id: string) => {
     setConfirmConfig({
       isOpen: true,
-      title: `Desactivar ${type}`,
-      message: `¿Está seguro de que desea desactivar este ${type}? El elemento no se eliminará permanentemente, sino que pasará a estado inactivo para mantener el historial de auditoría.`,
-      confirmText: "Desactivar",
+      title: `Eliminar ${type}`,
+      message: `¿Está seguro de que desea eliminar este ${type}? El elemento se eliminará lógicamente para mantener la consistencia histórica, dejando de mostrarse en la estructura.`,
+      confirmText: "Eliminar",
       cancelText: "Cancelar",
       type: "warning",
       onConfirm: () => executeDeleteStructure(type, id),

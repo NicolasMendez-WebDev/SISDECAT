@@ -791,10 +791,10 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
             <p><strong>Vista General (Relaciones):</strong> Esta vista es exclusiva para gestionar vinculaciones. Eliminar un elemento aquí solo lo <strong>desvinculará</strong> de su padre actual, conservándolo en el catálogo base. Para crear o editar elementos, diríjase a los catálogos base.</p>
           )}
           {viewMode === 'organizacional' && (
-            <p><strong>Catálogo Organizacional:</strong> Las ediciones o cambios de los elementos afectan en toda la organización. Desactivar un organismo o dependencia pasará al estado inactivo afectando toda la organización.</p>
+            <p><strong>Catálogo Organizacional:</strong> Las ediciones o cambios de los elementos afectan en toda la organización. Eliminar un organismo o dependencia causará un borrado lógico, ocultándolo de la estructura actual.</p>
           )}
           {viewMode === 'procedimental' && (
-            <p><strong>Catálogo Procedimental:</strong> Las ediciones o cambios de los elementos afectan en toda la organización. Desactivar un proceso, procedimiento o actividad pasará al estado inactivo afectando toda la organización.</p>
+            <p><strong>Catálogo Procedimental:</strong> Las ediciones o cambios de los elementos afectan en toda la organización. Eliminar un proceso, procedimiento o actividad causará un borrado lógico, ocultándolo de la estructura actual.</p>
           )}
         </div>
       </div>

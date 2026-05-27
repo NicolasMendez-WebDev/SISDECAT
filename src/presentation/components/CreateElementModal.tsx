@@ -121,29 +121,16 @@ export const CreateElementModal: React.FC<CreateElementModalProps> = ({
             {errors.nombre && <p className="text-[10px] text-red-500 font-bold flex items-center gap-1"><AlertCircle size={10} /> {errors.nombre}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Código Institucional</label>
-              <input 
-                type="text"
-                value={formData.codigo}
-                onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
-                placeholder="Ej: 001-01"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-institutional-blue/20 rounded-xl text-sm outline-none transition-all"
-              />
-              <p className="text-[10px] text-slate-400 mt-1">El ID interno de base de datos se generará automáticamente.</p>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Estado</label>
-              <select 
-                value={formData.estado}
-                onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-institutional-blue/20 rounded-xl text-sm outline-none transition-all appearance-none"
-              >
-                <option value="Activo">Activo</option>
-                <option value="Inactivo">Inactivo</option>
-              </select>
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Código Institucional</label>
+            <input 
+              type="text"
+              value={formData.codigo}
+              onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
+              placeholder="Ej: 001-01"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-institutional-blue/20 rounded-xl text-sm outline-none transition-all"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">El ID interno de base de datos se generará automáticamente.</p>
           </div>
 
           <div className="space-y-1.5">

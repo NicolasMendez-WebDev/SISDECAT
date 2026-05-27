@@ -71,7 +71,7 @@ export const DatabaseService = {
         IdVigencia: n.IdVigencia || n.vigenciaId,
         IdPadre: n.IdPadre || n.parentId || null,
         Nivel: n.Nivel || n.level || (n.parentId ? 2 : 1),
-        CodigoInterno: n.CodigoInterno || n.codigo || 'S/N',
+        CodigoInterno: n.CodigoInterno || (n.codigo && typeof n.codigo === 'string' && n.codigo.trim() !== '' ? n.codigo.trim() : null) || (String(n.IdNodoOrg || n.id || "")).substring(0,8) || 'S/N',
         Nombre: n.Nombre || n.nombre || 'Nodo',
         Activo: n.Activo !== undefined ? n.Activo : (n.activo !== undefined ? n.activo : true)
       }));
@@ -107,7 +107,7 @@ export const DatabaseService = {
         IdPadre: n.IdPadre || n.padreId || null,
         IdTipoProceso: n.IdTipoProceso || null,
         Nivel: n.Nivel || n.nivel || 1,
-        CodigoInterno: n.CodigoInterno || n.codigo || 'S/N',
+        CodigoInterno: n.CodigoInterno || (n.codigo && typeof n.codigo === 'string' && n.codigo.trim() !== '' ? n.codigo.trim() : null) || (String(n.IdNodoProceso || n.id || "")).substring(0,8) || 'S/N',
         Nombre: n.Nombre || n.nombre || 'Proceso',
         Producto: n.Producto || n.producto || null,
         Activo: n.Activo !== undefined ? n.Activo : (n.activo !== undefined ? n.activo : true)
