@@ -187,7 +187,8 @@ export default function App() {
               codigo: x.CodigoInterno,
               nombre: x.Nombre,
               level: 1,
-              activo: x.Activo
+              activo: x.Activo,
+              estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
             const fetchedDeps = orgDb.filter(x => x.Nivel > 1).map(x => ({
               id: x.IdNodoOrg,
@@ -196,7 +197,8 @@ export default function App() {
               nombre: x.Nombre,
               parentId: x.IdPadre,
               level: x.Nivel,
-              activo: x.Activo
+              activo: x.Activo,
+              estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
             setOrgData(fetchedOrgs);
             setDepData(fetchedDeps);
@@ -217,7 +219,9 @@ export default function App() {
                codigo: x.CodigoInterno,
                nombre: x.Nombre,
                dependenciaId: mappedRels.find(r => r.childId === x.IdNodoProceso)?.parentId || null,
-               level: 1
+               level: 1,
+               activo: x.Activo,
+               estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
             const fetchedProcs = procDb.filter(x => x.Nivel === 2).map(x => ({
                id: x.IdNodoProceso,
@@ -226,7 +230,9 @@ export default function App() {
                nombre: x.Nombre,
                procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 2
                producto: x.Producto,
-               level: 2
+               level: 2,
+               activo: x.Activo,
+               estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
             const fetchedActs = procDb.filter(x => x.Nivel === 3).map(x => ({
                id: x.IdNodoProceso,
@@ -234,7 +240,9 @@ export default function App() {
                codigo: x.CodigoInterno,
                nombre: x.Nombre,
                procedimientoId: x.IdPadre,
-               level: 3
+               level: 3,
+               activo: x.Activo,
+               estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
             setProcData(fetchedMacros);
             setPcdData(fetchedProcs);
@@ -671,6 +679,7 @@ export default function App() {
 
       const newOrgs: any[] = [];
       const newDeps: any[] = [];
+      const idCodeMap = new Map<string, string>();
 
       datos.forEach(row => {
         const codigo = String(row[codeKey as string] ?? '').trim();
@@ -685,6 +694,7 @@ export default function App() {
           // Organismo usually root
           newOrgs.push({
              id: codigo,
+             codigo: codigo,
              nombre,
              estado: "Activo",
              vigenciaId: currentVigenciaView?.IdVigencia,
@@ -692,17 +702,12 @@ export default function App() {
           });
         } else {
           // Dependencia
-          // Trying to guess if parent is another Org or Dep based on code
-          let parsedParentId = padre;
-          if (padre !== '10000' && !newOrgs.some(o => o.id === padre)) {
-             parsedParentId = "dep_" + padre;
-          }
-          
           newDeps.push({
-             id: "dep_" + codigo,
+             id: codigo,
+             codigo: codigo,
              nombre,
              estado: "Activo",
-             parentId: parsedParentId,
+             parentId: padre || undefined,
              vigenciaId: currentVigenciaView?.IdVigencia,
              fechaCreacion: new Date().toISOString()
           });
@@ -740,6 +745,7 @@ export default function App() {
       const newActs: any[] = [];
       
       const tiposProceso: Record<string, string> = {};
+      const idCodeMap = new Map<string, string>(); // Maps legacy code to UUID
 
       // Primera pasada: identificar Tipos de Proceso (Nivel 1)
       datos.forEach(row => {
@@ -759,12 +765,15 @@ export default function App() {
         const padre = padreRaw ? String(padreRaw).trim() : '';
         const nivel = String(row[nivelKey as string] ?? '').trim();
 
-        if (!codigo || !nombre || nivel === '1' || nivel === '0') return;
+        if (!codigo || !nombre) return;
+        
+        if (nivel === '1' || nivel === '0') return; // Skip Level 1 inside here as they are just types
 
         if (nivel === '2') {
           const tipo = tiposProceso[padre] || "Misional";
           newProcs.push({
-             id: "proc_" + codigo,
+             id: codigo,
+             codigo: codigo,
              nombre,
              descripcion: `Tipo de proceso: ${tipo}`,
              estado: "Activo",
@@ -773,17 +782,19 @@ export default function App() {
           });
         } else if (nivel === '3') {
           newPcds.push({
-             id: "pcd_" + codigo,
+             id: codigo,
+             codigo: codigo,
              nombre,
-             procesoId: padre ? "proc_" + padre : undefined,
+             procesoId: padre || undefined,
              estado: "Activo",
              vigenciaId: currentVigenciaView?.IdVigencia,
           });
         } else if (nivel === '4' || parseInt(nivel) > 4) {
           newActs.push({
-             id: "act_" + codigo,
+             id: codigo,
+             codigo: codigo,
              nombre,
-             procedimientoId: padre ? "pcd_" + padre : undefined,
+             procedimientoId: padre || undefined,
              estado: "Activo",
              vigenciaId: currentVigenciaView?.IdVigencia,
           });

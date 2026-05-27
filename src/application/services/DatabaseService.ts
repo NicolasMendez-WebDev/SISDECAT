@@ -73,7 +73,7 @@ export const DatabaseService = {
         Nivel: n.Nivel || n.level || (n.parentId ? 2 : 1),
         CodigoInterno: n.CodigoInterno || n.codigo || 'S/N',
         Nombre: n.Nombre || n.nombre || 'Nodo',
-        Activo: n.Activo ?? true
+        Activo: n.Activo !== undefined ? n.Activo : (n.activo !== undefined ? n.activo : true)
       }));
       console.log("Supabase saveEstructuraOrg payload:", format);
       const resp = await supabase.schema('Org').from('EstructuraJerarquica').upsert(format, { onConflict: 'IdNodoOrg' }).select();
@@ -110,7 +110,7 @@ export const DatabaseService = {
         CodigoInterno: n.CodigoInterno || n.codigo || 'S/N',
         Nombre: n.Nombre || n.nombre || 'Proceso',
         Producto: n.Producto || n.producto || null,
-        Activo: n.Activo ?? true
+        Activo: n.Activo !== undefined ? n.Activo : (n.activo !== undefined ? n.activo : true)
       }));
       console.log("Supabase saveEstructuraProc payload:", format);
       const resp = await supabase.schema('Cat').from('EstructuraProcesos').upsert(format, { onConflict: 'IdNodoProceso' }).select();
@@ -143,7 +143,7 @@ export const DatabaseService = {
         IdNodoOrg: r.IdNodoOrg || r.parentId,
         IdNodoProceso: r.IdNodoProceso || r.childId,
         ObservacionRelacion: r.type || null,
-        Activo: r.Activo ?? true
+        Activo: r.Activo !== undefined ? r.Activo : (r.activo !== undefined ? r.activo : true)
       }));
       
       console.log("Supabase saveMapaRelaciones payload:", format);
@@ -178,7 +178,7 @@ export const DatabaseService = {
         EntraIdObjectId: vu.EntraIdObjectId,
         IdNodoOrg: vu.IdNodoOrg || null,
         RolFuncional: vu.RolFuncional || 'Funcionario',
-        Activo: vu.Activo ?? true
+        Activo: vu.Activo !== undefined ? vu.Activo : (vu.activo !== undefined ? vu.activo : true)
       }, { onConflict: 'IdUsuarioDep' }).select();
       if (error) throw error;
       return data?.[0] || vu;
