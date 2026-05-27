@@ -263,8 +263,9 @@ export default function App() {
             const { captureService } = await import("./application/services/captureService");
             const existingCargas = await captureService.getCargas();
             setCargasTrabajo(existingCargas || []);
-          } catch (e) {
+          } catch (e: any) {
             console.error("Error loading prod data from supabase:", e);
+            showToast(`Error al cargar datos desde Supabase: ${e.message}`, "error");
             setOrgData([]); setDepData([]); setProcData([]); setPcdData([]); setActData([]);
             setVigencias([]); setRelaciones([]); setCargasTrabajo([]);
           }

@@ -26,7 +26,7 @@ export const AuthService = {
     if (supabase) {
       // Logic inside Supabase should ideally assign role using triggers or functions 
       // but for now, we pass it in metadata if we want. It's safer to just let it be Funcionario unless it's the first.
-      const { data: usersData } = await supabase.schema('Sec').from('UsuariosDependencia').select('IdUsuarioDep', { count: 'exact', head: true });
+      const { data: usersData } = await supabase.from('UsuariosDependencia').select('IdUsuarioDep', { count: 'exact', head: true });
       const isFirstUser = usersData === null || usersData === undefined || usersData.length === 0; // rough proxy
       const assignedRole = isFirstUser ? 'AdminFuncional' : 'Funcionario';
 

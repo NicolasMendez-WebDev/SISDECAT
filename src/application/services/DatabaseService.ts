@@ -4,19 +4,19 @@ export const DatabaseService = {
   getVigencias: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Conf').from('Vigencias').select('*');
+      const { data, error } = await supabase.from('Vigencias').select('*');
       if (error) throw error;
       return data || [];
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error fetching vigencias", e);
-      return [];
+      throw new Error(e.message || "Error al cargar vigencias de base de datos");
     }
   },
   
   saveVigencia: async (v: any) => {
     if (!supabase) return v;
     try {
-      const { data, error } = await supabase.schema('Conf').from('Vigencias').upsert({
+      const { data, error } = await supabase.from('Vigencias').upsert({
         IdVigencia: v.IdVigencia || v.id,
         Nombre: v.Nombre || v.nombre || 'Nueva Vigencia',
         Anio: v.Anio || v.anio || new Date().getFullYear(),
@@ -38,12 +38,12 @@ export const DatabaseService = {
   getEstructuraOrg: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Org').from('EstructuraJerarquica').select('*');
+      const { data, error } = await supabase.from('EstructuraJerarquica').select('*');
       if (error) throw error;
       return data || [];
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error fetching org", e);
-      return [];
+      throw new Error(e.message || "Error al cargar estructura jerárquica");
     }
   },
   
@@ -59,7 +59,7 @@ export const DatabaseService = {
         Nombre: n.Nombre || n.nombre || 'Nodo',
         Activo: n.Activo ?? true
       }));
-      const { error } = await supabase.schema('Org').from('EstructuraJerarquica').upsert(format, { onConflict: 'IdNodoOrg' });
+      const { error } = await supabase.from('EstructuraJerarquica').upsert(format, { onConflict: 'IdNodoOrg' });
       if (error) throw error;
     } catch (e: any) {
       console.error("Error saving org", e);
@@ -71,12 +71,12 @@ export const DatabaseService = {
   getEstructuraProc: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Cat').from('EstructuraProcesos').select('*');
+      const { data, error } = await supabase.from('EstructuraProcesos').select('*');
       if (error) throw error;
       return data || [];
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error fetching proc", e);
-      return [];
+      throw new Error(e.message || "Error al cargar estructura de procesos");
     }
   },
   
@@ -94,7 +94,7 @@ export const DatabaseService = {
         Producto: n.Producto || n.producto || null,
         Activo: n.Activo ?? true
       }));
-      const { error } = await supabase.schema('Cat').from('EstructuraProcesos').upsert(format, { onConflict: 'IdNodoProceso' });
+      const { error } = await supabase.from('EstructuraProcesos').upsert(format, { onConflict: 'IdNodoProceso' });
       if (error) throw error;
     } catch (e: any) {
       console.error("Error saving proc", e);
@@ -106,12 +106,12 @@ export const DatabaseService = {
   getMapaRelaciones: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Org').from('MapaRelaciones').select('*');
+      const { data, error } = await supabase.from('MapaRelaciones').select('*');
       if (error) throw error;
       return data || [];
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error fetching mapa", e);
-      return [];
+      throw new Error(e.message || "Error al cargar mapa de relaciones");
     }
   },
 
@@ -126,7 +126,7 @@ export const DatabaseService = {
         Activo: r.Activo ?? true
       }));
       
-      const { error } = await supabase.schema('Org').from('MapaRelaciones').upsert(format, { onConflict: 'IdVigencia,IdNodoOrg,IdNodoProceso' });
+      const { error } = await supabase.from('MapaRelaciones').upsert(format, { onConflict: 'IdVigencia,IdNodoOrg,IdNodoProceso' });
       if (error) throw error;
     } catch (e: any) {
       console.error("Error saving mapa", e);
@@ -138,19 +138,19 @@ export const DatabaseService = {
   getUsuariosDependencia: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia').select('*');
+      const { data, error } = await supabase.from('UsuariosDependencia').select('*');
       if (error) throw error;
       return data || [];
     } catch (e: any) {
       console.error("Error fetching usuarios dependencia", e);
-      return [];
+      throw new Error(e.message || "Error al cargar usuarios");
     }
   },
 
   saveUsuarioDependencia: async (vu: any) => {
     if (!supabase) return vu;
     try {
-      const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia').upsert({
+      const { data, error } = await supabase.from('UsuariosDependencia').upsert({
         IdUsuarioDep: vu.IdUsuarioDep,
         IdVigencia: vu.IdVigencia,
         EntraIdObjectId: vu.EntraIdObjectId,

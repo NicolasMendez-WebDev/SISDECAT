@@ -18,7 +18,6 @@ export const captureService = {
     if (supabase) {
       try {
         const { data, error } = await supabase
-          .schema('Ops')
           .from('CargasTrabajo')
           .select('*')
           .eq('Activo', true);
@@ -43,7 +42,6 @@ export const captureService = {
     if (supabase) {
       try {
         const { data, error } = await supabase
-          .schema('Ops')
           .from('CargasTrabajo')
           .insert({
             IdVigencia: carga.vigenciaId,
@@ -89,7 +87,6 @@ export const captureService = {
     if (supabase) {
       try {
         const { data, error } = await supabase
-          .schema('Ops')
           .from('CargasTrabajo')
           .update({ 
              Volumen: updates.volumenQ, 
@@ -129,7 +126,6 @@ export const captureService = {
     if (supabase) {
       try {
          await supabase
-          .schema('Ops')
           .from('CargasTrabajo')
           .update({ Activo: false })
           .eq('IdCarga', id);
