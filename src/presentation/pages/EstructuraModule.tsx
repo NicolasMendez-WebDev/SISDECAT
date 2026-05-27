@@ -847,7 +847,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                       className={`hover:bg-institutional-blue/5 cursor-pointer transition-colors border-b border-slate-100 overflow-hidden ${selectedNode?.path === row.path ? 'bg-institutional-blue/5' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'} ${row.estado === 'Inactivo' ? 'opacity-60 bg-slate-50' : ''}`}
                       data-no-deselect="true"
                     >
-                      <td className="px-4 py-3 font-mono text-[10px] text-slate-500 border-r border-slate-100 w-24 max-w-[6rem] truncate">{row.id}</td>
+                      <td className="px-4 py-3 font-mono text-[10px] text-slate-500 border-r border-slate-100 w-24 max-w-[6rem] truncate" title={row.id}>{row.id}</td>
                       <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
                         <div className="flex items-center gap-2" style={{ paddingLeft: `${row.level * 20}px` }}>
                           {row.hasChildren ? (

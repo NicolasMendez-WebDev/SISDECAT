@@ -187,8 +187,7 @@ export default function App() {
               codigo: x.CodigoInterno,
               nombre: x.Nombre,
               level: 1,
-              activo: x.Activo,
-              estado: x.Activo ? 'Activo' : 'Inactivo'
+              activo: x.Activo
             }));
             const fetchedDeps = orgDb.filter(x => x.Nivel > 1).map(x => ({
               id: x.IdNodoOrg,
@@ -197,8 +196,7 @@ export default function App() {
               nombre: x.Nombre,
               parentId: x.IdPadre,
               level: x.Nivel,
-              activo: x.Activo,
-              estado: x.Activo ? 'Activo' : 'Inactivo'
+              activo: x.Activo
             }));
             setOrgData(fetchedOrgs);
             setDepData(fetchedDeps);
@@ -220,8 +218,7 @@ export default function App() {
                nombre: x.Nombre,
                dependenciaId: mappedRels.find(r => r.childId === x.IdNodoProceso)?.parentId || null,
                level: 1,
-               activo: x.Activo,
-               estado: x.Activo ? 'Activo' : 'Inactivo'
+               activo: x.Activo
             }));
             const fetchedProcs = procDb.filter(x => x.Nivel === 2).map(x => ({
                id: x.IdNodoProceso,
@@ -231,8 +228,7 @@ export default function App() {
                procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 2
                producto: x.Producto,
                level: 2,
-               activo: x.Activo,
-               estado: x.Activo ? 'Activo' : 'Inactivo'
+               activo: x.Activo
             }));
             const fetchedActs = procDb.filter(x => x.Nivel === 3).map(x => ({
                id: x.IdNodoProceso,
@@ -241,8 +237,7 @@ export default function App() {
                nombre: x.Nombre,
                procedimientoId: x.IdPadre,
                level: 3,
-               activo: x.Activo,
-               estado: x.Activo ? 'Activo' : 'Inactivo'
+               activo: x.Activo
             }));
             setProcData(fetchedMacros);
             setPcdData(fetchedProcs);
@@ -384,11 +379,11 @@ export default function App() {
   const currentVigenciaId = currentVigenciaView?.IdVigencia;
 
   // Filter lists based on the currently viewed Vigencia
-  const currentOrgData = orgData.filter(x => x.vigenciaId === currentVigenciaId);
-  const currentDepData = depData.filter(x => x.vigenciaId === currentVigenciaId);
-  const currentProcData = procData.filter(x => x.vigenciaId === currentVigenciaId);
-  const currentPcdData = pcdData.filter(x => x.vigenciaId === currentVigenciaId);
-  const currentActData = actData.filter(x => x.vigenciaId === currentVigenciaId);
+  const currentOrgData = orgData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
+  const currentDepData = depData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
+  const currentProcData = procData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
+  const currentPcdData = pcdData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
+  const currentActData = actData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
   // Default legacy mock cargas to the current vigencia if they don't have one
   const currentCargas = cargasTrabajo.map(c => !c.vigenciaId ? {...c, vigenciaId: currentVigenciaId} : c).filter(c => c.vigenciaId === currentVigenciaId);
   const currentRelaciones = relaciones.filter(r => r.vigenciaId === currentVigenciaId);
@@ -582,7 +577,7 @@ export default function App() {
     } else {
       const newId = crypto.randomUUID();
       modifiedId = newId;
-      const newItem = { id: newId, ...data, estado: "Activo", vigenciaId: currentVigenciaView?.IdVigencia };
+      const newItem = { id: newId, ...data, activo: true, vigenciaId: currentVigenciaView?.IdVigencia };
 
       if (type === "Organismo") {
         if (!data.parentId) {
@@ -696,7 +691,7 @@ export default function App() {
              id: codigo,
              codigo: codigo,
              nombre,
-             estado: "Activo",
+             activo: true,
              vigenciaId: currentVigenciaView?.IdVigencia,
              fechaCreacion: new Date().toISOString()
           });
@@ -706,13 +701,24 @@ export default function App() {
              id: codigo,
              codigo: codigo,
              nombre,
-             estado: "Activo",
+             activo: true,
              parentId: padre || undefined,
              vigenciaId: currentVigenciaView?.IdVigencia,
              fechaCreacion: new Date().toISOString()
           });
         }
       });
+
+      const combinedOrgsDeps = [...newOrgs, ...newDeps];
+      if (combinedOrgsDeps.length > 0) {
+        try {
+          const { DatabaseService } = await import("./application/services/DatabaseService");
+          await DatabaseService.saveEstructuraOrg(combinedOrgsDeps);
+        } catch (e: any) {
+          console.error("Error saving imported orgs", e);
+          showToast(`Error guardando exportación en base de datos: ${e.message}`, "error");
+        }
+      }
 
       if (newOrgs.length > 0) setOrgData(prev => [...prev, ...newOrgs]);
       if (newDeps.length > 0) setDepData(prev => [...prev, ...newDeps]);
@@ -776,7 +782,7 @@ export default function App() {
              codigo: codigo,
              nombre,
              descripcion: `Tipo de proceso: ${tipo}`,
-             estado: "Activo",
+             activo: true,
              tipo: tipo, // Custom field just in case
              vigenciaId: currentVigenciaView?.IdVigencia,
           });
@@ -786,7 +792,7 @@ export default function App() {
              codigo: codigo,
              nombre,
              procesoId: padre || undefined,
-             estado: "Activo",
+             activo: true,
              vigenciaId: currentVigenciaView?.IdVigencia,
           });
         } else if (nivel === '4' || parseInt(nivel) > 4) {
@@ -795,7 +801,7 @@ export default function App() {
              codigo: codigo,
              nombre,
              procedimientoId: padre || undefined,
-             estado: "Activo",
+             activo: true,
              vigenciaId: currentVigenciaView?.IdVigencia,
           });
         }
@@ -838,6 +844,17 @@ export default function App() {
             });
           }
         });
+      }
+
+      const combinedProcs = [...newProcs, ...newPcds, ...newActs];
+      if (combinedProcs.length > 0) {
+        try {
+          const { DatabaseService } = await import("./application/services/DatabaseService");
+          await DatabaseService.saveEstructuraProc(combinedProcs);
+        } catch (e: any) {
+          console.error("Error saving imported procs", e);
+          showToast(`Error guardando importación en base de datos: ${e.message}`, "error");
+        }
       }
 
       if (newProcs.length > 0) setProcData(prev => [...prev, ...newProcs]);
@@ -1197,7 +1214,7 @@ export default function App() {
 
   const executeDeleteStructure = async (type: string, id: string) => {
     let itemName = "Elemento";
-    const changeToInactive = (item: any) => item.id === id ? { ...item, Activo: false, estado: "Inactivo" } : item;
+    const changeToInactive = (item: any) => item.id === id ? { ...item, Activo: false, activo: false } : item;
 
     let updatedList: any[] = [];
     if (type === "Organismo") {
