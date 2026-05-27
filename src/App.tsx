@@ -419,7 +419,7 @@ export default function App() {
        const getNewId = (oldId: string, prefix: string) => {
          if (!oldId) return undefined;
          if (!idMap.has(oldId)) {
-           idMap.set(oldId, `${prefix}-${Math.random().toString(36).substr(2, 9)}`);
+           idMap.set(oldId, crypto.randomUUID());
          }
          return idMap.get(oldId);
        };
@@ -440,7 +440,7 @@ export default function App() {
        const newRelaciones = relaciones.filter(r => r.vigenciaId === sourceVigenciaId && (sourceProcData.some(p => p.id === r.childId) || sourcePcdData.some(p => p.id === r.childId) || sourceActData.some(p => p.id === r.childId)))
        .map(r => ({
            ...r,
-           id: `rel-${Math.random().toString(36).substr(2, 9)}`,
+           id: crypto.randomUUID(),
            childId: idMap.get(r.childId) || r.childId,
            parentId: idMap.get(r.parentId) || r.parentId,
            vigenciaId: v.IdVigencia,
@@ -571,7 +571,7 @@ export default function App() {
       if (type === "Procedimiento") newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc));
       if (type === "Actividad") newActs = actData.map((a) => (a.id === id ? { ...a, ...data } : a));
     } else {
-      const newId = `${type.toLowerCase().slice(0, 3)}-${Math.random().toString(36).substr(2, 9)}`;
+      const newId = crypto.randomUUID();
       modifiedId = newId;
       const newItem = { id: newId, ...data, estado: "Activo", vigenciaId: currentVigenciaView?.IdVigencia };
 
@@ -1637,7 +1637,7 @@ export default function App() {
                          const randomlySelectedUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
 
                          generatedCargas.push({
-                            id: `CRG-GEN-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                            id: crypto.randomUUID(),
                             vigenciaId: currentVigenciaView.IdVigencia,
                             organismoId: selectedPath.orgId,
                             dependenciaId: selectedPath.depId,

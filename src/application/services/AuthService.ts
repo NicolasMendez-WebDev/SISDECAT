@@ -60,7 +60,7 @@ export const AuthService = {
       const assignedRole = isFirstUser ? 'AdminFuncional' : 'Funcionario';
 
       const newUser: LocalUser = {
-        id: `USR-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
+        id: crypto.randomUUID(),
         email,
         nombre,
         rol: assignedRole,
@@ -82,7 +82,7 @@ export const AuthService = {
     if (!import.meta.env.PROD && (email === "desarrollador" || email === "admin")) {
       if (password === "admin123") {
         return {
-          id: "USR-DEV",
+          id: "00000000-0000-0000-0000-000000000000",
           nombre: "Desarrollador SISDECAT",
           rol: "AdminFuncional",
           email: "dev@sisdecat.gov.co",

@@ -72,7 +72,7 @@ export const captureService = {
     await delay(SIMULATED_DELAY_MS);
     const newCarga = {
       ...carga,
-      id: `CRG-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+      id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

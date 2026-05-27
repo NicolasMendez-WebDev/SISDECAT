@@ -82,7 +82,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
 
   const handleNewVigencia = () => {
     setCurrentVigencia({
-      IdVigencia: `vig-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`,
+      IdVigencia: crypto.randomUUID(),
       Nombre: 'Estudio de cargas de trabajo',
       Anio: new Date().getFullYear(),
       Estado: 'Borrador',
