@@ -75,8 +75,10 @@ export const DatabaseService = {
         Nombre: n.Nombre || n.nombre || 'Nodo',
         Activo: n.Activo ?? true
       }));
-      const { error } = await supabase.schema('Org').from('EstructuraJerarquica').upsert(format, { onConflict: 'IdNodoOrg' });
-      if (error) throw error;
+      console.log("Supabase saveEstructuraOrg payload:", format);
+      const resp = await supabase.schema('Org').from('EstructuraJerarquica').upsert(format, { onConflict: 'IdNodoOrg' }).select();
+      console.log("Supabase saveEstructuraOrg response:", resp);
+      if (resp.error) throw resp.error;
     } catch (e: any) {
       console.error("Error saving org", e);
       throw new Error(e.message || "Error al guardar estructura jerárquica");
@@ -110,8 +112,10 @@ export const DatabaseService = {
         Producto: n.Producto || n.producto || null,
         Activo: n.Activo ?? true
       }));
-      const { error } = await supabase.schema('Cat').from('EstructuraProcesos').upsert(format, { onConflict: 'IdNodoProceso' });
-      if (error) throw error;
+      console.log("Supabase saveEstructuraProc payload:", format);
+      const resp = await supabase.schema('Cat').from('EstructuraProcesos').upsert(format, { onConflict: 'IdNodoProceso' }).select();
+      console.log("Supabase saveEstructuraProc response:", resp);
+      if (resp.error) throw resp.error;
     } catch (e: any) {
       console.error("Error saving proc", e);
       throw new Error(e.message || "Error al guardar estructura de procesos");
@@ -142,8 +146,10 @@ export const DatabaseService = {
         Activo: r.Activo ?? true
       }));
       
-      const { error } = await supabase.schema('Org').from('MapaRelaciones').upsert(format, { onConflict: 'IdVigencia,IdNodoOrg,IdNodoProceso' });
-      if (error) throw error;
+      console.log("Supabase saveMapaRelaciones payload:", format);
+      const resp = await supabase.schema('Org').from('MapaRelaciones').upsert(format, { onConflict: 'IdVigencia,IdNodoOrg,IdNodoProceso' }).select();
+      console.log("Supabase saveMapaRelaciones response:", resp);
+      if (resp.error) throw resp.error;
     } catch (e: any) {
       console.error("Error saving mapa", e);
       throw new Error(e.message || "Error al guardar mapa de relaciones");
