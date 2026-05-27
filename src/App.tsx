@@ -152,23 +152,99 @@ export default function App() {
         setIsLoadingData(true);
         // Load default structure
         if (import.meta.env.PROD) {
-          // Initialize empty
-          setOrgData([]);
-          setDepData([]);
-          setProcData([]);
-          setPcdData([]);
-          setActData([]);
-          setVigencias([]);
-          setUsuarios([]);
-          setVigenciasUsuarios([]);
-          setRelaciones([]);
-
           try {
+            const { DatabaseService } = await import("./application/services/DatabaseService");
+            const vDb = await DatabaseService.getVigencias();
+            setVigencias(vDb || []);
+
+            const orgDb = await DatabaseService.getEstructuraOrg();
+            // Nivel 1 = Organismo, Nivel >= 2 = Dependencia
+            const fetchedOrgs = orgDb.filter(x => x.Nivel === 1).map(x => ({
+              id: x.IdNodoOrg,
+              vigenciaId: x.IdVigencia,
+              codigo: x.CodigoInterno,
+              nombre: x.Nombre,
+              level: 1,
+              activo: x.Activo
+            }));
+            const fetchedDeps = orgDb.filter(x => x.Nivel > 1).map(x => ({
+              id: x.IdNodoOrg,
+              vigenciaId: x.IdVigencia,
+              codigo: x.CodigoInterno,
+              nombre: x.Nombre,
+              padreId: x.IdPadre,
+              level: x.Nivel,
+              activo: x.Activo
+            }));
+            setOrgData(fetchedOrgs);
+            setDepData(fetchedDeps);
+
+            const procDb = await DatabaseService.getEstructuraProc();
+            const fetchedMacros = procDb.filter(x => x.Nivel === 1).map(x => ({
+               id: x.IdNodoProceso,
+               vigenciaId: x.IdVigencia,
+               codigo: x.CodigoInterno,
+               nombre: x.Nombre,
+               level: 1
+            }));
+            const fetchedProcs = procDb.filter(x => x.Nivel === 2).map(x => ({
+               id: x.IdNodoProceso,
+               vigenciaId: x.IdVigencia,
+               codigo: x.CodigoInterno,
+               nombre: x.Nombre,
+               procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 2
+               producto: x.Producto,
+               level: 2
+            }));
+            const fetchedActs = procDb.filter(x => x.Nivel === 3).map(x => ({
+               id: x.IdNodoProceso,
+               vigenciaId: x.IdVigencia,
+               codigo: x.CodigoInterno,
+               nombre: x.Nombre,
+               procedimientoId: x.IdPadre,
+               level: 3
+            }));
+            setProcData(fetchedMacros);
+            setPcdData(fetchedProcs);
+            setActData(fetchedActs);
+
+            const fetchedUsuariosDep = await DatabaseService.getUsuariosDependencia();
+            setVigenciasUsuarios(fetchedUsuariosDep.map(x => ({
+               idVigenciaUsuario: x.IdUsuarioDep,
+               idVigencia: x.IdVigencia,
+               idUsuario: x.EntraIdObjectId,
+               idDependencia: x.IdNodoOrg,
+               rol: x.RolFuncional
+            })));
+            
+            // Build simple user stubs based on Sec.UsuariosDependencia because auth.users is inaccessible
+            const uniqueUsers = Array.from(new Set(fetchedUsuariosDep.map(x => x.EntraIdObjectId))).map(id => {
+               const uRef = fetchedUsuariosDep.find(x => x.EntraIdObjectId === id);
+               return {
+                  id: id,
+                  email: uRef?.UPN || `${id}@sisdecat.gov.co`,
+                  nombre: uRef?.UPN ? uRef.UPN.split('@')[0] : `Usuario ${id.substring(0, 5)}`,
+                  rol: uRef?.RolFuncional || 'Funcionario'
+               } as User;
+            });
+            setUsuarios(uniqueUsers);
+
+            const mapaDb = await DatabaseService.getMapaRelaciones();
+            const mappedRels = mapaDb.map(m => ({
+               vigenciaId: m.IdVigencia,
+               parentId: m.IdNodoOrg,
+               childId: m.IdNodoProceso,
+               type: m.ObservacionRelacion || "Proceso"
+            }));
+            setRelaciones(mappedRels);
+
             const { captureService } = await import("./application/services/captureService");
             const existingCargas = await captureService.getCargas();
             setCargasTrabajo(existingCargas || []);
           } catch (e) {
-            setCargasTrabajo([]);
+            console.error("Error loading prod data from supabase:", e);
+            setOrgData([]); setDepData([]); setProcData([]); setPcdData([]); setActData([]);
+            setVigencias([]); setRelaciones([]); setCargasTrabajo([]);
           }
         } else {
           const { vigenciasMock, mapaRelacionesMock, usuariosMock, vigenciasUsuariosMock } = await import('./data/mockData');
@@ -293,10 +369,17 @@ export default function App() {
     ? vigencias.filter(v => v.Estado === 'Activo' || v.Estado === 'Historico')
     : vigencias).filter(v => v.Activo !== false);
 
-  const handleCreateVigencia = (v: any, sourceVigenciaId?: string | null) => {
+  const handleCreateVigencia = async (v: any, sourceVigenciaId?: string | null) => {
     let finalVigencias = [...vigencias];
     finalVigencias.push(v);
     setVigencias(finalVigencias);
+
+    try {
+      const { DatabaseService } = await import("./application/services/DatabaseService");
+      await DatabaseService.saveVigencia(v);
+    } catch(e) {
+      console.warn("Could not push vigencia to API", e);
+    }
 
     if (sourceVigenciaId) {
        // Check if there are structures in that source to clone
@@ -339,6 +422,15 @@ export default function App() {
            includedChildren: r.includedChildren ? r.includedChildren.map((cId: string) => idMap.get(cId) || cId) : undefined
        }));
        setRelaciones([...relaciones, ...newRelaciones]);
+
+       try {
+           const { DatabaseService } = await import("./application/services/DatabaseService");
+           await DatabaseService.saveEstructuraOrg([...newOrgData, ...newDepData]);
+           await DatabaseService.saveEstructuraProc([...newProcData, ...newPcdData, ...newActData]);
+           await DatabaseService.saveMapaRelaciones(newRelaciones);
+       } catch (e) {
+           console.warn("Could not save cloned structures to DB", e);
+       }
     }
     showToast('Nueva Vigencia Registrada', 'success');
   };
@@ -433,67 +525,66 @@ export default function App() {
     });
   };
 
-  const executeSaveStructure = (
+  const executeSaveStructure = async (
     type: string,
     data: any,
     mode: "create" | "edit",
     id?: string,
   ) => {
     let modifiedId = id;
+    let newOrgs = [...orgData];
+    let newDeps = [...depData];
+    let newProcs = [...procData];
+    let newPcds = [...pcdData];
+    let newActs = [...actData];
+
     if (mode === "edit" && id) {
-      if (type === "Organismo")
-        setOrgData(orgData.map((o) => (o.id === id ? { ...o, ...data } : o)));
-      if (type === "Dependencia")
-        setDepData(depData.map((d) => (d.id === id ? { ...d, ...data } : d)));
-      if (type === "Proceso")
-        setProcData(procData.map((p) => (p.id === id ? { ...p, ...data } : p)));
-      if (type === "Procedimiento")
-        setPcdData(
-          pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc)),
-        );
-      if (type === "Actividad")
-        setActData(actData.map((a) => (a.id === id ? { ...a, ...data } : a)));
-      showToast(`${type} actualizado exitosamente.`, "success", {
-        id,
-        type,
-        name: data.nombre,
-        action: "actualizado",
-      });
+      if (type === "Organismo") newOrgs = orgData.map((o) => (o.id === id ? { ...o, ...data } : o));
+      if (type === "Dependencia") newDeps = depData.map((d) => (d.id === id ? { ...d, ...data } : d));
+      if (type === "Proceso") newProcs = procData.map((p) => (p.id === id ? { ...p, ...data } : p));
+      if (type === "Procedimiento") newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc));
+      if (type === "Actividad") newActs = actData.map((a) => (a.id === id ? { ...a, ...data } : a));
     } else {
       const newId = `${type.toLowerCase().slice(0, 3)}-${Math.random().toString(36).substr(2, 9)}`;
       modifiedId = newId;
       const newItem = { id: newId, ...data, estado: "Activo", vigenciaId: currentVigenciaView?.IdVigencia };
 
       if (type === "Organismo") {
-        // If creating a new Organismo and no parentId is provided, attach it to the root Organismo if one exists
         if (!data.parentId) {
           const rootOrg = orgData.find((o) => !o.parentId);
-          if (rootOrg) {
-            newItem.parentId = rootOrg.id;
-          }
+          if (rootOrg) newItem.parentId = rootOrg.id;
         }
-        setOrgData([...orgData, newItem]);
-      } else if (type === "Dependencia") setDepData([...depData, newItem]);
-      else if (type === "Proceso")
-        setProcData([
-          ...procData,
-          { ...newItem, dependenciaId: data.parentId },
-        ]);
-      else if (type === "Procedimiento")
-        setPcdData([...pcdData, { ...newItem, procesoId: data.parentId }]);
-      else if (type === "Actividad")
-        setActData([
-          ...actData,
-          { ...newItem, procedimientoId: data.parentId },
-        ]);
-
-      showToast(`${type} creado exitosamente.`, "success", {
-        id: newId,
-        type,
-        name: data.nombre,
-        action: "creado",
-      });
+        newOrgs = [...orgData, newItem];
+      } else if (type === "Dependencia") {
+        newDeps = [...depData, newItem];
+      } else if (type === "Proceso") {
+        newProcs = [...procData, { ...newItem, dependenciaId: data.parentId }];
+      } else if (type === "Procedimiento") {
+        newPcds = [...pcdData, { ...newItem, procesoId: data.parentId }];
+      } else if (type === "Actividad") {
+        newActs = [...actData, { ...newItem, procedimientoId: data.parentId }];
+      }
     }
+
+    setOrgData(newOrgs);
+    setDepData(newDeps);
+    setProcData(newProcs);
+    setPcdData(newPcds);
+    setActData(newActs);
+
+    try {
+      const { DatabaseService } = await import("./application/services/DatabaseService");
+      if (type === "Organismo" || type === "Dependencia") {
+         await DatabaseService.saveEstructuraOrg([...newOrgs, ...newDeps]);
+      } else {
+         await DatabaseService.saveEstructuraProc([...newProcs, ...newPcds, ...newActs]);
+      }
+    } catch(e) {
+      console.warn("Could not push structure update to API", e);
+    }
+
+    const actionText = mode === "edit" ? "actualizado" : "creado";
+    showToast(`${type} ${actionText} exitosamente.`, "success");
 
     if (modifiedId) {
       setRecentlyModifiedIds((prev) => [...prev, modifiedId!]);
@@ -877,6 +968,13 @@ export default function App() {
 
     setRelaciones(modifiedRelations);
     
+    // Save to DatabaseService
+    import("./application/services/DatabaseService").then(({ DatabaseService }) => {
+       DatabaseService.saveMapaRelaciones(modifiedRelations).catch(e => {
+          console.warn("Could not save mapped relations remotely", e);
+       });
+    });
+
     // Obtenemos unicamente los que no fueron updates implicitos para los mensajes y ui logs
     const explicitNewRels = newRelations.filter(r => !r.implicitUpdate);
     const linkIds = explicitNewRels.map((r) => `link:${r.parentId}:${r.childId}`);
@@ -962,8 +1060,7 @@ export default function App() {
   ) => {
     if (isLinked) {
       // Remove from relations array if it's a custom link
-      setRelaciones(
-        relaciones.filter(
+      const newRels = relaciones.filter(
           (r) =>
             !(
               r.type === childType &&
@@ -971,8 +1068,13 @@ export default function App() {
               r.parentId === parentId &&
               r.vigenciaId === currentVigenciaView?.IdVigencia
             ),
-        ),
-      );
+       );
+      setRelaciones(newRels);
+      
+      // Sync Delete in background
+      import("./application/services/DatabaseService").then(({ DatabaseService }) => {
+          DatabaseService.saveMapaRelaciones(newRels);
+      });
     } else {
       // If it's a base relationship, we just hide it from the UI for this specific contextual path
       setHiddenPaths((prev) => [...prev, path]);
@@ -1314,23 +1416,44 @@ export default function App() {
                   procedimientos={currentPcdData}
                   vigencias={availableVigencias}
                   vigenciaActiva={currentVigenciaView?.Estado === 'Activo'}
-                  onVigenciaUpdate={(v) => {
+                  onVigenciaUpdate={async (v) => {
                     let finalVigencias = [...vigencias];
                     finalVigencias = finalVigencias.map(vig => 
                       vig.IdVigencia === v.IdVigencia ? v : vig
                     );
                     setVigencias(finalVigencias);
-                    showToast('Vigencia y parámetros actualizados', 'success');
+                    
+                    try {
+                      const { DatabaseService } = await import("./application/services/DatabaseService");
+                      await DatabaseService.saveVigencia(v);
+                      showToast('Vigencia y parámetros actualizados en la base de datos', 'success');
+                    } catch (e) {
+                      showToast('Datos actualizados localmente. Error en red.', 'success');
+                    }
                   }}
                   onVigenciaCreate={handleCreateVigencia}
                   usuarios={usuarios}
                   vigenciasUsuarios={vigenciasUsuarios}
-                  onUpdateVigenciaUsuario={(vu) => {
+                  onUpdateVigenciaUsuario={async (vu) => {
                     const exists = vigenciasUsuarios.find(x => x.idVigenciaUsuario === vu.idVigenciaUsuario);
                     if (exists) {
                        setVigenciasUsuarios(vigenciasUsuarios.map(x => x.idVigenciaUsuario === vu.idVigenciaUsuario ? vu : x));
                     } else {
                        setVigenciasUsuarios([...vigenciasUsuarios, vu]);
+                    }
+                    try {
+                      const { DatabaseService } = await import("./application/services/DatabaseService");
+                      await DatabaseService.saveUsuarioDependencia({
+                         IdUsuarioDep: vu.idVigenciaUsuario,
+                         IdVigencia: vu.idVigencia,
+                         EntraIdObjectId: vu.idUsuario,
+                         IdNodoOrg: vu.idDependencia,
+                         RolFuncional: vu.rol,
+                         Activo: true
+                      });
+                      showToast('Asignación de usuario guardada', 'success');
+                    } catch(e) {
+                      showToast('Error de red al guardar asignación', 'error');
                     }
                   }}
                   onUpdateUsuario={(user) => {
