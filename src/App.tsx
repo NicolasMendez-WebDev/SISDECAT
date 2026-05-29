@@ -575,7 +575,7 @@ export default function App() {
       if (type === "Procedimiento") newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc));
       if (type === "Actividad") newActs = actData.map((a) => (a.id === id ? { ...a, ...data } : a));
     } else {
-      const newId = crypto.randomUUID();
+      const newId = Math.floor(100000 + Math.random() * 900000).toString();
       modifiedId = newId;
       
       let calculatedLevel = 1;
@@ -690,6 +690,9 @@ export default function App() {
       const newDeps: any[] = [];
       const idCodeMap = new Map<string, string>();
 
+      orgData.forEach(o => { if (o.codigo && o.id) idCodeMap.set(o.codigo, o.id); });
+      depData.forEach(d => { if (d.codigo && d.id) idCodeMap.set(d.codigo, d.id); });
+
       datos.forEach(row => {
         const codigo = String(row[codeKey as string] ?? '').trim();
         const nombre = String(row[nameKey as string] ?? '').trim();
@@ -701,7 +704,7 @@ export default function App() {
         
         let nodeUuid = idCodeMap.get(codigo);
         if (!nodeUuid) {
-           nodeUuid = crypto.randomUUID();
+           nodeUuid = codigo; // Fallback to code if not in existing state
            idCodeMap.set(codigo, nodeUuid);
         }
         
@@ -709,7 +712,7 @@ export default function App() {
         if (padre && padre !== codigo) {
            parentUuid = idCodeMap.get(padre);
            if (!parentUuid) {
-              parentUuid = crypto.randomUUID();
+              parentUuid = padre; 
               idCodeMap.set(padre, parentUuid);
            }
         }
@@ -783,6 +786,10 @@ export default function App() {
       
       const tiposProceso: Record<string, string> = {};
       const idCodeMap = new Map<string, string>(); // Maps legacy code to UUID
+      
+      procData.forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
+      pcdData.forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
+      actData.forEach(a => { if (a.codigo && a.id) idCodeMap.set(a.codigo, a.id); });
 
       // Primera pasada: identificar Tipos de Proceso (Nivel 1)
       datos.forEach(row => {
@@ -806,7 +813,7 @@ export default function App() {
         
         let nodeUuid = idCodeMap.get(codigo);
         if (!nodeUuid) {
-           nodeUuid = crypto.randomUUID();
+           nodeUuid = codigo; // Prefer code directly as requested
            idCodeMap.set(codigo, nodeUuid);
         }
         
@@ -816,7 +823,7 @@ export default function App() {
         if (padre) {
            parentUuid = idCodeMap.get(padre);
            if (!parentUuid) {
-              parentUuid = crypto.randomUUID();
+              parentUuid = padre; // Prefer code directly as requested
               idCodeMap.set(padre, parentUuid);
            }
         }
@@ -869,14 +876,14 @@ export default function App() {
   
           let nodeUuid = idCodeMap.get(codigo);
           if (!nodeUuid) {
-             nodeUuid = crypto.randomUUID();
+             nodeUuid = codigo; // Prefer code directly
              idCodeMap.set(codigo, nodeUuid);
           }
           let parentUuid = null;
           if (padre) {
              parentUuid = idCodeMap.get(padre);
              if (!parentUuid) {
-                parentUuid = crypto.randomUUID();
+                parentUuid = padre; // Prefer code directly
                 idCodeMap.set(padre, parentUuid);
              }
           }
@@ -962,27 +969,31 @@ export default function App() {
           if (!parentIdRaw || !childIdRaw) return;
 
           let trueParentId = parentIdRaw;
-          if (depData.some(d => d.id === `dep_${parentIdRaw}`)) trueParentId = `dep_${parentIdRaw}`;
-          else if (!orgData.some(o => o.id === parentIdRaw)) {
-              if (depData.some(d => d.id === parentIdRaw)) trueParentId = parentIdRaw;
-          }
+          const foundOrg = orgData.find(o => o.codigo === parentIdRaw || o.id === parentIdRaw);
+          const foundDep = depData.find(d => d.codigo === parentIdRaw || d.id === parentIdRaw);
+          if (foundOrg) trueParentId = foundOrg.id;
+          else if (foundDep) trueParentId = foundDep.id;
           
           let trueChildId = childIdRaw;
           let childType = "Proceso";
           
-          if (procData.some(p => p.id === `proc_${childIdRaw}`)) {
-              trueChildId = `proc_${childIdRaw}`;
+          const foundProc = procData.find(p => p.codigo === childIdRaw || p.id === childIdRaw);
+          const foundPcd = pcdData.find(p => p.codigo === childIdRaw || p.id === childIdRaw);
+          const foundAct = actData.find(a => a.codigo === childIdRaw || a.id === childIdRaw);
+
+          if (foundProc) {
+              trueChildId = foundProc.id;
               childType = "Proceso";
-          } else if (pcdData.some(p => p.id === `pcd_${childIdRaw}`)) {
-              trueChildId = `pcd_${childIdRaw}`;
+          } else if (foundPcd) {
+              trueChildId = foundPcd.id;
               childType = "Procedimiento";
-          } else if (actData.some(a => a.id === `act_${childIdRaw}`)) {
-              trueChildId = `act_${childIdRaw}`;
+          } else if (foundAct) {
+              trueChildId = foundAct.id;
               childType = "Actividad";
           } else {
-             if (childIdRaw.startsWith('proc_')) childType = "Proceso";
-             else if (childIdRaw.startsWith('pcd_')) childType = "Procedimiento";
-             else if (childIdRaw.startsWith('act_')) childType = "Actividad";
+             if (childIdRaw.startsWith('proc_') || trueChildId.toLowerCase().includes('proceso')) childType = "Proceso";
+             else if (childIdRaw.startsWith('pcd_') || trueChildId.toLowerCase().includes('procedimiento')) childType = "Procedimiento";
+             else if (childIdRaw.startsWith('act_') || trueChildId.toLowerCase().includes('actividad')) childType = "Actividad";
           }
 
           if (childType === "Procedimiento") {
@@ -1753,7 +1764,7 @@ export default function App() {
                          const randomlySelectedUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
 
                          generatedCargas.push({
-                            id: crypto.randomUUID(),
+                            id: Math.floor(100000 + Math.random() * 900000).toString(),
                             vigenciaId: currentVigenciaView.IdVigencia,
                             organismoId: selectedPath.orgId,
                             dependenciaId: selectedPath.depId,
