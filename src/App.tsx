@@ -702,8 +702,8 @@ export default function App() {
       const newDeps: any[] = [];
       const idCodeMap = new Map<string, string>();
 
-      currentOrgData.forEach(o => { if (o.codigo && o.id) idCodeMap.set(o.codigo, o.id); });
-      currentDepData.forEach(d => { if (d.codigo && d.id) idCodeMap.set(d.codigo, d.id); });
+      orgData.filter(o => o.vigenciaId === currentVigenciaView?.IdVigencia).forEach(o => { if (o.codigo && o.id) idCodeMap.set(o.codigo, o.id); });
+      depData.filter(d => d.vigenciaId === currentVigenciaView?.IdVigencia).forEach(d => { if (d.codigo && d.id) idCodeMap.set(d.codigo, d.id); });
 
       datos.forEach(row => {
         const codigo = String(row[codeKey as string] ?? '').trim();
@@ -756,19 +756,33 @@ export default function App() {
       });
 
       const combinedOrgsDeps = [...newOrgs, ...newDeps];
-      if (combinedOrgsDeps.length > 0) {
+      const uniqueOrgsMap = new Map();
+      combinedOrgsDeps.forEach(item => uniqueOrgsMap.set(item.id, item));
+      const dedupedOrgs = Array.from(uniqueOrgsMap.values());
+
+      if (dedupedOrgs.length > 0) {
         try {
           const { DatabaseService } = await import("./application/services/DatabaseService");
-          await DatabaseService.saveEstructuraOrg(combinedOrgsDeps);
+          await DatabaseService.saveEstructuraOrg(dedupedOrgs);
         } catch (e: any) {
           console.error("Error saving imported orgs", e);
           showToast(`Error guardando exportación en base de datos: ${e.message}`, "error");
         }
       }
 
-      if (newOrgs.length > 0) setOrgData(prev => [...prev, ...newOrgs]);
-      if (newDeps.length > 0) setDepData(prev => [...prev, ...newDeps]);
-      showToast(`Se importaron ${newOrgs.length} organismos y ${newDeps.length} dependencias.`, "success");
+      if (dedupedOrgs.length > 0) {
+          setOrgData(prev => {
+              const map = new Map(prev.map(o => [o.id, o]));
+              dedupedOrgs.filter(d => d.nivel === 1).forEach(d => map.set(d.id, d));
+              return Array.from(map.values());
+          });
+          setDepData(prev => {
+              const map = new Map(prev.map(d => [d.id, d]));
+              dedupedOrgs.filter(d => d.nivel === 2).forEach(d => map.set(d.id, d));
+              return Array.from(map.values());
+          });
+      }
+      showToast(`Se importaron/actualizaron ${dedupedOrgs.length} organismos y dependencias.`, "success");
     } catch (e) {
       showToast("Error importando organización.", "error");
     } finally {
@@ -799,9 +813,10 @@ export default function App() {
       const tiposProceso: Record<string, string> = {};
       const idCodeMap = new Map<string, string>(); // Maps legacy code to UUID
       
-      currentProcData.forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
-      currentPcdData.forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
-      currentActData.forEach(a => { if (a.codigo && a.id) idCodeMap.set(a.codigo, a.id); });
+      // Use all elements (including inactive ones) from the DB to avoid UNIQUE constraint conflicts on CodigoInterno
+      procData.filter(p => p.vigenciaId === currentVigenciaView?.IdVigencia).forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
+      pcdData.filter(p => p.vigenciaId === currentVigenciaView?.IdVigencia).forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
+      actData.filter(a => a.vigenciaId === currentVigenciaView?.IdVigencia).forEach(a => { if (a.codigo && a.id) idCodeMap.set(a.codigo, a.id); });
 
       // Primera pasada: identificar Tipos de Proceso (Nivel 1)
       datos.forEach(row => {
@@ -948,20 +963,38 @@ export default function App() {
       }
 
       const combinedProcs = [...newProcs, ...newPcds, ...newActs];
-      if (combinedProcs.length > 0) {
+      const uniqueProcsMap = new Map();
+      combinedProcs.forEach(item => uniqueProcsMap.set(item.id, item));
+      const dedupedProcs = Array.from(uniqueProcsMap.values());
+      
+      if (dedupedProcs.length > 0) {
         try {
           const { DatabaseService } = await import("./application/services/DatabaseService");
-          await DatabaseService.saveEstructuraProc(combinedProcs);
+          await DatabaseService.saveEstructuraProc(dedupedProcs);
         } catch (e: any) {
           console.error("Error saving imported procs", e);
           showToast(`Error guardando importación en base de datos: ${e.message}`, "error");
         }
       }
 
-      if (newProcs.length > 0) setProcData(prev => [...prev, ...newProcs]);
-      if (newPcds.length > 0) setPcdData(prev => [...prev, ...newPcds]);
-      if (newActs.length > 0) setActData(prev => [...prev, ...newActs]);
-      showToast(`Se importaron ${newProcs.length} procesos, ${newPcds.length} proc., y ${newActs.length} actv.`, "success");
+      if (dedupedProcs.length > 0) {
+        setProcData(prev => {
+            const map = new Map(prev.map(p => [p.id, p]));
+            dedupedProcs.filter(d => d.nivel === 1 || d.nivel === 2).forEach(d => map.set(d.id, d));
+            return Array.from(map.values());
+        });
+        setPcdData(prev => {
+            const map = new Map(prev.map(p => [p.id, p]));
+            dedupedProcs.filter(d => d.nivel === 3).forEach(d => map.set(d.id, d));
+            return Array.from(map.values());
+        });
+        setActData(prev => {
+            const map = new Map(prev.map(p => [p.id, p]));
+            dedupedProcs.filter(d => d.nivel >= 4).forEach(d => map.set(d.id, d));
+            return Array.from(map.values());
+        });
+      }
+      showToast(`Se importaron/actualizaron ${dedupedProcs.length} elementos de procesos.`, "success");
     } catch {
       showToast("Error importando mapa de procesos.", "error");
     } finally {
