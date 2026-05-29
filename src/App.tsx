@@ -702,8 +702,8 @@ export default function App() {
       const newDeps: any[] = [];
       const idCodeMap = new Map<string, string>();
 
-      orgData.forEach(o => { if (o.codigo && o.id) idCodeMap.set(o.codigo, o.id); });
-      depData.forEach(d => { if (d.codigo && d.id) idCodeMap.set(d.codigo, d.id); });
+      currentOrgData.forEach(o => { if (o.codigo && o.id) idCodeMap.set(o.codigo, o.id); });
+      currentDepData.forEach(d => { if (d.codigo && d.id) idCodeMap.set(d.codigo, d.id); });
 
       datos.forEach(row => {
         const codigo = String(row[codeKey as string] ?? '').trim();
@@ -799,9 +799,9 @@ export default function App() {
       const tiposProceso: Record<string, string> = {};
       const idCodeMap = new Map<string, string>(); // Maps legacy code to UUID
       
-      procData.forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
-      pcdData.forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
-      actData.forEach(a => { if (a.codigo && a.id) idCodeMap.set(a.codigo, a.id); });
+      currentProcData.forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
+      currentPcdData.forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
+      currentActData.forEach(a => { if (a.codigo && a.id) idCodeMap.set(a.codigo, a.id); });
 
       // Primera pasada: identificar Tipos de Proceso (Nivel 1)
       datos.forEach(row => {
