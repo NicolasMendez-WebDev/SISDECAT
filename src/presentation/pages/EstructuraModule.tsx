@@ -1077,6 +1077,12 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                           <p className="text-[10px] text-slate-400 uppercase">Tipo</p>
                           <p className="text-sm font-medium">{selectedNode.type}</p>
                         </div>
+                        {selectedNode.type === 'Proceso' && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] text-slate-400 uppercase">Clasificación / Tipo de Proceso</p>
+                            <p className="text-sm font-medium">{(details as any).tipo || (details as any).descripcion?.replace('Tipo de proceso: ', '') || 'Misional'}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -1142,7 +1148,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                             <div key={proc.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 flex-none h-[60px]">
                               <div className="overflow-hidden pr-2">
                                 <p className="text-xs font-bold text-slate-700 truncate">{proc.nombre}</p>
-                                <p className="text-[10px] text-slate-400 truncate">Misional</p>
+                                <p className="text-[10px] text-slate-400 truncate">{(proc as any).tipo || (proc as any).descripcion?.replace('Tipo de proceso: ', '') || 'Misional'}</p>
                               </div>
                               <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 shrink-0">
                                 Activo

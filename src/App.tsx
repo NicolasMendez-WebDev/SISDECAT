@@ -211,36 +211,44 @@ export default function App() {
             setRelaciones(mappedRels);
 
             const procDb = await DatabaseService.getEstructuraProc();
-            const fetchedMacros = procDb.filter(x => x.Nivel === 1).map(x => ({
+            // Nivel 1 types (Macros) are just parents, but UI expects Proceso in procData, Procedimiento in pcdData, Actividad in actData
+            // So procData = Level 1 & 2 maybe? No, let's put Level 1 & 2 in procData so relationships resolve
+            const fetchedProcs = procDb.filter(x => x.Nivel === 1 || x.Nivel === 2).map(x => {
+               const parentNivel1 = procDb.find(p => p.IdNodoProceso === x.IdPadre && p.Nivel === 1);
+               return {
+                 id: x.IdNodoProceso,
+                 vigenciaId: x.IdVigencia,
+                 codigo: x.CodigoInterno,
+                 nombre: x.Nombre,
+                 dependenciaId: mappedRels.find(r => r.childId === x.IdNodoProceso)?.parentId || null,
+                 procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 2 if exists
+                 level: x.Nivel,
+                 activo: x.Activo,
+                 tipo: parentNivel1 ? parentNivel1.Nombre : 'Misional',
+                 descripcion: parentNivel1 ? `Tipo de proceso: ${parentNivel1.Nombre}` : (x.Nivel === 1 ? 'Macoproceso/Tipo' : 'Misional')
+               };
+            });
+            const fetchedPcds = procDb.filter(x => x.Nivel === 3).map(x => ({
                id: x.IdNodoProceso,
                vigenciaId: x.IdVigencia,
                codigo: x.CodigoInterno,
                nombre: x.Nombre,
-               dependenciaId: mappedRels.find(r => r.childId === x.IdNodoProceso)?.parentId || null,
-               level: 1,
-               activo: x.Activo
-            }));
-            const fetchedProcs = procDb.filter(x => x.Nivel === 2).map(x => ({
-               id: x.IdNodoProceso,
-               vigenciaId: x.IdVigencia,
-               codigo: x.CodigoInterno,
-               nombre: x.Nombre,
-               procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 2
+               procesoId: x.IdPadre,
                producto: x.Producto,
-               level: 2,
+               level: 3,
                activo: x.Activo
             }));
-            const fetchedActs = procDb.filter(x => x.Nivel === 3).map(x => ({
+            const fetchedActs = procDb.filter(x => x.Nivel >= 4).map(x => ({
                id: x.IdNodoProceso,
                vigenciaId: x.IdVigencia,
                codigo: x.CodigoInterno,
                nombre: x.Nombre,
                procedimientoId: x.IdPadre,
-               level: 3,
+               level: 4,
                activo: x.Activo
             }));
-            setProcData(fetchedMacros);
-            setPcdData(fetchedProcs);
+            setProcData(fetchedProcs);
+            setPcdData(fetchedPcds);
             setActData(fetchedActs);
 
             const fetchedUsuariosDep = await DatabaseService.getUsuariosDependencia();
@@ -423,7 +431,7 @@ export default function App() {
        const getNewId = (oldId: string, prefix: string) => {
          if (!oldId) return undefined;
          if (!idMap.has(oldId)) {
-           idMap.set(oldId, Math.floor(100000 + Math.random() * 900000).toString());
+           idMap.set(oldId, crypto.randomUUID());
          }
          return idMap.get(oldId);
        };
@@ -444,7 +452,7 @@ export default function App() {
        const newRelaciones = relaciones.filter(r => r.vigenciaId === sourceVigenciaId && (sourceProcData.some(p => p.id === r.childId) || sourcePcdData.some(p => p.id === r.childId) || sourceActData.some(p => p.id === r.childId)))
        .map(r => ({
            ...r,
-           id: Math.floor(100000 + Math.random() * 900000).toString(),
+           id: crypto.randomUUID(),
            childId: idMap.get(r.childId) || r.childId,
            parentId: idMap.get(r.parentId) || r.parentId,
            vigenciaId: v.IdVigencia,
@@ -575,7 +583,7 @@ export default function App() {
       if (type === "Procedimiento") newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc));
       if (type === "Actividad") newActs = actData.map((a) => (a.id === id ? { ...a, ...data } : a));
     } else {
-      const newId = Math.floor(100000 + Math.random() * 900000).toString();
+      const newId = crypto.randomUUID();
       modifiedId = newId;
       
       let calculatedLevel = 1;
@@ -585,9 +593,13 @@ export default function App() {
       else if (type === "Procedimiento") calculatedLevel = 3; // Nivel 3
       else if (type === "Actividad") calculatedLevel = 4; // Nivel 4
 
+      // Generate a 6 digit code if user did not provide one
+      const finalCodigo = data.codigo?.trim() ? data.codigo : Math.floor(100000 + Math.random() * 900000).toString();
+
       const newItem = { 
         id: newId, 
-        ...data, 
+        ...data,
+        codigo: finalCodigo,
         activo: true, 
         vigenciaId: currentVigenciaView?.IdVigencia,
         level: calculatedLevel,
@@ -704,7 +716,7 @@ export default function App() {
         
         let nodeUuid = idCodeMap.get(codigo);
         if (!nodeUuid) {
-           nodeUuid = codigo; // Fallback to code if not in existing state
+           nodeUuid = crypto.randomUUID();
            idCodeMap.set(codigo, nodeUuid);
         }
         
@@ -712,7 +724,7 @@ export default function App() {
         if (padre && padre !== codigo) {
            parentUuid = idCodeMap.get(padre);
            if (!parentUuid) {
-              parentUuid = padre; 
+              parentUuid = crypto.randomUUID();
               idCodeMap.set(padre, parentUuid);
            }
         }
@@ -813,17 +825,29 @@ export default function App() {
         
         let nodeUuid = idCodeMap.get(codigo);
         if (!nodeUuid) {
-           nodeUuid = codigo; // Prefer code directly as requested
+           nodeUuid = crypto.randomUUID();
            idCodeMap.set(codigo, nodeUuid);
         }
         
-        if (nivel === '1' || nivel === '0') return; // Skip Level 1 inside here as they are just types
+        if (nivel === '1' || nivel === '0') {
+           newProcs.push({
+              id: nodeUuid,
+              codigo: codigo,
+              nombre,
+              descripcion: "Macoproceso/Tipo",
+              activo: true,
+              nivel: 1,
+              tipo: nombre,
+              vigenciaId: currentVigenciaView?.IdVigencia,
+           });
+           return;
+        }
 
         let parentUuid = null;
         if (padre) {
            parentUuid = idCodeMap.get(padre);
            if (!parentUuid) {
-              parentUuid = padre; // Prefer code directly as requested
+              parentUuid = crypto.randomUUID();
               idCodeMap.set(padre, parentUuid);
            }
         }
@@ -834,6 +858,7 @@ export default function App() {
              id: nodeUuid,
              codigo: codigo,
              nombre,
+             procesoId: parentUuid || undefined, // Store parent relationship (Nivel 1 -> Nivel 2)
              descripcion: `Tipo de proceso: ${tipo}`,
              activo: true,
              nivel: 2,
@@ -876,14 +901,14 @@ export default function App() {
   
           let nodeUuid = idCodeMap.get(codigo);
           if (!nodeUuid) {
-             nodeUuid = codigo; // Prefer code directly
+             nodeUuid = crypto.randomUUID();
              idCodeMap.set(codigo, nodeUuid);
           }
           let parentUuid = null;
           if (padre) {
              parentUuid = idCodeMap.get(padre);
              if (!parentUuid) {
-                parentUuid = padre; // Prefer code directly
+                parentUuid = crypto.randomUUID();
                 idCodeMap.set(padre, parentUuid);
              }
           }
@@ -1764,7 +1789,7 @@ export default function App() {
                          const randomlySelectedUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
 
                          generatedCargas.push({
-                            id: Math.floor(100000 + Math.random() * 900000).toString(),
+                            id: crypto.randomUUID(),
                             vigenciaId: currentVigenciaView.IdVigencia,
                             organismoId: selectedPath.orgId,
                             dependenciaId: selectedPath.depId,
