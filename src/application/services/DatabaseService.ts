@@ -144,9 +144,18 @@ export const DatabaseService = {
   getMapaRelaciones: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Org').from('MapaRelaciones').select('*');
-      if (error) throw error;
-      return data || [];
+      let allData: any[] = [];
+      let from = 0;
+      let limit = 1000;
+      while (true) {
+        const { data, error } = await supabase.schema('Org').from('MapaRelaciones').select('*').range(from, from + limit - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData = [...allData, ...data];
+        if (data.length < limit) break;
+        from += limit;
+      }
+      return allData;
     } catch (e: any) {
       console.error("Error fetching mapa", e);
       throw new Error(e.message || "Error al cargar mapa de relaciones");

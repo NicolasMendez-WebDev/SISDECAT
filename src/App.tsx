@@ -400,7 +400,7 @@ export default function App() {
   const currentActData = actData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
   // Default legacy mock cargas to the current vigencia if they don't have one
   const currentCargas = cargasTrabajo.map(c => !c.vigenciaId ? {...c, vigenciaId: currentVigenciaId} : c).filter(c => c.vigenciaId === currentVigenciaId);
-  const currentRelaciones = relaciones.filter(r => r.vigenciaId === currentVigenciaId);
+  const currentRelaciones = relaciones.filter(r => String(r.vigenciaId) === String(currentVigenciaId));
 
   // Compute UI-friendly pseudo relations to properly wrap Procedimientos inside their Procesos
   const uiRelaciones = React.useMemo(() => {
@@ -408,14 +408,14 @@ export default function App() {
     
     currentRelaciones.forEach(rel => {
         let currentType = rel.type || "Proceso";
-        const childIdStr = String(rel.childId).toLowerCase();
-        const parentIdStr = String(rel.parentId).trim();
+        const childIdStr = String(rel.childId).toLowerCase().trim();
+        const parentIdStr = String(rel.parentId).toLowerCase().trim();
 
         // Find the true nature of this ID first, no matter what `rel.type` saved in DB says
-        const pcd = currentPcdData.find(p => String(p.id).toLowerCase() === childIdStr);
+        const pcd = currentPcdData.find(p => String(p.id).toLowerCase().trim() === childIdStr);
         if (pcd) {
             if (pcd.procesoId) {
-                const key = `${parentIdStr}_${pcd.procesoId}`;
+                const key = `${parentIdStr}_${String(pcd.procesoId).toLowerCase().trim()}`;
                 if (computedMap.has(key)) {
                     const existing = computedMap.get(key);
                     if (!existing.includedChildren) existing.includedChildren = [];
@@ -437,17 +437,17 @@ export default function App() {
             }
         }
         
-        const proc = currentProcData.find(p => String(p.id).toLowerCase() === childIdStr);
+        const proc = currentProcData.find(p => String(p.id).toLowerCase().trim() === childIdStr);
         if (proc) {
             currentType = "Proceso"; 
         }
 
-        const act = currentActData.find(p => String(p.id).toLowerCase() === childIdStr);
+        const act = currentActData.find(p => String(p.id).toLowerCase().trim() === childIdStr);
         if (act) {
             currentType = "Actividad";
         }
 
-        const fallbackKey = `${parentIdStr}_${rel.childId}`;
+        const fallbackKey = `${parentIdStr}_${childIdStr}`;
         if (computedMap.has(fallbackKey)) {
             // Keep includedChildren for already-seeded items (when parent process already has an entry)
             const existing = computedMap.get(fallbackKey);

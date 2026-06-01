@@ -416,18 +416,31 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
       // Find linked children (only in General view)
       let linkedChildren: any[] = [];
       if (viewMode === 'general' && parentId !== null) {
-        const parentIdStr = String(parentId).toLowerCase();
-        const rels = relaciones.filter(r => String(r.parentId).toLowerCase() === parentIdStr);
+        const parentIdStr = String(parentId).toLowerCase().trim();
+        const rels = relaciones.filter(r => String(r.parentId).toLowerCase().trim() === parentIdStr);
         rels.forEach(r => {
           let childData: any = null;
-          const rChildIdStr = String(r.childId).toLowerCase();
-          if (r.type === 'Dependencia') childData = dependencias.find(d => String(d.id).toLowerCase() === rChildIdStr);
-          else if (r.type === 'Proceso') childData = procesos.find(p => String(p.id).toLowerCase() === rChildIdStr);
-          else if (r.type === 'Procedimiento') childData = procedimientos.find(pcd => String(pcd.id).toLowerCase() === rChildIdStr);
-          else if (r.type === 'Actividad') childData = actividades.find(act => String(act.id).toLowerCase() === rChildIdStr);
+          let actualType = r.type;
+          const rChildIdStr = String(r.childId).toLowerCase().trim();
+
+          // Try to find the child regardless of what 'type' is saved, for maximum robustness
+          let found = dependencias.find(d => String(d.id).toLowerCase().trim() === rChildIdStr);
+          if (found) { childData = found; actualType = 'Dependencia'; }
+          else {
+            found = procesos.find(p => String(p.id).toLowerCase().trim() === rChildIdStr);
+            if (found) { childData = found; actualType = 'Proceso'; }
+            else {
+              found = procedimientos.find(p => String(p.id).toLowerCase().trim() === rChildIdStr);
+              if (found) { childData = found; actualType = 'Procedimiento'; }
+              else {
+                found = actividades.find(a => String(a.id).toLowerCase().trim() === rChildIdStr);
+                if (found) { childData = found; actualType = 'Actividad'; }
+              }
+            }
+          }
           
           if (childData) {
-            linkedChildren.push({ ...childData, type: r.type, isLinked: true, includedChildren: r.includedChildren });
+            linkedChildren.push({ ...childData, type: actualType, isLinked: true, includedChildren: r.includedChildren });
           }
         });
       }
