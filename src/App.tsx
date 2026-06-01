@@ -407,9 +407,11 @@ export default function App() {
     const computedMap = new Map<string, any>();
     
     currentRelaciones.forEach(rel => {
-        if (rel.type === "Procedimiento") {
-            const pcd = currentPcdData.find(p => p.id === rel.childId);
-            if (pcd && pcd.procesoId) {
+        let currentType = rel.type;
+        // Find the true nature of this ID first, no matter what `rel.type` saved in DB says
+        const pcd = currentPcdData.find(p => p.id === rel.childId);
+        if (pcd) {
+            if (pcd.procesoId) {
                 const key = `${rel.parentId}_${pcd.procesoId}`;
                 if (computedMap.has(key)) {
                     const existing = computedMap.get(key);
@@ -427,24 +429,34 @@ export default function App() {
                     });
                 }
                 return; // skip raw
+            } else {
+                currentType = "Procedimiento"; // Fix type just in case
             }
         }
         
-        // For Proceso and others
+        const proc = currentProcData.find(p => p.id === rel.childId);
+        if (proc) {
+            currentType = "Proceso"; 
+        }
+
+        const act = currentActData.find(p => p.id === rel.childId);
+        if (act) {
+            currentType = "Actividad";
+        }
+
+        // Default or Fallback handling
         const key = `${rel.parentId}_${rel.childId}`;
         if (computedMap.has(key)) {
-            // If it already exists (because a Procedimiento seeded it), just preserve the includedChildren
+            // Keep includedChildren for already-seeded items (when parent process already has an entry)
             const existing = computedMap.get(key);
-            existing.type = rel.type; // Update type to actual just in case
-            // Merge other rel properties if needed, but the wrapper is already sufficient
+            existing.type = currentType; 
         } else {
-            // Clone to avoid mutating raw state
-            computedMap.set(key, { ...rel });
+            computedMap.set(key, { ...rel, type: currentType });
         }
     });
-    
+
     return Array.from(computedMap.values());
-  }, [currentRelaciones, currentPcdData]);
+  }, [currentRelaciones, currentPcdData, currentProcData, currentActData]);
   
   // Calculate specific user role for current vigencia
   const currentUserVigenciaContext = vigenciasUsuarios.find(vu => vu.idUsuario === currentUser?.id && vu.idVigencia === currentVigenciaId);
