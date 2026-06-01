@@ -294,7 +294,7 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsForgotPassword(false)}
+                  onClick={() => setViewState("login")}
                   disabled={isLoading}
                   className="text-xs text-slate-500 hover:text-slate-700 transition-colors mt-2"
                 >

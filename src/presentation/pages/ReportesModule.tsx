@@ -118,7 +118,7 @@ export const ReportesModule: React.FC<ReportesModuleProps> = ({
       });
       
       // We also need an "Otros" organismo to catch these 
-      const proxyOtros = { id: 'otros_org', nombre: 'Otras Dependencias sin Organismo Mapeado', estado: 'Activo', vigenciaId: '', color: '' as any };
+      const proxyOtros = { id: 'otros_org', nombre: 'Otras Dependencias sin Organismo Mapeado', estado: 'Activo' as "Activo" | "Inactivo", vigenciaId: '', color: '' as any };
       const allOrgs = [...organismos];
       if (orphanDeps.length > 0) {
         allOrgs.push(proxyOtros);

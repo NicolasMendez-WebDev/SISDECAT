@@ -251,6 +251,8 @@ export default function App() {
                activo: x.Activo,
                estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
+
+            setRelaciones(mappedRels);
             setProcData(fetchedProcs);
             setPcdData(fetchedPcds);
             setActData(fetchedActs);
@@ -399,6 +401,50 @@ export default function App() {
   // Default legacy mock cargas to the current vigencia if they don't have one
   const currentCargas = cargasTrabajo.map(c => !c.vigenciaId ? {...c, vigenciaId: currentVigenciaId} : c).filter(c => c.vigenciaId === currentVigenciaId);
   const currentRelaciones = relaciones.filter(r => r.vigenciaId === currentVigenciaId);
+
+  // Compute UI-friendly pseudo relations to properly wrap Procedimientos inside their Procesos
+  const uiRelaciones = React.useMemo(() => {
+    const computedMap = new Map<string, any>();
+    
+    currentRelaciones.forEach(rel => {
+        if (rel.type === "Procedimiento") {
+            const pcd = currentPcdData.find(p => p.id === rel.childId);
+            if (pcd && pcd.procesoId) {
+                const key = `${rel.parentId}_${pcd.procesoId}`;
+                if (computedMap.has(key)) {
+                    const existing = computedMap.get(key);
+                    if (!existing.includedChildren) existing.includedChildren = [];
+                    if (!existing.includedChildren.includes(rel.childId)) {
+                        existing.includedChildren.push(rel.childId);
+                    }
+                } else {
+                    computedMap.set(key, {
+                        type: "Proceso",
+                        childId: pcd.procesoId,
+                        parentId: rel.parentId,
+                        vigenciaId: rel.vigenciaId,
+                        includedChildren: [rel.childId]
+                    });
+                }
+                return; // skip raw
+            }
+        }
+        
+        // For Proceso and others
+        const key = `${rel.parentId}_${rel.childId}`;
+        if (computedMap.has(key)) {
+            // If it already exists (because a Procedimiento seeded it), just preserve the includedChildren
+            const existing = computedMap.get(key);
+            existing.type = rel.type; // Update type to actual just in case
+            // Merge other rel properties if needed, but the wrapper is already sufficient
+        } else {
+            // Clone to avoid mutating raw state
+            computedMap.set(key, { ...rel });
+        }
+    });
+    
+    return Array.from(computedMap.values());
+  }, [currentRelaciones, currentPcdData]);
   
   // Calculate specific user role for current vigencia
   const currentUserVigenciaContext = vigenciasUsuarios.find(vu => vu.idUsuario === currentUser?.id && vu.idVigencia === currentVigenciaId);
@@ -1037,13 +1083,6 @@ export default function App() {
            const existing = combined.find(r => r.childId === newRel.childId && r.parentId === newRel.parentId && r.vigenciaId === newRel.vigenciaId);
            if (!existing) {
                combined.push(newRel);
-           } else if (newRel.includedChildren) {
-               if (!existing.includedChildren) existing.includedChildren = [];
-               newRel.includedChildren.forEach((ic: string) => {
-                   if (!existing.includedChildren.includes(ic)) {
-                       existing.includedChildren.push(ic);
-                   }
-               });
            }
         });
         return combined;
@@ -1178,13 +1217,21 @@ export default function App() {
   ) => {
     if (isLinked) {
       // Remove from relations array if it's a custom link
+      const isUnlinkingProceso = childType === "Proceso";
+      
+      const toDeleteChildIds: string[] = [childId];
+      
+      if (isUnlinkingProceso) {
+          // If we are unlinking a pseudo Proceso connection, we should also delete all Procedimiento links under it
+          const pcdsInProceso = pcdData.filter(p => p.procesoId === childId).map(p => p.id);
+          toDeleteChildIds.push(...pcdsInProceso);
+      }
+      
       const newRels = relaciones.filter(
           (r) =>
             !(
-              r.type === childType &&
-              r.childId === childId &&
-              r.parentId === parentId &&
-              r.vigenciaId === currentVigenciaView?.IdVigencia
+              (r.type === childType && r.childId === childId && r.parentId === parentId && r.vigenciaId === currentVigenciaView?.IdVigencia) ||
+              (isUnlinkingProceso && r.type === "Procedimiento" && toDeleteChildIds.includes(r.childId) && r.parentId === parentId && r.vigenciaId === currentVigenciaView?.IdVigencia)
             ),
        );
       setRelaciones(newRels);
@@ -1192,9 +1239,10 @@ export default function App() {
       // Sync Delete in background
       if (currentVigenciaView?.IdVigencia) {
         import("./application/services/DatabaseService").then(({ DatabaseService }) => {
-            DatabaseService.deleteMapaRelacion(currentVigenciaView.IdVigencia, parentId, childId).catch(e => {
-               console.error("Error al sincronizar borrado", e);
-               showToast(`Error de conexión al eliminar: ${e.message}`, "error");
+            toDeleteChildIds.forEach(idToDelete => {
+               DatabaseService.deleteMapaRelacion(currentVigenciaView.IdVigencia, parentId, idToDelete).catch(e => {
+                  console.error("Error al sincronizar borrado", e);
+               });
             });
         });
       }
@@ -1507,7 +1555,7 @@ export default function App() {
                   actividades={currentActData}
                   cargas={currentCargas}
                   vigenciaActiva={currentVigenciaView?.Estado === 'Activo'}
-                  relaciones={currentRelaciones}
+                  relaciones={uiRelaciones}
                   onSave={handleSaveCarga}
                   onDelete={handleDeleteCarga}
                 />
@@ -1522,7 +1570,7 @@ export default function App() {
                   procedimientos={currentPcdData}
                   actividades={currentActData}
                   vigenciaActiva={currentVigenciaView?.Estado === 'Activo' || currentVigenciaView?.Estado === 'Borrador'}
-                  relaciones={currentRelaciones}
+                  relaciones={uiRelaciones}
                   hiddenPaths={hiddenPaths}
                   focusElement={focusElement}
                   recentlyModifiedIds={recentlyModifiedIds}
