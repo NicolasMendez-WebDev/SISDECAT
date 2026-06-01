@@ -401,11 +401,13 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
       } else if (parentType === 'Dependencia') {
         // Children of Dependencia: Procesos then Sub-Dependencias
         const subDeps = dependencias.filter(d => d.parentId === parentId).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
-        const procs = procesos.filter(p => p.dependenciaId === parentId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+        const procs = procesos.filter(p => p.dependenciaId === parentId || (viewMode === 'general' && p.procesoId === parentId)).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
         baseChildren = [...procs, ...subDeps];
       } else if (parentType === 'Proceso') {
-        // Children of Proceso: Procedimientos
-        baseChildren = procedimientos.filter(pcd => pcd.procesoId === parentId).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
+        // Children of Proceso: Sub-Procesos then Procedimientos
+        const subProcs = procesos.filter(p => p.procesoId === parentId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+        const pcds = procedimientos.filter(pcd => pcd.procesoId === parentId).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
+        baseChildren = [...subProcs, ...pcds];
       } else if (parentType === 'Procedimiento') {
         // Children of Procedimiento: Actividades
         baseChildren = actividades.filter(act => act.procedimientoId === parentId).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
@@ -434,7 +436,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
         allChildren = baseChildren.filter(c => c.type === 'Organismo' || c.type === 'Dependencia');
       } else if (viewMode === 'procedimental') {
         if (parentType === null) {
-          allChildren = procesos.map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+          allChildren = procesos.filter(p => !p.procesoId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
         } else {
           allChildren = baseChildren.filter(c => ['Proceso', 'Procedimiento', 'Actividad'].includes(c.type));
         }

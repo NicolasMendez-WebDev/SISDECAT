@@ -93,6 +93,7 @@ export interface Proceso {
   nombre: string;
   codigo?: string;
   estado?: 'Activo' | 'Inactivo';
+  procesoId?: string; // Optional for sub-procesos / Nivel 2
 }
 
 export interface Procedimiento {

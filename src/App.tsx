@@ -212,7 +212,7 @@ export default function App() {
 
             const procDb = await DatabaseService.getEstructuraProc();
             // UI expects Proceso in procData, Procedimiento in pcdData, Actividad in actData (Nivel 1 are just categories)
-            const fetchedProcs = procDb.filter(x => x.Nivel === 2).map(x => {
+            const fetchedProcs = procDb.filter(x => x.Nivel <= 2).map(x => {
                const parentNivel1 = procDb.find(p => p.IdNodoProceso === x.IdPadre && p.Nivel === 1);
                return {
                  id: x.IdNodoProceso,
@@ -220,7 +220,7 @@ export default function App() {
                  codigo: x.CodigoInterno,
                  nombre: x.Nombre,
                  dependenciaId: mappedRels.find(r => r.childId === x.IdNodoProceso)?.parentId || null,
-                 procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 2 if exists
+                 procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 1/2 if exists
                  level: x.Nivel,
                  activo: x.Activo,
                  tipo: parentNivel1 ? parentNivel1.Nombre : 'Misional',
@@ -704,6 +704,14 @@ export default function App() {
       orgData.filter(o => o.vigenciaId === currentVigenciaView?.IdVigencia).forEach(o => { if (o.codigo && o.id) idCodeMap.set(o.codigo, o.id); });
       depData.filter(d => d.vigenciaId === currentVigenciaView?.IdVigencia).forEach(d => { if (d.codigo && d.id) idCodeMap.set(d.codigo, d.id); });
 
+      // Generate UUIDs for all rows to ensure forward references work
+      datos.forEach(row => {
+        const codigo = String(row[codeKey as string] ?? '').trim();
+        if (codigo && !idCodeMap.has(codigo)) {
+          idCodeMap.set(codigo, crypto.randomUUID());
+        }
+      });
+
       datos.forEach(row => {
         const codigo = String(row[codeKey as string] ?? '').trim();
         const nombre = String(row[nameKey as string] ?? '').trim();
@@ -772,12 +780,12 @@ export default function App() {
       if (dedupedOrgs.length > 0) {
           setOrgData(prev => {
               const map = new Map(prev.map(o => [o.id, o]));
-              dedupedOrgs.filter(d => d.nivel === 1).forEach(d => map.set(d.id, d));
+              dedupedOrgs.filter(d => d.level === 1 || d.nivel === 1).forEach(d => map.set(d.id, d));
               return Array.from(map.values());
           });
           setDepData(prev => {
               const map = new Map(prev.map(d => [d.id, d]));
-              dedupedOrgs.filter(d => d.nivel === 2).forEach(d => map.set(d.id, d));
+              dedupedOrgs.filter(d => d.level === 2 || d.nivel === 2).forEach(d => map.set(d.id, d));
               return Array.from(map.values());
           });
       }
@@ -817,6 +825,14 @@ export default function App() {
       pcdData.filter(p => p.vigenciaId === currentVigenciaView?.IdVigencia).forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
       actData.filter(a => a.vigenciaId === currentVigenciaView?.IdVigencia).forEach(a => { if (a.codigo && a.id) idCodeMap.set(a.codigo, a.id); });
 
+      // Generate UUIDs for all rows to ensure forward references work
+      datos.forEach(row => {
+        const codigo = String(row[codeKey as string] ?? '').trim();
+        if (codigo && !idCodeMap.has(codigo)) {
+          idCodeMap.set(codigo, crypto.randomUUID());
+        }
+      });
+
       // Primera pasada: identificar Tipos de Proceso (Nivel 1)
       datos.forEach(row => {
         const codigo = String(row[codeKey as string] ?? '').trim();
@@ -843,22 +859,8 @@ export default function App() {
            idCodeMap.set(codigo, nodeUuid);
         }
         
-        if (nivel === '1' || nivel === '0') {
-           newProcs.push({
-              id: nodeUuid,
-              codigo: codigo,
-              nombre,
-              descripcion: "Macoproceso/Tipo",
-              activo: true,
-              nivel: 1,
-              tipo: nombre,
-              vigenciaId: currentVigenciaView?.IdVigencia,
-           });
-           return;
-        }
-
         let parentUuid = null;
-        if (padre) {
+        if (padre && padre !== codigo) {
            parentUuid = idCodeMap.get(padre);
            if (!parentUuid) {
               parentUuid = crypto.randomUUID();
@@ -866,20 +868,22 @@ export default function App() {
            }
         }
 
-        if (nivel === '2') {
-          const tipo = tiposProceso[padre] || "Misional";
+        const nivelLower = nivel.toLowerCase();
+        
+        // If it's explicitly 2 or explicitly 'proceso' or has no parent (making it root in the new structure)
+        if (!padre || codigo === padre || nivel === '1' || nivel === '2' || nivelLower.includes('proceso') || nivelLower === '0') {
           newProcs.push({
              id: nodeUuid,
              codigo: codigo,
              nombre,
-             procesoId: parentUuid || undefined, // Store parent relationship (Nivel 1 -> Nivel 2)
-             descripcion: `Tipo de proceso: ${tipo}`,
+             procesoId: parentUuid || undefined,
+             descripcion: "Importado",
              activo: true,
-             nivel: 2,
-             tipo: tipo, // Custom field just in case
+             nivel: 2, // Force level 2 for Proceso to match UI logic
+             tipo: "Misional",
              vigenciaId: currentVigenciaView?.IdVigencia,
           });
-        } else if (nivel === '3') {
+        } else if (nivel === '3' || nivelLower.includes('procedimiento')) {
           newPcds.push({
              id: nodeUuid,
              codigo: codigo,
@@ -889,7 +893,7 @@ export default function App() {
              nivel: 3,
              vigenciaId: currentVigenciaView?.IdVigencia,
           });
-        } else if (nivel === '4' || parseInt(nivel) > 4) {
+        } else {
           newActs.push({
              id: nodeUuid,
              codigo: codigo,
@@ -901,65 +905,6 @@ export default function App() {
           });
         }
       });
-
-      // Fallback si por alguna razón vienen mal los niveles y no mapeó ninguno, usamos la lógica clásica
-      if (newProcs.length === 0 && newPcds.length === 0) {
-        datos.forEach(row => {
-          const codigo = String(row[codeKey as string] ?? '').trim();
-          const nombre = String(row[nameKey as string] ?? '').trim();
-          const padreRaw = row[padreKey as string];
-          const padre = padreRaw ? String(padreRaw).trim() : '';
-          const nivel = String(row[nivelKey as string] ?? '').trim();
-  
-          if (!codigo || !nombre) return;
-  
-          let nodeUuid = idCodeMap.get(codigo);
-          if (!nodeUuid) {
-             nodeUuid = crypto.randomUUID();
-             idCodeMap.set(codigo, nodeUuid);
-          }
-          let parentUuid = null;
-          if (padre) {
-             parentUuid = idCodeMap.get(padre);
-             if (!parentUuid) {
-                parentUuid = crypto.randomUUID();
-                idCodeMap.set(padre, parentUuid);
-             }
-          }
-
-          if (!padre || codigo === padre || nivel === '1' || String(nivel).toLowerCase().includes('proceso')) {
-            newProcs.push({
-               id: nodeUuid,
-               codigo: codigo,
-               nombre,
-               descripcion: "Importado masivamente",
-               activo: true,
-               nivel: 2,
-               vigenciaId: currentVigenciaView?.IdVigencia,
-            });
-          } else if (nivel === '2' || nivel === '3' || String(nivel).toLowerCase().includes('procedimiento')) {
-            newPcds.push({
-               id: nodeUuid,
-               codigo: codigo,
-               nombre,
-               procesoId: parentUuid || undefined,
-               activo: true,
-               nivel: 3,
-               vigenciaId: currentVigenciaView?.IdVigencia,
-            });
-          } else {
-            newActs.push({
-               id: nodeUuid,
-               codigo: codigo,
-               nombre,
-               procedimientoId: parentUuid || undefined,
-               activo: true,
-               nivel: 4,
-               vigenciaId: currentVigenciaView?.IdVigencia,
-            });
-          }
-        });
-      }
 
       const combinedProcs = [...newProcs, ...newPcds, ...newActs];
       const uniqueProcsMap = new Map();
