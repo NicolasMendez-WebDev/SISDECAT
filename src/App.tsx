@@ -205,11 +205,11 @@ export default function App() {
 
             const mapaDb = await DatabaseService.getMapaRelaciones();
             const mappedRels = mapaDb.map(m => ({
-               vigenciaId: m.IdVigencia,
-               parentId: m.IdNodoOrg,
-               childId: m.IdNodoProceso,
-               type: m.ObservacionRelacion || "Proceso"
-            }));
+               vigenciaId: m.IdVigencia || m.idvigencia || m.vigenciaId || (m as any).id_vigencia,
+               parentId: m.IdNodoOrg || m.idnodoorg || m.parentId || (m as any).id_nodo_org,
+               childId: m.IdNodoProceso || m.idnodoproceso || m.childId || (m as any).id_nodo_proceso,
+               type: m.ObservacionRelacion || m.observacionrelacion || (m as any).observacion_relacion || m.type || "Proceso"
+            })).filter(r => r.parentId && r.childId);
             setRelaciones(mappedRels);
 
             const procDb = await DatabaseService.getEstructuraProc();
@@ -407,25 +407,28 @@ export default function App() {
     const computedMap = new Map<string, any>();
     
     currentRelaciones.forEach(rel => {
-        let currentType = rel.type;
+        let currentType = rel.type || "Proceso";
+        const childIdStr = String(rel.childId).toLowerCase();
+        const parentIdStr = String(rel.parentId).trim();
+
         // Find the true nature of this ID first, no matter what `rel.type` saved in DB says
-        const pcd = currentPcdData.find(p => p.id === rel.childId);
+        const pcd = currentPcdData.find(p => String(p.id).toLowerCase() === childIdStr);
         if (pcd) {
             if (pcd.procesoId) {
-                const key = `${rel.parentId}_${pcd.procesoId}`;
+                const key = `${parentIdStr}_${pcd.procesoId}`;
                 if (computedMap.has(key)) {
                     const existing = computedMap.get(key);
                     if (!existing.includedChildren) existing.includedChildren = [];
-                    if (!existing.includedChildren.includes(rel.childId)) {
-                        existing.includedChildren.push(rel.childId);
+                    if (!existing.includedChildren.includes(pcd.id)) {
+                        existing.includedChildren.push(pcd.id);
                     }
                 } else {
                     computedMap.set(key, {
-                        type: "Proceso",
+                        type: "Proceso", // We group procedures under a synthetic Proceso relation
                         childId: pcd.procesoId,
                         parentId: rel.parentId,
                         vigenciaId: rel.vigenciaId,
-                        includedChildren: [rel.childId]
+                        includedChildren: [pcd.id]
                     });
                 }
                 return; // skip raw
@@ -434,24 +437,23 @@ export default function App() {
             }
         }
         
-        const proc = currentProcData.find(p => p.id === rel.childId);
+        const proc = currentProcData.find(p => String(p.id).toLowerCase() === childIdStr);
         if (proc) {
             currentType = "Proceso"; 
         }
 
-        const act = currentActData.find(p => p.id === rel.childId);
+        const act = currentActData.find(p => String(p.id).toLowerCase() === childIdStr);
         if (act) {
             currentType = "Actividad";
         }
 
-        // Default or Fallback handling
-        const key = `${rel.parentId}_${rel.childId}`;
-        if (computedMap.has(key)) {
+        const fallbackKey = `${parentIdStr}_${rel.childId}`;
+        if (computedMap.has(fallbackKey)) {
             // Keep includedChildren for already-seeded items (when parent process already has an entry)
-            const existing = computedMap.get(key);
+            const existing = computedMap.get(fallbackKey);
             existing.type = currentType; 
         } else {
-            computedMap.set(key, { ...rel, type: currentType });
+            computedMap.set(fallbackKey, { ...rel, type: currentType });
         }
     });
 

@@ -416,13 +416,15 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
       // Find linked children (only in General view)
       let linkedChildren: any[] = [];
       if (viewMode === 'general' && parentId !== null) {
-        const rels = relaciones.filter(r => r.parentId === parentId);
+        const parentIdStr = String(parentId).toLowerCase();
+        const rels = relaciones.filter(r => String(r.parentId).toLowerCase() === parentIdStr);
         rels.forEach(r => {
           let childData: any = null;
-          if (r.type === 'Dependencia') childData = dependencias.find(d => d.id === r.childId);
-          else if (r.type === 'Proceso') childData = procesos.find(p => p.id === r.childId);
-          else if (r.type === 'Procedimiento') childData = procedimientos.find(pcd => pcd.id === r.childId);
-          else if (r.type === 'Actividad') childData = actividades.find(act => act.id === r.childId);
+          const rChildIdStr = String(r.childId).toLowerCase();
+          if (r.type === 'Dependencia') childData = dependencias.find(d => String(d.id).toLowerCase() === rChildIdStr);
+          else if (r.type === 'Proceso') childData = procesos.find(p => String(p.id).toLowerCase() === rChildIdStr);
+          else if (r.type === 'Procedimiento') childData = procedimientos.find(pcd => String(pcd.id).toLowerCase() === rChildIdStr);
+          else if (r.type === 'Actividad') childData = actividades.find(act => String(act.id).toLowerCase() === rChildIdStr);
           
           if (childData) {
             linkedChildren.push({ ...childData, type: r.type, isLinked: true, includedChildren: r.includedChildren });
