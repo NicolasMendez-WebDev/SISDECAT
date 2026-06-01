@@ -729,11 +729,7 @@ export default function App() {
         
         let parentUuid = null;
         if (padre && padre !== codigo) {
-           parentUuid = idCodeMap.get(padre);
-           if (!parentUuid) {
-              parentUuid = crypto.randomUUID();
-              idCodeMap.set(padre, parentUuid);
-           }
+           parentUuid = idCodeMap.get(padre) || null;
         }
 
         if (nivel === '0' || nivel === '1' || !padre || padre === codigo) {
@@ -861,11 +857,7 @@ export default function App() {
         
         let parentUuid = null;
         if (padre && padre !== codigo) {
-           parentUuid = idCodeMap.get(padre);
-           if (!parentUuid) {
-              parentUuid = crypto.randomUUID();
-              idCodeMap.set(padre, parentUuid);
-           }
+           parentUuid = idCodeMap.get(padre) || null;
         }
 
         const nivelLower = nivel.toLowerCase();
