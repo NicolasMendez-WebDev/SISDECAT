@@ -104,7 +104,7 @@ export const DatabaseService = {
       const format = nodos.map(n => ({
         IdNodoProceso: n.IdNodoProceso || n.id,
         IdVigencia: n.IdVigencia || n.vigenciaId,
-        IdPadre: n.IdPadre || n.padreId || null,
+        IdPadre: n.IdPadre || n.padreId || n.procesoId || n.procedimientoId || null,
         IdTipoProceso: n.IdTipoProceso || null,
         Nivel: n.Nivel || n.nivel || 1,
         CodigoInterno: n.CodigoInterno || (n.codigo && typeof n.codigo === 'string' && n.codigo.trim() !== '' ? n.codigo.trim() : null) || (String(n.IdNodoProceso || n.id || "")).substring(0,8) || 'S/N',

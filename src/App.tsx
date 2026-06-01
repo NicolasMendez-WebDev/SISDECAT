@@ -211,9 +211,8 @@ export default function App() {
             setRelaciones(mappedRels);
 
             const procDb = await DatabaseService.getEstructuraProc();
-            // Nivel 1 types (Macros) are just parents, but UI expects Proceso in procData, Procedimiento in pcdData, Actividad in actData
-            // So procData = Level 1 & 2 maybe? No, let's put Level 1 & 2 in procData so relationships resolve
-            const fetchedProcs = procDb.filter(x => x.Nivel === 1 || x.Nivel === 2).map(x => {
+            // UI expects Proceso in procData, Procedimiento in pcdData, Actividad in actData (Nivel 1 are just categories)
+            const fetchedProcs = procDb.filter(x => x.Nivel === 2).map(x => {
                const parentNivel1 = procDb.find(p => p.IdNodoProceso === x.IdPadre && p.Nivel === 1);
                return {
                  id: x.IdNodoProceso,
