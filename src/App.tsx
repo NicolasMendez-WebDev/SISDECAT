@@ -221,7 +221,7 @@ export default function App() {
                  vigenciaId: x.IdVigencia,
                  codigo: x.CodigoInterno,
                  nombre: x.Nombre,
-                 dependenciaId: mappedRels.find(r => r.childId === x.IdNodoProceso)?.parentId || null,
+                 dependenciaId: mappedRels.find(r => String(r.childId) === String(x.IdNodoProceso))?.parentId || null,
                  procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 1/2 if exists
                  level: x.Nivel,
                  activo: x.Activo,
@@ -315,7 +315,7 @@ export default function App() {
                 if (procedimiento && procedimiento.procesoId) {
                    const procesoId = procedimiento.procesoId;
                    
-                   const existingRel = mappedRels.find(r => r.parentId === m.IdNodoOrg && r.childId === procesoId);
+                   const existingRel = mappedRels.find(r => String(r.parentId) === String(m.IdNodoOrg) && String(r.childId) === String(procesoId));
                    if (existingRel) {
                        if (!existingRel.includedChildren) existingRel.includedChildren = [];
                        if (!existingRel.includedChildren.includes(m.IdNodoProceso)) {

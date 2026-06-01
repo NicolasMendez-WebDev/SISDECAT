@@ -287,6 +287,11 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
       return;
     }
 
+    if (!formData.unidadTiempo) {
+      alert("Error: Debe seleccionar una unidad de medida (minutos, horas, etc.).");
+      return;
+    }
+
     const tm = parseFloat(formData.tiempoMin) || 0;
     const tn = parseFloat(formData.tiempoNormal) || 0;
     const tM = parseFloat(formData.tiempoMax) || 0;
