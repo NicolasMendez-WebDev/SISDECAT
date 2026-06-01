@@ -1006,30 +1006,6 @@ export default function App() {
              else if (childIdRaw.startsWith('act_') || trueChildId.toLowerCase().includes('actividad')) childType = "Actividad";
           }
 
-          if (childType === "Procedimiento") {
-              const procedimiento = pcdData.find(p => p.id === trueChildId);
-              if (procedimiento && procedimiento.procesoId) {
-                 const procesoId = procedimiento.procesoId;
-                 
-                 const existingRel = mappedRels.find(r => r.parentId === trueParentId && r.childId === procesoId);
-                 if (existingRel) {
-                     if (!existingRel.includedChildren) existingRel.includedChildren = [];
-                     if (!existingRel.includedChildren.includes(trueChildId)) {
-                         existingRel.includedChildren.push(trueChildId);
-                     }
-                 } else {
-                     mappedRels.push({
-                         type: "Proceso",
-                         childId: procesoId,
-                         parentId: trueParentId,
-                         includedChildren: [trueChildId]
-                     });
-                 }
-                 // IMPORTANT: skip adding explicit Procedimiento wrapper
-                 return;
-              }
-          }
-
           mappedRels.push({
              type: childType,
              childId: trueChildId,
@@ -1039,10 +1015,25 @@ export default function App() {
 
       const validRels = mappedRels.filter(r => r.childId && r.parentId);
 
+      if (validRels.length > 0) {
+        try {
+          const { DatabaseService } = await import("./application/services/DatabaseService");
+          
+          // Map to correct format before updating state to get right Vigencia
+          validRels.forEach(newRel => {
+             newRel.vigenciaId = currentVigenciaView?.IdVigencia;
+          });
+          
+          await DatabaseService.saveMapaRelaciones(validRels);
+        } catch (e: any) {
+          console.error("Error saving imported relaciones", e);
+          showToast(`Error guardando exportación en base de datos: ${e.message}`, "error");
+        }
+      }
+
       setRelaciones(prev => {
         const combined = [...prev];
         validRels.forEach(newRel => {
-           newRel.vigenciaId = currentVigenciaView?.IdVigencia;
            const existing = combined.find(r => r.childId === newRel.childId && r.parentId === newRel.parentId && r.vigenciaId === newRel.vigenciaId);
            if (!existing) {
                combined.push(newRel);
@@ -1058,7 +1049,7 @@ export default function App() {
         return combined;
       });
 
-      showToast(`Se procesaron relaciones correctamente.`, "success");
+      showToast(`Se importaron relaciones correctamente.`, "success");
     } catch (error) {
       showToast("Error al importar la matriz de relaciones.", "error");
     } finally {
@@ -1076,45 +1067,11 @@ export default function App() {
     const vigenciaId = currentVigenciaView?.IdVigencia;
 
     childIds.forEach((childId) => {
-      // Si estamos vinculando un Procedimiento a una Dependencia/Organismo (algo diferente a un Proceso)
-      if (childType === "Procedimiento" && (parentId.startsWith("dep_") || parentId.startsWith("org_") || depData.some(d => d.id === parentId) || orgData.some(o => o.id === parentId))) {
-        const procedimiento = pcdData.find(p => p.id === childId);
-        if (procedimiento && procedimiento.procesoId) {
-          const procesoId = procedimiento.procesoId;
-          const existingRelIdx = modifiedRelations.findIndex(r => r.parentId === parentId && r.childId === procesoId && r.vigenciaId === vigenciaId);
-          
-          if (existingRelIdx >= 0) {
-            const existingRel = modifiedRelations[existingRelIdx];
-            if (!existingRel.includedChildren) {
-              modifiedRelations[existingRelIdx] = { ...existingRel, includedChildren: [childId] };
-              newRelations.push({ type: "Proceso", childId: procesoId, parentId, implicitUpdate: true, vigenciaId });
-            } else if (!existingRel.includedChildren.includes(childId)) {
-              modifiedRelations[existingRelIdx] = {
-                ...existingRel,
-                includedChildren: [...existingRel.includedChildren, childId]
-              };
-              newRelations.push({ type: "Proceso", childId: procesoId, parentId, implicitUpdate: true, vigenciaId });
-            }
-          } else {
-            // Creamos la relación Proceso y añadimos el procedimiento al includedChildren
-            const newProcesoRel = {
-              type: "Proceso",
-              childId: procesoId,
-              parentId: parentId,
-              includedChildren: [childId],
-              vigenciaId
-            };
-            modifiedRelations.push(newProcesoRel);
-            newRelations.push(newProcesoRel);
-          }
-        }
-      } else {
-        // Logica estandar para todo lo demas (ej: Proceso -> Dependencia)
-        if (!modifiedRelations.some(r => r.type === childType && r.childId === childId && r.parentId === parentId && r.vigenciaId === vigenciaId)) {
-          const newRel = { type: childType, childId, parentId, vigenciaId };
-          modifiedRelations.push(newRel);
-          newRelations.push(newRel);
-        }
+      // Logica estandar para todo: vincular el nodo directamente sin pseudo-relaciones
+      if (!modifiedRelations.some(r => r.type === childType && r.childId === childId && r.parentId === parentId && r.vigenciaId === vigenciaId)) {
+        const newRel = { type: childType, childId, parentId, vigenciaId };
+        modifiedRelations.push(newRel);
+        newRelations.push(newRel);
       }
     });
 
@@ -1233,12 +1190,14 @@ export default function App() {
       setRelaciones(newRels);
       
       // Sync Delete in background
-      import("./application/services/DatabaseService").then(({ DatabaseService }) => {
-          DatabaseService.saveMapaRelaciones(newRels).catch(e => {
-             console.error("Error al sincronizar borrado", e);
-             showToast(`Error de conexión al eliminar: ${e.message}`, "error");
-          });
-      });
+      if (currentVigenciaView?.IdVigencia) {
+        import("./application/services/DatabaseService").then(({ DatabaseService }) => {
+            DatabaseService.deleteMapaRelacion(currentVigenciaView.IdVigencia, parentId, childId).catch(e => {
+               console.error("Error al sincronizar borrado", e);
+               showToast(`Error de conexión al eliminar: ${e.message}`, "error");
+            });
+        });
+      }
     } else {
       // If it's a base relationship, we just hide it from the UI for this specific contextual path
       setHiddenPaths((prev) => [...prev, path]);

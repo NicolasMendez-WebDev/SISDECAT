@@ -175,6 +175,19 @@ export const DatabaseService = {
     return relaciones;
   },
 
+  deleteMapaRelacion: async (idVigencia: number, parentId: string, childId: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.schema('Org').from('MapaRelaciones')
+        .delete()
+        .match({ IdVigencia: idVigencia, IdNodoOrg: parentId, IdNodoProceso: childId });
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("Error deleting mapa", e);
+      throw new Error(e.message || "Error al eliminar relación");
+    }
+  },
+
   getUsuariosDependencia: async () => {
     if (!supabase) return [];
     try {
