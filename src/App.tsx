@@ -187,7 +187,8 @@ export default function App() {
               codigo: x.CodigoInterno,
               nombre: x.Nombre,
               level: 1,
-              activo: x.Activo
+              activo: x.Activo,
+              estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
             const fetchedDeps = orgDb.filter(x => x.Nivel > 1).map(x => ({
               id: x.IdNodoOrg,
@@ -196,7 +197,8 @@ export default function App() {
               nombre: x.Nombre,
               parentId: x.IdPadre,
               level: x.Nivel,
-              activo: x.Activo
+              activo: x.Activo,
+              estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
             setOrgData(fetchedOrgs);
             setDepData(fetchedDeps);
@@ -223,6 +225,7 @@ export default function App() {
                  procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 1/2 if exists
                  level: x.Nivel,
                  activo: x.Activo,
+                 estado: x.Activo ? 'Activo' : 'Inactivo',
                  tipo: parentNivel1 ? parentNivel1.Nombre : 'Misional',
                  descripcion: parentNivel1 ? `Tipo de proceso: ${parentNivel1.Nombre}` : (x.Nivel === 1 ? 'Macoproceso/Tipo' : 'Misional')
                };
@@ -235,7 +238,8 @@ export default function App() {
                procesoId: x.IdPadre,
                producto: x.Producto,
                level: 3,
-               activo: x.Activo
+               activo: x.Activo,
+               estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
             const fetchedActs = procDb.filter(x => x.Nivel >= 4).map(x => ({
                id: x.IdNodoProceso,
@@ -244,7 +248,8 @@ export default function App() {
                nombre: x.Nombre,
                procedimientoId: x.IdPadre,
                level: 4,
-               activo: x.Activo
+               activo: x.Activo,
+               estado: x.Activo ? 'Activo' : 'Inactivo'
             }));
             setProcData(fetchedProcs);
             setPcdData(fetchedPcds);
@@ -600,6 +605,7 @@ export default function App() {
         ...data,
         codigo: finalCodigo,
         activo: true, 
+        estado: 'Activo',
         vigenciaId: currentVigenciaView?.IdVigencia,
         level: calculatedLevel,
         nivel: calculatedLevel
@@ -760,13 +766,17 @@ export default function App() {
 
       const combinedOrgsDeps = [...newOrgs, ...newDeps];
       const uniqueOrgsMap = new Map();
-      combinedOrgsDeps.forEach(item => uniqueOrgsMap.set(item.id, item));
+      combinedOrgsDeps.forEach(item => uniqueOrgsMap.set(item.id, { ...item, estado: 'Activo' }));
       const dedupedOrgs = Array.from(uniqueOrgsMap.values());
 
       if (dedupedOrgs.length > 0) {
         try {
           const { DatabaseService } = await import("./application/services/DatabaseService");
-          await DatabaseService.saveEstructuraOrg(dedupedOrgs);
+          const orgData = dedupedOrgs.filter(d => d.nivel === 1 || d.level === 1);
+          const depData = dedupedOrgs.filter(d => d.nivel === 2 || d.level === 2);
+          
+          if (orgData.length > 0) await DatabaseService.saveEstructuraOrg(orgData);
+          if (depData.length > 0) await DatabaseService.saveEstructuraOrg(depData);
         } catch (e: any) {
           console.error("Error saving imported orgs", e);
           showToast(`Error guardando exportación en base de datos: ${e.message}`, "error");
@@ -900,13 +910,19 @@ export default function App() {
 
       const combinedProcs = [...newProcs, ...newPcds, ...newActs];
       const uniqueProcsMap = new Map();
-      combinedProcs.forEach(item => uniqueProcsMap.set(item.id, item));
+      combinedProcs.forEach(item => uniqueProcsMap.set(item.id, { ...item, estado: 'Activo' }));
       const dedupedProcs = Array.from(uniqueProcsMap.values());
       
       if (dedupedProcs.length > 0) {
         try {
           const { DatabaseService } = await import("./application/services/DatabaseService");
-          await DatabaseService.saveEstructuraProc(dedupedProcs);
+          const procsNivel1_2 = dedupedProcs.filter(p => p.nivel <= 2);
+          const procsNivel3 = dedupedProcs.filter(p => p.nivel === 3);
+          const procsNivel4 = dedupedProcs.filter(p => p.nivel >= 4);
+
+          if (procsNivel1_2.length > 0) await DatabaseService.saveEstructuraProc(procsNivel1_2);
+          if (procsNivel3.length > 0) await DatabaseService.saveEstructuraProc(procsNivel3);
+          if (procsNivel4.length > 0) await DatabaseService.saveEstructuraProc(procsNivel4);
         } catch (e: any) {
           console.error("Error saving imported procs", e);
           showToast(`Error guardando importación en base de datos: ${e.message}`, "error");
@@ -1288,7 +1304,7 @@ export default function App() {
 
   const executeDeleteStructure = async (type: string, id: string) => {
     let itemName = "Elemento";
-    const changeToInactive = (item: any) => item.id === id ? { ...item, Activo: false, activo: false } : item;
+    const changeToInactive = (item: any) => item.id === id ? { ...item, Activo: false, activo: false, estado: "Inactivo" } : item;
 
     let updatedList: any[] = [];
     if (type === "Organismo") {

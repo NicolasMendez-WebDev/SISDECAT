@@ -54,9 +54,18 @@ export const DatabaseService = {
   getEstructuraOrg: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Org').from('EstructuraJerarquica').select('*');
-      if (error) throw error;
-      return data || [];
+      let allData: any[] = [];
+      let from = 0;
+      let limit = 1000;
+      while (true) {
+        const { data, error } = await supabase.schema('Org').from('EstructuraJerarquica').select('*').range(from, from + limit - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData = [...allData, ...data];
+        if (data.length < limit) break;
+        from += limit;
+      }
+      return allData;
     } catch (e: any) {
       console.error("Error fetching org", e);
       throw new Error(e.message || "Error al cargar estructura jerárquica");
@@ -89,9 +98,18 @@ export const DatabaseService = {
   getEstructuraProc: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Cat').from('EstructuraProcesos').select('*');
-      if (error) throw error;
-      return data || [];
+      let allData: any[] = [];
+      let from = 0;
+      let limit = 1000;
+      while (true) {
+        const { data, error } = await supabase.schema('Cat').from('EstructuraProcesos').select('*').range(from, from + limit - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData = [...allData, ...data];
+        if (data.length < limit) break;
+        from += limit;
+      }
+      return allData;
     } catch (e: any) {
       console.error("Error fetching proc", e);
       throw new Error(e.message || "Error al cargar estructura de procesos");

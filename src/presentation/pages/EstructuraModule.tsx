@@ -484,7 +484,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
         if (viewMode === 'organizacional') {
           numElements = organismos.filter(o => o.parentId === child.id && o.estado !== 'Inactivo').length + dependencias.filter(d => d.parentId === child.id && d.estado !== 'Inactivo').length;
         } else if (viewMode === 'procedimental') {
-          if (child.type === 'Proceso') numElements = procedimientos.filter(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo').length;
+          if (child.type === 'Proceso') numElements = procesos.filter(p => p.procesoId === child.id && p.estado !== 'Inactivo').length + procedimientos.filter(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo').length;
           else if (child.type === 'Procedimiento') numElements = actividades.filter(act => act.procedimientoId === child.id && act.estado !== 'Inactivo').length;
         } else {
           // General
@@ -501,7 +501,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
         if (viewMode === 'organizacional') {
           hasChildren = organismos.some(o => o.parentId === child.id && o.estado !== 'Inactivo') || dependencias.some(d => d.parentId === child.id && d.estado !== 'Inactivo');
         } else if (viewMode === 'procedimental') {
-          if (child.type === 'Proceso') hasChildren = procedimientos.some(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo');
+          if (child.type === 'Proceso') hasChildren = procesos.some(p => p.procesoId === child.id && p.estado !== 'Inactivo') || procedimientos.some(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo');
           else if (child.type === 'Procedimiento') hasChildren = actividades.some(act => act.procedimientoId === child.id && act.estado !== 'Inactivo');
         } else {
           // general mode
@@ -511,7 +511,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
           } else if (child.type === 'Dependencia') {
              tempHasChildren = dependencias.some(d => d.parentId === child.id && d.estado !== 'Inactivo') || procesos.some(p => p.dependenciaId === child.id && p.estado !== 'Inactivo');
           } else if (child.type === 'Proceso') {
-             tempHasChildren = procedimientos.some(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo');
+             tempHasChildren = procesos.some(p => p.procesoId === child.id && p.estado !== 'Inactivo') || procedimientos.some(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo');
           } else if (child.type === 'Procedimiento') {
              tempHasChildren = actividades.some(act => act.procedimientoId === child.id && act.estado !== 'Inactivo');
           }
