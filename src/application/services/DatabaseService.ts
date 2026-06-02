@@ -261,7 +261,6 @@ export const DatabaseService = {
         IdVigencia: cargo.IdVigencia || cargo.vigenciaId,
         Denominacion: cargo.Denominacion || cargo.denominacion,
         NivelJerarquico: cargo.NivelJerarquico || cargo.nivelJerarquico,
-        SueldoEscala: cargo.SueldoEscala || cargo.sueldoEscala || 0,
         Activo: cargo.Activo !== undefined ? cargo.Activo : true
       };
       if (cargo.IdCargo && String(cargo.IdCargo).indexOf('-') === -1) {
