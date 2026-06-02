@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { calculateETP } from '../utils/calculations';
 
 export const captureService = {
   // Inicialización no needed anymore.
@@ -8,7 +9,7 @@ export const captureService = {
     if (!supabase) return [];
     
     // We fetch from Ops.CargasTrabajo
-    const { data, error } = await supabase
+    const { data: cargasData, error } = await supabase
       .schema('Ops')
       .from('CargasTrabajo')
       .select('*')
@@ -18,24 +19,48 @@ export const captureService = {
       console.error("Supabase getCargas Error:", error);
       throw error;
     }
-    
+
+    const { data: mapas } = await supabase.schema('Org').from('MapaRelaciones').select('*');
+    const { data: cargos } = await supabase.schema('Org').from('Cargos').select('*');
+    const { data: factores } = await supabase.schema('Conf').from('FactoresFrecuencia').select('*');
+    const { data: procTree } = await supabase.schema('Org').from('EstructuraProcesos').select('*');
+
     // Map backend rows to frontend expected format
-    return (data || []).map(row => ({
-       id: row.IdCarga,
-       vigenciaId: row.IdVigencia,
-       dependenciaId: row.IdMapa, // We need to resolve this correctly if needed by the frontend, but let's keep it simple. Actually, we should join MapaRelaciones.
-       // However, to keep compatibility with the App's mock, they mapped directly.
-       // The app uses `c.vigenciaId`, etc. We'll return raw for now and let the frontend adapt, or adapt here:
-       rolEjecutor: row.IdCargoEjecutor,
-       frecuencia: row.IdFactorFrecuencia,
-       volumenQ: row.Volumen,
-       unidadTiempo: row.UnidadTiempoInput,
-       tiempoMin: row.Tmin_Horas,
-       tiempoNormal: row.Tnorm_Horas,
-       tiempoMax: row.Tmax_Horas,
-       // we should ideally join to get these text values, but for now just pass IDs.
-       _etpCalculated: row.ETP,
-    }));
+    return (cargasData || []).map(row => {
+       const mapa = mapas?.find(m => m.IdMapa === row.IdMapa);
+       const cargo = cargos?.find(c => c.IdCargo === row.IdCargoEjecutor);
+       const factor = factores?.find(f => f.IdFactor === row.IdFactorFrecuencia);
+
+       const actividadId = mapa?.IdNodoProceso;
+       const actNode = procTree?.find(p => p.IdNodoProceso === actividadId);
+       const pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
+       const procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
+
+       return {
+         id: row.IdCarga,
+         vigenciaId: row.IdVigencia,
+         dependenciaId: mapa?.IdNodoOrg || row.IdMapa,
+         organismoId: null, // Let UI resolve this via dependencia.parentId
+         procesoId: procNode?.IdNodoProceso,
+         procedimientoId: pcdNode?.IdNodoProceso,
+         actividadId: actividadId,
+         rolEjecutor: cargo?.NivelJerarquico || cargo?.Denominacion || row.IdCargoEjecutor,
+         frecuencia: factor?.Nombre || row.IdFactorFrecuencia,
+         volumenQ: row.Volumen,
+         unidadTiempo: row.UnidadTiempoInput,
+         tiempoMin: row.Tmin_Horas,
+         tiempoNormal: row.Tnorm_Horas,
+         tiempoMax: row.Tmax_Horas,
+         _etpCalculated: row.ETP || calculateETP({
+           volumenQ: row.Volumen,
+           frecuencia: factor?.Nombre || row.IdFactorFrecuencia,
+           unidadTiempo: row.UnidadTiempoInput,
+           tiempoMin: row.Tmin_Horas,
+           tiempoNormal: row.Tnorm_Horas,
+           tiempoMax: row.Tmax_Horas,
+         }),
+       };
+    });
   },
 
   createCarga: async (carga: any): Promise<any> => {

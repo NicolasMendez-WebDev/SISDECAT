@@ -307,7 +307,7 @@ export const ReportesModule: React.FC<ReportesModuleProps> = ({
 
         // Helper calculations
         let mult = 1;
-        const f = r.frecuencia?.toLowerCase();
+        const f = String(r.frecuencia || '').toLowerCase();
         if (f === 'diaria' || f === 'diario') mult = 250;
         else if (f === 'semanal') mult = 50;
         else if (f === 'quincenal') mult = 24;

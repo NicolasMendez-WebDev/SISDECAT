@@ -167,7 +167,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
     // Análisis por Frecuencia de Ejecución
     const frecuenciaGroups: Record<string, number> = {};
     vc.forEach(c => {
-      const f = (c.frecuencia || 'No Definida').toLowerCase();
+      const f = String(c.frecuencia || 'No Definida').toLowerCase();
       const capF = f.charAt(0).toUpperCase() + f.slice(1);
       frecuenciaGroups[capF] = (frecuenciaGroups[capF] || 0) + (c._etpCalculated || 0);
     });
