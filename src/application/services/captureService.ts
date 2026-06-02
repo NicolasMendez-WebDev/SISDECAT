@@ -95,7 +95,7 @@ export const captureService = {
       // 3. Resolve FactorFrecuencia
       let realIdFactor = null;
       const targetFreq = carga.frecuencia || 'diaria';
-      const { data: factData } = await supabase.schema('Conf').from('FactorFrecuencia')
+      const { data: factData } = await supabase.schema('Conf').from('FactoresFrecuencia')
           .select('IdFactor')
           .ilike('Nombre', targetFreq)
           .eq('IdVigencia', carga.vigenciaId)
@@ -103,7 +103,7 @@ export const captureService = {
       if (factData && factData.length > 0) {
           realIdFactor = factData[0].IdFactor;
       } else {
-          const { data: insFact, error: eF } = await supabase.schema('Conf').from('FactorFrecuencia')
+          const { data: insFact, error: eF } = await supabase.schema('Conf').from('FactoresFrecuencia')
             .insert({
               IdVigencia: carga.vigenciaId,
               Nombre: targetFreq,

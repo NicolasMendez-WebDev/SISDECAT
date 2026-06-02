@@ -224,7 +224,7 @@ export const DatabaseService = {
   getFactoresFrecuencia: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Conf').from('FactorFrecuencia').select('*');
+      const { data, error } = await supabase.schema('Conf').from('FactoresFrecuencia').select('*');
       if (error) throw error;
       return data || [];
     } catch (e: any) {
@@ -300,7 +300,7 @@ export const DatabaseService = {
       if (factor.IdFactor && String(factor.IdFactor).indexOf('-') === -1) {
         payload.IdFactor = factor.IdFactor;
       }
-      const { data, error } = await supabase.schema('Conf').from('FactorFrecuencia').upsert(payload, payload.IdFactor ? { onConflict: 'IdFactor' } : undefined).select();
+      const { data, error } = await supabase.schema('Conf').from('FactoresFrecuencia').upsert(payload, payload.IdFactor ? { onConflict: 'IdFactor' } : undefined).select();
       if (error) throw error;
       return data?.[0] || factor;
     } catch (e: any) {
@@ -312,7 +312,7 @@ export const DatabaseService = {
   deleteFactorFrecuencia: async (idFactor: number) => {
     if (!supabase) return;
     try {
-      const { error } = await supabase.schema('Conf').from('FactorFrecuencia').delete().eq('IdFactor', idFactor);
+      const { error } = await supabase.schema('Conf').from('FactoresFrecuencia').delete().eq('IdFactor', idFactor);
       if (error) throw error;
     } catch (e: any) {
       console.error("Error deleting factor de frecuencia", e);

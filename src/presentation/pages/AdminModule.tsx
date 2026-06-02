@@ -142,14 +142,12 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
         >
           <Cog size={16} /> Parámetros y Vigencias
         </button>
-        {!import.meta.env.PROD && (
-          <button 
-            onClick={() => setActiveTab('registros')}
-            className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'registros' ? 'border-institutional-blue text-institutional-blue' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-          >
-            <Search size={16} /> Registros de Captura
-          </button>
-        )}
+        <button 
+          onClick={() => setActiveTab('registros')}
+          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'registros' ? 'border-institutional-blue text-institutional-blue' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+        >
+          <Search size={16} /> Registros de Captura
+        </button>
         <button 
           onClick={() => setActiveTab('usuarios')}
           className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'usuarios' ? 'border-institutional-blue text-institutional-blue' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
