@@ -36,6 +36,8 @@ interface CapturaModuleProps {
   procedimientos: Procedimiento[];
   actividades: Actividad[];
   cargas: any[];
+  cargos?: any[];
+  factores?: any[];
   vigenciaActiva?: boolean;
   relaciones: {
     type: string;
@@ -55,6 +57,8 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
   procedimientos,
   actividades,
   cargas,
+  cargos = [],
+  factores = [],
   vigenciaActiva,
   relaciones,
   onSave,
@@ -501,11 +505,21 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
                   }
                 >
                   <option value="">Seleccione Nivel</option>
-                  <option value="Asistencial">Asistencial</option>
-                  <option value="Técnico">Técnico</option>
-                  <option value="Profesional">Profesional</option>
-                  <option value="Asesor">Asesor</option>
-                  <option value="Directivo">Directivo</option>
+                  {cargos.length > 0 ? (
+                    cargos.map((cargo) => (
+                      <option key={cargo.IdCargo} value={cargo.Denominacion}>
+                        {cargo.Denominacion}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Asistencial">Asistencial</option>
+                      <option value="Técnico">Técnico</option>
+                      <option value="Profesional">Profesional</option>
+                      <option value="Asesor">Asesor</option>
+                      <option value="Directivo">Directivo</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -529,16 +543,26 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
                       setFormData({ ...formData, frecuencia: e.target.value })
                     }
                   >
-                    <option value="">Seleccione</option>
-                    <option value="diaria">Diaria</option>
-                    <option value="semanal">Semanal</option>
-                    <option value="quincenal">Quincenal</option>
-                    <option value="mensual">Mensual</option>
-                    <option value="bimestral">Bimestral</option>
-                    <option value="trimestral">Trimestral</option>
-                    <option value="semestral">Semestral</option>
-                    <option value="anual">Anual</option>
-                  </select>
+                  <option value="">Seleccione</option>
+                  {factores.length > 0 ? (
+                    factores.map((factor) => (
+                      <option key={factor.IdFactor} value={factor.Nombre.toLowerCase()}>
+                        {factor.Nombre}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="diaria">Diaria</option>
+                      <option value="semanal">Semanal</option>
+                      <option value="quincenal">Quincenal</option>
+                      <option value="mensual">Mensual</option>
+                      <option value="bimestral">Bimestral</option>
+                      <option value="trimestral">Trimestral</option>
+                      <option value="semestral">Semestral</option>
+                      <option value="anual">Anual</option>
+                    </>
+                  )}
+                </select>
                 </div>
                 <div className="space-y-1.5">
                   <div className="group relative inline-flex items-center gap-1 cursor-help w-full">

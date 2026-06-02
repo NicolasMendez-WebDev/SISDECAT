@@ -5,9 +5,16 @@ import { Organismo, Dependencia, Proceso, Procedimiento, Actividad, Vigencia, Us
 import { CargasTable } from '../components/shared/CargasTable';
 import { UsuariosTable } from '../components/shared/UsuariosTable';
 import { RecordDetailsModal } from '../components/shared/RecordDetailsModal';
+import { CatalogosAdmin } from '../components/Admin/CatalogosAdmin';
 
 interface AdminModuleProps {
   cargas: any[];
+  cargos?: any[];
+  factores?: any[];
+  onSaveCargo?: (c: any) => Promise<void>;
+  onDeleteCargo?: (id: number) => Promise<void>;
+  onSaveFactor?: (f: any) => Promise<void>;
+  onDeleteFactor?: (id: number) => Promise<void>;
   onUpdate: (data: any) => void;
   onDelete: (id: string) => void;
   organismos: Organismo[];
@@ -30,11 +37,12 @@ interface AdminModuleProps {
 }
 
 export const AdminModule: React.FC<AdminModuleProps> = ({ 
-  cargas, onUpdate, onDelete, organismos, dependencias, actividades, procesos, procedimientos,
+  cargas, cargos = [], factores = [], onSaveCargo, onDeleteCargo, onSaveFactor, onDeleteFactor,
+  onUpdate, onDelete, organismos, dependencias, actividades, procesos, procedimientos,
   vigencias, onVigenciaUpdate, onVigenciaCreate, usuarios = [], onUpdateUsuario, onAddUsuario, currentUser,
   vigenciasUsuarios = [], onUpdateVigenciaUsuario, onRestoreMockData, vigenciaActiva = true, showToast
 }) => {
-  const [activeTab, setActiveTab] = useState<'registros' | 'vigencias' | 'usuarios'>('vigencias');
+  const [activeTab, setActiveTab] = useState<'registros' | 'vigencias' | 'usuarios' | 'catalogos'>('vigencias');
   const [selectedCarga, setSelectedCarga] = useState<any | null>(null);
   const [cargaEditMode, setCargaEditMode] = useState(false);
   const [selectedVigenciaForRoles, setSelectedVigenciaForRoles] = useState<string | null>(null);
@@ -147,6 +155,12 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'usuarios' ? 'border-institutional-blue text-institutional-blue' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
         >
           <User size={16} /> Directorio de Cuentas
+        </button>
+        <button 
+          onClick={() => setActiveTab('catalogos')}
+          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'catalogos' ? 'border-institutional-blue text-institutional-blue' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+        >
+          <KeyRound size={16} /> Catálogos del Sistema
         </button>
       </div>
 
@@ -316,6 +330,32 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               selectedVigenciaId={vigencias.find(v => v.Estado === 'Activo')?.IdVigencia}
               editMode={false}
               showRolesAndDeps={false}
+            />
+          </motion.div>
+        )}
+
+        {activeTab === 'catalogos' && (
+          <motion.div
+            key="catalogos"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Catálogos Auxiliares por Vigencia</h2>
+                <p className="text-sm text-slate-500">Administre los cargos y las frecuencias disponibles para la selección en la pantalla de captura, específicos para cada vigencia.</p>
+              </div>
+            </div>
+            <CatalogosAdmin
+              vigencias={vigencias}
+              cargos={cargos}
+              factores={factores}
+              onSaveCargo={onSaveCargo}
+              onDeleteCargo={onDeleteCargo}
+              onSaveFactor={onSaveFactor}
+              onDeleteFactor={onDeleteFactor}
             />
           </motion.div>
         )}

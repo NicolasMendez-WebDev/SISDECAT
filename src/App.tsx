@@ -128,6 +128,8 @@ export default function App() {
   const [pcdData, setPcdData] = useState<any[]>([]);
   const [actData, setActData] = useState<any[]>([]);
   const [cargasTrabajo, setCargasTrabajo] = useState<any[]>([]);
+  const [cargos, setCargos] = useState<any[]>([]);
+  const [factoresFrecuencia, setFactoresFrecuencia] = useState<any[]>([]);
   const [vigencias, setVigencias] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<User[]>([]);
   const [vigenciasUsuarios, setVigenciasUsuarios] = useState<any[]>([]);
@@ -150,66 +152,57 @@ export default function App() {
     const initializeData = async () => {
       try {
         setIsLoadingData(true);
-        // Load default structure
-        const useRealDatabase = !!import.meta.env.VITE_SUPABASE_URL;
-        
-        if (useRealDatabase) {
-          try {
-            const { supabase } = await import('./lib/supabaseClient');
-            if (supabase) {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (session && session.user) {
-                setCurrentUser({
-                   id: session.user.id,
-                   nombre: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || "Usuario",
-                   email: session.user.email!,
-                   rol: session.user.user_metadata?.rol || 'Funcionario'
-                });
-              }
-            } else {
-              const localSessionString = localStorage.getItem('mockSession');
-              if (localSessionString) {
-                try {
-                   setCurrentUser(JSON.parse(localSessionString));
-                } catch(e) {}
-              }
+        try {
+          const { supabase } = await import('./lib/supabaseClient');
+          if (supabase) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session && session.user) {
+              setCurrentUser({
+                 id: session.user.id,
+                 nombre: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || "Usuario",
+                 email: session.user.email!,
+                 rol: session.user.user_metadata?.rol || 'Funcionario'
+              });
             }
+          }
 
-            const { DatabaseService } = await import("./application/services/DatabaseService");
-            const vDb = await DatabaseService.getVigencias();
-            setVigencias(vDb || []);
+          const { DatabaseService } = await import("./application/services/DatabaseService");
+          const vDb = await DatabaseService.getVigencias();
+          setVigencias(vDb || []);
 
-            const orgDb = await DatabaseService.getEstructuraOrg();
-            // Nivel 1 = Organismo, Nivel >= 2 = Dependencia
-            const fetchedOrgs = orgDb.filter(x => x.Nivel === 1).map(x => ({
-              id: x.IdNodoOrg,
-              vigenciaId: x.IdVigencia,
-              codigo: x.CodigoInterno,
-              nombre: x.Nombre,
-              level: 1,
-              activo: x.Activo,
-              estado: x.Activo ? 'Activo' : 'Inactivo'
-            }));
-            const fetchedDeps = orgDb.filter(x => x.Nivel > 1).map(x => ({
-              id: x.IdNodoOrg,
-              vigenciaId: x.IdVigencia,
-              codigo: x.CodigoInterno,
-              nombre: x.Nombre,
-              parentId: x.IdPadre,
-              level: x.Nivel,
-              activo: x.Activo,
-              estado: x.Activo ? 'Activo' : 'Inactivo'
-            }));
-            setOrgData(fetchedOrgs);
-            setDepData(fetchedDeps);
+          const orgDb = await DatabaseService.getEstructuraOrg();
+          const fetchedOrgs = orgDb.filter(x => x.Nivel === 1).map(x => ({
+            id: x.IdNodoOrg,
+            vigenciaId: x.IdVigencia,
+            codigo: x.CodigoInterno,
+            nombre: x.Nombre,
+            level: 1,
+            activo: x.Activo,
+            estado: x.Activo ? 'Activo' : 'Inactivo'
+          }));
+          const fetchedDeps = orgDb.filter(x => x.Nivel > 1).map(x => ({
+            id: x.IdNodoOrg,
+            vigenciaId: x.IdVigencia,
+            codigo: x.CodigoInterno,
+            nombre: x.Nombre,
+            parentId: x.IdPadre,
+            level: x.Nivel,
+            activo: x.Activo,
+            estado: x.Activo ? 'Activo' : 'Inactivo'
+          }));
+          setOrgData(fetchedOrgs);
+          setDepData(fetchedDeps);
 
-            const mapaDb = await DatabaseService.getMapaRelaciones();
-            const mappedRels = mapaDb.map(m => ({
-               vigenciaId: m.IdVigencia || m.idvigencia || m.vigenciaId || (m as any).id_vigencia,
-               parentId: m.IdNodoOrg || m.idnodoorg || m.parentId || (m as any).id_nodo_org,
-               childId: m.IdNodoProceso || m.idnodoproceso || m.childId || (m as any).id_nodo_proceso,
-               type: m.ObservacionRelacion || m.observacionrelacion || (m as any).observacion_relacion || m.type || "Proceso"
-            })).filter(r => r.parentId && r.childId);
+          const mapaDb = await DatabaseService.getMapaRelaciones();
+          const mappedRels = mapaDb.map(m => ({
+             vigenciaId: m.IdVigencia || m.idvigencia || m.vigenciaId || (m as any).id_vigencia,
+             parentId: m.IdNodoOrg || m.idnodoorg || m.parentId || (m as any).id_nodo_org,
+             childId: m.IdNodoProceso || m.idnodoproceso || m.childId || (m as any).id_nodo_proceso,
+             type: m.ObservacionRelacion || m.observacionrelacion || (m as any).observacion_relacion || m.type || "Proceso"
+          })).filter(r => r.parentId && r.childId);
+          
+          // ... Continue the block completely by matching what it was doing, wait, I can just replace lines 155 to 191
+
             setRelaciones(mappedRels);
 
             const procDb = await DatabaseService.getEstructuraProc();
@@ -281,101 +274,23 @@ export default function App() {
             const { captureService } = await import("./application/services/captureService");
             const existingCargas = await captureService.getCargas();
             setCargasTrabajo(existingCargas || []);
+            
+            const [cargosDb, factDb] = await Promise.all([
+               DatabaseService.getCargos(),
+               DatabaseService.getFactoresFrecuencia()
+            ]);
+            setCargos(cargosDb || []);
+            setFactoresFrecuencia(factDb || []);
           } catch (e: any) {
             console.error("Error loading prod data from supabase:", e);
             showToast(`Error al cargar datos desde Supabase: ${e.message}`, "error");
             setOrgData([]); setDepData([]); setProcData([]); setPcdData([]); setActData([]);
             setVigencias([]); setRelaciones([]); setCargasTrabajo([]);
           }
-        } else {
-          const { vigenciasMock, mapaRelacionesMock, usuariosMock, vigenciasUsuariosMock } = await import('./data/mockData');
-          
-          const defaultVigenciaId = vigenciasMock[0]?.IdVigencia;
-          setOrgData(organismos.map(o => ({ ...o, vigenciaId: defaultVigenciaId })));
-          setDepData(dependencias.map(d => ({ ...d, vigenciaId: defaultVigenciaId })));
-          setProcData(procesos.map(p => ({ ...p, vigenciaId: defaultVigenciaId })));
-          setPcdData(procedimientos.map(p => ({ ...p, vigenciaId: defaultVigenciaId })));
-          setActData(actividades.map(a => ({ ...a, vigenciaId: defaultVigenciaId })));
-          setVigencias(vigenciasMock);
-          setUsuarios(usuariosMock as User[]);
-          if(vigenciasUsuariosMock) {
-            setVigenciasUsuarios(vigenciasUsuariosMock);
-          }
-
-          // Populate whitelist relationships from mapa (only exact explicit mappings)
-          const mappedRels: any[] = [];
-          mapaRelacionesMock.forEach(m => {
-            let type = "Proceso";
-            if(m.IdNodoProceso.startsWith('proc')) type = "Proceso";
-            if(m.IdNodoProceso.startsWith('pcd')) type = "Procedimiento";
-            if(m.IdNodoProceso.startsWith('act')) type = "Actividad";
-            
-            if (type === "Procedimiento") {
-                const procedimiento = procedimientos.find(p => p.id === m.IdNodoProceso);
-                if (procedimiento && procedimiento.procesoId) {
-                   const procesoId = procedimiento.procesoId;
-                   
-                   const existingRel = mappedRels.find(r => String(r.parentId) === String(m.IdNodoOrg) && String(r.childId) === String(procesoId));
-                   if (existingRel) {
-                       if (!existingRel.includedChildren) existingRel.includedChildren = [];
-                       if (!existingRel.includedChildren.includes(m.IdNodoProceso)) {
-                           existingRel.includedChildren.push(m.IdNodoProceso);
-                       }
-                   } else {
-                       mappedRels.push({
-                           type: "Proceso",
-                           childId: procesoId,
-                           parentId: m.IdNodoOrg,
-                           includedChildren: [m.IdNodoProceso]
-                       });
-                   }
-                   return;
-                }
-            }
-            
-            // Add default explicit relationship for UI display/logic independently of group wrapper
-            mappedRels.push({
-               type,
-               childId: m.IdNodoProceso,
-               parentId: m.IdNodoOrg,
-            });
-          });
-          
-          // Remove duplicates if any
-          const validRels: any[] = [];
-          mappedRels.forEach(newRel => {
-             newRel.vigenciaId = defaultVigenciaId;
-             const existing = validRels.find(r => r.childId === newRel.childId && r.parentId === newRel.parentId && r.vigenciaId === newRel.vigenciaId);
-             if (!existing) {
-                 validRels.push(newRel);
-             } else if (newRel.includedChildren) {
-                 if (!existing.includedChildren) existing.includedChildren = [];
-                 newRel.includedChildren.forEach((ic: string) => {
-                     if (!existing.includedChildren.includes(ic)) {
-                         existing.includedChildren.push(ic);
-                     }
-                 });
-             }
-          });
-
-          setRelaciones(validRels);
-
-          // Fetch local persitence loads
-          const { captureService } = await import("./application/services/captureService");
-          
-          let existingCargas = await captureService.getCargas();
-          // Cargar datos de prueba únicamente si no hay registros
-          if (existingCargas.length === 0) {
-            const { cargasTrabajoMock } = await import('./data/mockData');
-            await captureService.initialize(cargasTrabajoMock);
-            existingCargas = cargasTrabajoMock;
-          }
-          setCargasTrabajo(existingCargas);
-        }
         
-      } catch (error) {
-        console.error("Error loading mock data", error);
-        showToast("Error de conexión con el servidor", "error");
+      } catch (error: any) {
+        console.error("Error de inicialización:", error);
+        showToast("Error de conexión o configuración inicial: " + error.message, "error");
       } finally {
         setIsLoadingData(false);
       }
@@ -477,6 +392,41 @@ export default function App() {
       const { DatabaseService } = await import("./application/services/DatabaseService");
       await DatabaseService.saveVigencia(v);
       showToast("Vigencia guardada exitosamente en la base de datos.", "success");
+
+      // Set default Cargos and FactoresFrecuencia
+      const defaultCargos = [
+        { IdVigencia: v.IdVigencia, Denominacion: 'Asistencial', NivelJerarquico: 'Asistencial', Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: 'Técnico', NivelJerarquico: 'Técnico', Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: 'Profesional', NivelJerarquico: 'Profesional', Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: 'Asesor', NivelJerarquico: 'Asesor', Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: 'Directivo', NivelJerarquico: 'Directivo', Activo: true }
+      ];
+
+      const defaultFactores = [
+        { IdVigencia: v.IdVigencia, Nombre: 'Diaria', FactorMensual: 19, EsSistema: true },
+        { IdVigencia: v.IdVigencia, Nombre: 'Semanal', FactorMensual: 4, EsSistema: true },
+        { IdVigencia: v.IdVigencia, Nombre: 'Quincenal', FactorMensual: 2, EsSistema: true },
+        { IdVigencia: v.IdVigencia, Nombre: 'Mensual', FactorMensual: 1, EsSistema: true },
+        { IdVigencia: v.IdVigencia, Nombre: 'Bimestral', FactorMensual: 0.5, EsSistema: true },
+        { IdVigencia: v.IdVigencia, Nombre: 'Trimestral', FactorMensual: 0.33, EsSistema: true },
+        { IdVigencia: v.IdVigencia, Nombre: 'Semestral', FactorMensual: 0.16, EsSistema: true },
+        { IdVigencia: v.IdVigencia, Nombre: 'Anual', FactorMensual: 0.08, EsSistema: true }
+      ];
+
+      const newCargos: any[] = [];
+      for (const dc of defaultCargos) {
+        const saved = await DatabaseService.saveCargo(dc).catch(() => dc);
+        newCargos.push(saved);
+      }
+      setCargos(prev => [...prev, ...newCargos]);
+
+      const newFactores: any[] = [];
+      for (const df of defaultFactores) {
+        const saved = await DatabaseService.saveFactorFrecuencia(df).catch(() => df);
+        newFactores.push(saved);
+      }
+      setFactoresFrecuencia(prev => [...prev, ...newFactores]);
+
     } catch(e: any) {
       console.error("Could not push vigencia to API", e);
       showToast(`Error de conexión al servidor: ${e.message}`, "error");
@@ -1568,6 +1518,8 @@ export default function App() {
                   procedimientos={currentPcdData}
                   actividades={currentActData}
                   cargas={currentCargas}
+                  cargos={cargos}
+                  factores={factoresFrecuencia}
                   vigenciaActiva={currentVigenciaView?.Estado === 'Activo'}
                   relaciones={uiRelaciones}
                   onSave={handleSaveCarga}
@@ -1628,6 +1580,28 @@ export default function App() {
                 <AdminModule
                   showToast={showToast}
                   cargas={currentCargas}
+                  cargos={cargos}
+                  factores={factoresFrecuencia}
+                  onSaveCargo={async (c) => {
+                    const { DatabaseService } = await import("./application/services/DatabaseService");
+                    const saved = await DatabaseService.saveCargo(c);
+                    setCargos(prev => prev.map(x => x.IdCargo === saved.IdCargo ? saved : x).concat(prev.find(x => x.IdCargo === saved.IdCargo) ? [] : [saved]));
+                  }}
+                  onDeleteCargo={async (id) => {
+                    const { DatabaseService } = await import("./application/services/DatabaseService");
+                    await DatabaseService.deleteCargo(id);
+                    setCargos(prev => prev.filter(x => x.IdCargo !== id));
+                  }}
+                  onSaveFactor={async (f) => {
+                    const { DatabaseService } = await import("./application/services/DatabaseService");
+                    const saved = await DatabaseService.saveFactorFrecuencia(f);
+                    setFactoresFrecuencia(prev => prev.map(x => x.IdFactor === saved.IdFactor ? saved : x).concat(prev.find(x => x.IdFactor === saved.IdFactor) ? [] : [saved]));
+                  }}
+                  onDeleteFactor={async (id) => {
+                    const { DatabaseService } = await import("./application/services/DatabaseService");
+                    await DatabaseService.deleteFactorFrecuencia(id);
+                    setFactoresFrecuencia(prev => prev.filter(x => x.IdFactor !== id));
+                  }}
                   currentUser={effectiveUser!}
                   onUpdate={handleUpdateCarga}
                   onDelete={handleDeleteCarga}

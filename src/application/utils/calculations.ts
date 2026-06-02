@@ -12,6 +12,7 @@ export const CALC_CONFIG = {
     "días": 8.8,
   },
   MATRIZ_FRECUENCIAS: {
+    diario: 19,
     diaria: 19,
     semanal: 4,
     quincenal: 2,

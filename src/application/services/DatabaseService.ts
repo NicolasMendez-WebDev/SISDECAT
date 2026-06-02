@@ -208,6 +208,117 @@ export const DatabaseService = {
       throw new Error(e.message || "Error al cargar usuarios");
     }
   },
+  
+  getCargos: async () => {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase.schema('Org').from('Cargos').select('*');
+      if (error) throw error;
+      return data || [];
+    } catch (e: any) {
+      console.error("Error fetching cargos", e);
+      throw new Error(e.message || "Error al cargar cargos");
+    }
+  },
+  
+  getFactoresFrecuencia: async () => {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase.schema('Conf').from('FactorFrecuencia').select('*');
+      if (error) throw error;
+      return data || [];
+    } catch (e: any) {
+      console.error("Error fetching factores frecuencia", e);
+      throw new Error(e.message || "Error al cargar factores de frecuencia");
+    }
+  },
+  
+  getCargasTrabajo: async () => {
+    if (!supabase) return [];
+    try {
+      let allData: any[] = [];
+      let from = 0;
+      let limit = 1000;
+      while (true) {
+        const { data, error } = await supabase.schema('Ops').from('CargasTrabajo').select('*').range(from, from + limit - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData = [...allData, ...data];
+        if (data.length < limit) break;
+        from += limit;
+      }
+      return allData;
+    } catch (e: any) {
+      console.error("Error fetching cargas trabajo", e);
+      throw new Error(e.message || "Error al cargar cargas de trabajo");
+    }
+  },
+
+  saveCargo: async (cargo: any) => {
+    if (!supabase) return cargo;
+    try {
+      const payload: any = {
+        IdVigencia: cargo.IdVigencia || cargo.vigenciaId,
+        Denominacion: cargo.Denominacion || cargo.denominacion,
+        NivelJerarquico: cargo.NivelJerarquico || cargo.nivelJerarquico,
+        SueldoEscala: cargo.SueldoEscala || cargo.sueldoEscala || 0,
+        Activo: cargo.Activo !== undefined ? cargo.Activo : true
+      };
+      if (cargo.IdCargo && String(cargo.IdCargo).indexOf('-') === -1) {
+        payload.IdCargo = cargo.IdCargo;
+      }
+      
+      const { data, error } = await supabase.schema('Org').from('Cargos').upsert(payload, payload.IdCargo ? { onConflict: 'IdCargo' } : undefined).select();
+      if (error) throw error;
+      return data?.[0] || cargo;
+    } catch (e: any) {
+      console.error("Error saving cargo", e);
+      throw new Error(e.message || "Error al guardar el cargo");
+    }
+  },
+
+  deleteCargo: async (idCargo: number) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.schema('Org').from('Cargos').delete().eq('IdCargo', idCargo);
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("Error deleting cargo", e);
+      throw new Error(e.message || "Error al eliminar el cargo");
+    }
+  },
+
+  saveFactorFrecuencia: async (factor: any) => {
+    if (!supabase) return factor;
+    try {
+      const payload: any = {
+        IdVigencia: factor.IdVigencia || factor.vigenciaId,
+        Nombre: factor.Nombre || factor.nombre,
+        FactorMensual: factor.FactorMensual || factor.factorMensual || 1,
+        EsSistema: factor.EsSistema !== undefined ? factor.EsSistema : false
+      };
+      if (factor.IdFactor && String(factor.IdFactor).indexOf('-') === -1) {
+        payload.IdFactor = factor.IdFactor;
+      }
+      const { data, error } = await supabase.schema('Conf').from('FactorFrecuencia').upsert(payload, payload.IdFactor ? { onConflict: 'IdFactor' } : undefined).select();
+      if (error) throw error;
+      return data?.[0] || factor;
+    } catch (e: any) {
+      console.error("Error saving factor de frecuencia", e);
+      throw new Error(e.message || "Error al guardar el factor de frecuencia");
+    }
+  },
+
+  deleteFactorFrecuencia: async (idFactor: number) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.schema('Conf').from('FactorFrecuencia').delete().eq('IdFactor', idFactor);
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("Error deleting factor de frecuencia", e);
+      throw new Error(e.message || "Error al eliminar el factor de frecuencia");
+    }
+  },
 
   saveUsuarioDependencia: async (vu: any) => {
     if (!supabase) return vu;
