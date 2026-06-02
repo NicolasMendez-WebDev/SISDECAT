@@ -113,7 +113,7 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                            {editingCargoId === c.IdCargo ? (
                              <select className="w-full border border-slate-300 rounded px-2 py-1" value={editedCargo.NivelJerarquico} onChange={(e) => setEditedCargo({...editedCargo, NivelJerarquico: e.target.value})}>
                                <option value="Asistencial">Asistencial</option>
-                               <option value="Técnico">Técnico</option>
+                               <option value="Tecnico">Técnico</option>
                                <option value="Profesional">Profesional</option>
                                <option value="Asesor">Asesor</option>
                                <option value="Directivo">Directivo</option>

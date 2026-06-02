@@ -396,7 +396,7 @@ export default function App() {
       // Set default Cargos and FactoresFrecuencia
       const defaultCargos = [
         { IdVigencia: v.IdVigencia, Denominacion: 'Asistencial', NivelJerarquico: 'Asistencial', Activo: true },
-        { IdVigencia: v.IdVigencia, Denominacion: 'Técnico', NivelJerarquico: 'Técnico', Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: 'Técnico', NivelJerarquico: 'Tecnico', Activo: true },
         { IdVigencia: v.IdVigencia, Denominacion: 'Profesional', NivelJerarquico: 'Profesional', Activo: true },
         { IdVigencia: v.IdVigencia, Denominacion: 'Asesor', NivelJerarquico: 'Asesor', Activo: true },
         { IdVigencia: v.IdVigencia, Denominacion: 'Directivo', NivelJerarquico: 'Directivo', Activo: true }
@@ -1682,7 +1682,7 @@ export default function App() {
                         return;
                       }
 
-                      const nivelesEjecutor = ['Directivo', 'Asesor', 'Profesional', 'Técnico', 'Asistencial'];
+                      const nivelesEjecutor = ['Directivo', 'Asesor', 'Profesional', 'Tecnico', 'Asistencial'];
                       const frecuencias = ['Diaria', 'Semanal', 'Quincenal', 'Mensual', 'Bimestral', 'Trimestral', 'Semestral', 'Anual'];
                       const timeUnits: ('minutos' | 'horas' | 'dias')[] = ['minutos', 'minutos', 'horas'];
 
