@@ -44,6 +44,8 @@ export const captureService = {
          tiempoMin: row.Tmin_Horas,
          tiempoNormal: row.Tnorm_Horas,
          tiempoMax: row.Tmax_Horas,
+         autor: row.CreatedBy || row.created_by,
+         createdAt: row.CreatedAt || row.created_at,
          _etpCalculated: row.ETP || calculateETP({
            volumenQ: row.Volumen,
            frecuencia: factor?.Nombre || row.IdFactorFrecuencia,
@@ -144,7 +146,7 @@ export const captureService = {
           Tmin_Horas: parseFloat(carga.tiempoMin || '0'),
           Tnorm_Horas: parseFloat(carga.tiempoNormal || '0'),
           Tmax_Horas: parseFloat(carga.tiempoMax || '0'),
-          CreatedBy: carga.usuarioId || 'Sistema',
+          CreatedBy: carga.autor || carga.userId || 'Sistema',
           Activo: true
         };
         console.log("Supabase insert CargasTrabajo Payload:", payload);
@@ -182,7 +184,7 @@ export const captureService = {
       .from('CargasTrabajo')
       .update({ 
           Volumen: updates.volumenQ, 
-          UpdatedBy: updates.usuarioId || 'Sistema' 
+          UpdatedBy: updates.autor || updates.userId || 'Sistema' 
       })
       .eq('IdCarga', id)
       .select();

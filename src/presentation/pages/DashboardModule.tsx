@@ -568,7 +568,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                             const y = cy + radius * Math.sin(-midAngle * RADIAN);
                             return (
                               <text x={x} y={y} fill="#475569" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight={500}>
-                                {name.length > 15 ? name.substring(0, 15) + '...' : name} ({(percent * 100).toFixed(1)}%)
+                                {(name || '').length > 15 ? (name || '').substring(0, 15) + '...' : (name || 'Sin datos')} ({(percent * 100).toFixed(1)}%)
                               </text>
                             );
                           }}>

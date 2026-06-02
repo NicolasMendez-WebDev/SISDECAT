@@ -103,7 +103,10 @@ export const DatabaseService = {
       let limit = 1000;
       while (true) {
         const { data, error } = await supabase.schema('Cat').from('EstructuraProcesos').select('*').range(from, from + limit - 1);
-        if (error) throw error;
+        if (error) {
+           console.error("Soft failing EstructuraProcesos fetch:", error);
+           break;
+        }
         if (!data || data.length === 0) break;
         allData = [...allData, ...data];
         if (data.length < limit) break;
