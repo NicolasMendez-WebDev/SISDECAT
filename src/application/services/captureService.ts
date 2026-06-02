@@ -122,7 +122,7 @@ export const captureService = {
           IdCargoEjecutor: realIdCargo, 
           IdFactorFrecuencia: realIdFactor,
           Volumen: parseFloat(carga.volumenQ),
-          UnidadTiempoInput: (carga.unidadTiempo || 'minutos').toLowerCase(),
+          UnidadTiempoInput: (carga.unidadTiempo || 'minutos').charAt(0).toUpperCase() + (carga.unidadTiempo || 'minutos').slice(1).toLowerCase(),
           Tmin_Horas: parseFloat(carga.tiempoMin || '0'),
           Tnorm_Horas: parseFloat(carga.tiempoNormal || '0'),
           Tmax_Horas: parseFloat(carga.tiempoMax || '0'),
