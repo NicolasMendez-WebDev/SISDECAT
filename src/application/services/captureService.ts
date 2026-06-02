@@ -17,6 +17,7 @@ export const captureService = {
     const cargos = await DatabaseService.getCargos();
     const factores = await DatabaseService.getFactoresFrecuencia();
     const procTree = await DatabaseService.getEstructuraProc();
+    const orgTree = await DatabaseService.getEstructuraJerarquica();
 
     // Map backend rows to frontend expected format
     return (cargasData || []).filter(row => row.Activo !== false).map(row => {
@@ -29,11 +30,16 @@ export const captureService = {
        const pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
        const procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
 
+       const dependenciaId = mapa?.IdNodoOrg || row.IdMapa;
+       const depNode = orgTree?.find(o => o.IdNodoOrg === dependenciaId);
+       // If it has a parent, the parent is the organismo. If not, it might itself be an organismo.
+       const organismoId = depNode?.IdPadre || dependenciaId;
+
        return {
          id: row.IdCarga,
          vigenciaId: row.IdVigencia,
-         dependenciaId: mapa?.IdNodoOrg || row.IdMapa,
-         organismoId: null, // Let UI resolve this via dependencia.parentId
+         dependenciaId: dependenciaId,
+         organismoId: organismoId,
          procesoId: procNode?.IdNodoProceso,
          procedimientoId: pcdNode?.IdNodoProceso,
          actividadId: actividadId,
