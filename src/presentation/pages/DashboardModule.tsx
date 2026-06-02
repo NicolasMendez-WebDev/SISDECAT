@@ -177,12 +177,9 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
     })).sort((a, b) => b.value - a.value).slice(0, 5);
 
     let procData = procesos.map(proc => {
-      const procsOfThis = procedimientos.filter(p => p.procesoId === proc.id).map(p => p.id);
-      const actsOfThis = actividades.filter(a => procsOfThis.includes(a.procedimientoId)).map(a => a.id);
-      
-      const pCargas = vc.filter(c => actsOfThis.includes(c.actividadId));
+      const pCargas = vc.filter(c => c.procesoId === proc.id);
       const value = pCargas.reduce((acc, c) => acc + (c._etpCalculated || 0), 0);
-      return { name: proc.nombre.length > 25 ? proc.nombre.slice(0, 25) + '...' : proc.nombre, value };
+      return { name: (proc?.nombre || '').length > 25 ? (proc?.nombre || '').slice(0, 25) + '...' : (proc?.nombre || 'No Definido'), value };
     }).filter(p => p.value > 0).sort((a,b) => b.value - a.value).slice(0, 5);
 
     // If no data, provide a fallback to show structure
@@ -190,12 +187,17 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
       { name: "Sin datos", value: 1 }
     ];
 
+    const depToOrg = new Map<string, string>();
+    dependencias.forEach(d => {
+       if (d.parentId) depToOrg.set(d.id, d.parentId);
+    });
+
     // Radar Transversalidad
     const radarData = organismos.slice(0, 6).map((org) => {
-       const orgCargas = vc.filter(c => c.organismoId === org.id || c.dependenciaId === dependencias.find(d => d.parentId === org.id)?.id);
+       const orgCargas = vc.filter(c => c.organismoId === org.id || depToOrg.get(c.dependenciaId) === org.id);
        const t = orgCargas.reduce((acc, c) => acc + (c._etpCalculated || 0), 0);
        return {
-         subject: org.nombre.length > 15 ? org.nombre.slice(0, 15) + '...' : org.nombre,
+         subject: (org?.nombre || '').length > 15 ? (org?.nombre || '').slice(0, 15) + '...' : (org?.nombre || 'No Definido'),
          A: parseFloat(t.toFixed(1)) || 0
        }
     });
@@ -268,7 +270,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
        const maxC = toMinutes(tMaxOrig);
 
        return {
-         name: actName.length > 20 ? actName.slice(0, 20) + '...' : actName,
+         name: (actName || '').length > 20 ? (actName || '').slice(0, 20) + '...' : (actName || ''),
          min: minC,
          normal: normalC,
          max: maxC,

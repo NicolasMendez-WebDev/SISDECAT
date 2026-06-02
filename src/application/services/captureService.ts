@@ -1,6 +1,8 @@
 import { supabase } from '../../lib/supabaseClient';
 import { calculateETP } from '../utils/calculations';
 
+import { DatabaseService } from './DatabaseService';
+
 export const captureService = {
   // Inicialización no needed anymore.
   initialize: async () => {},
@@ -9,24 +11,15 @@ export const captureService = {
     if (!supabase) return [];
     
     // We fetch from Ops.CargasTrabajo
-    const { data: cargasData, error } = await supabase
-      .schema('Ops')
-      .from('CargasTrabajo')
-      .select('*')
-      .eq('Activo', true);
-    
-    if (error) {
-      console.error("Supabase getCargas Error:", error);
-      throw error;
-    }
+    const cargasData = await DatabaseService.getCargasTrabajo();
 
-    const { data: mapas } = await supabase.schema('Org').from('MapaRelaciones').select('*');
-    const { data: cargos } = await supabase.schema('Org').from('Cargos').select('*');
-    const { data: factores } = await supabase.schema('Conf').from('FactoresFrecuencia').select('*');
-    const { data: procTree } = await supabase.schema('Org').from('EstructuraProcesos').select('*');
+    const mapas = await DatabaseService.getMapaRelaciones();
+    const cargos = await DatabaseService.getCargos();
+    const factores = await DatabaseService.getFactoresFrecuencia();
+    const procTree = await DatabaseService.getEstructuraProc();
 
     // Map backend rows to frontend expected format
-    return (cargasData || []).map(row => {
+    return (cargasData || []).filter(row => row.Activo !== false).map(row => {
        const mapa = mapas?.find(m => m.IdMapa === row.IdMapa);
        const cargo = cargos?.find(c => c.IdCargo === row.IdCargoEjecutor);
        const factor = factores?.find(f => f.IdFactor === row.IdFactorFrecuencia);
