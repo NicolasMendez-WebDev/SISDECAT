@@ -424,7 +424,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
           const rChildIdStr = String(r.childId).toLowerCase().trim();
 
           // Try to find the child regardless of what 'type' is saved, for maximum robustness
-          let found = dependencias.find(d => String(d.id).toLowerCase().trim() === rChildIdStr);
+          let found: any = dependencias.find(d => String(d.id).toLowerCase().trim() === rChildIdStr);
           if (found) { childData = found; actualType = 'Dependencia'; }
           else {
             found = procesos.find(p => String(p.id).toLowerCase().trim() === rChildIdStr);

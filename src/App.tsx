@@ -1806,7 +1806,7 @@ export default function App() {
                       const { del } = await import('idb-keyval');
                       await del("sdmct_cargas_trabajo");
                       const { captureService } = await import("./application/services/captureService");
-                      await captureService.initialize(generatedCargas);
+                      await captureService.initialize();
                       setCargasTrabajo(generatedCargas);
                       showToast(`Generadas ${generatedCargas.length} cargas de trabajo correctamente asociadas.`, 'success');
                     } catch (error) {

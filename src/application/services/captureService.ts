@@ -25,7 +25,7 @@ export const captureService = {
        const cargo = cargos?.find(c => c.IdCargo === row.IdCargoEjecutor);
        const factor = factores?.find(f => f.IdFactor === row.IdFactorFrecuencia);
 
-       const actividadId = mapa?.IdNodoProceso;
+       const actividadId = mapa?.IdNodoProceso || "actividad_no_documentada";
        const actNode = procTree?.find(p => p.IdNodoProceso === actividadId);
        const pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
        const procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
@@ -48,6 +48,7 @@ export const captureService = {
          procesoId: procNode?.IdNodoProceso,
          procedimientoId: pcdNode?.IdNodoProceso,
          actividadId: actividadId,
+         descripcionActividad: actividadId === "actividad_no_documentada" ? mapa?.ObservacionRelacion : undefined,
          rolEjecutor: cargo?.NivelJerarquico || cargo?.Denominacion || row.IdCargoEjecutor,
          frecuencia: factor?.Nombre || row.IdFactorFrecuencia,
          volumenQ: row.Volumen,
@@ -74,12 +75,25 @@ export const captureService = {
     try {
       // 1. Resolve IdMapa based on dependencies (Vigencia + NodoOrg + NodoProceso)
       let realIdMapa = null;
+      const isNoDocumentada = carga.actividadId === "actividad_no_documentada";
+      const queryIdNodoProceso = isNoDocumentada ? null : carga.actividadId;
       console.log("Resolving mapa for:", carga);
-      const { data: mapData, error: mapErr } = await supabase.schema('Org').from('MapaRelaciones')
+      
+      let mapQuery = supabase.schema('Org').from('MapaRelaciones')
         .select('IdMapa')
         .eq('IdVigencia', carga.vigenciaId)
-        .eq('IdNodoOrg', carga.dependenciaId)
-        .eq('IdNodoProceso', carga.actividadId);
+        .eq('IdNodoOrg', carga.dependenciaId);
+        
+      if (queryIdNodoProceso) {
+        mapQuery = mapQuery.eq('IdNodoProceso', queryIdNodoProceso);
+      } else {
+        mapQuery = mapQuery.is('IdNodoProceso', null);
+      }
+      if (isNoDocumentada && carga.descripcionActividad) {
+        mapQuery = mapQuery.eq('ObservacionRelacion', carga.descripcionActividad);
+      }
+        
+      const { data: mapData, error: mapErr } = await mapQuery;
       
       if (mapData && mapData.length > 0) {
           realIdMapa = mapData[0].IdMapa;
@@ -89,8 +103,8 @@ export const captureService = {
             .insert({
                 IdVigencia: carga.vigenciaId,
                 IdNodoOrg: carga.dependenciaId,
-                IdNodoProceso: carga.actividadId,
-                ObservacionRelacion: 'Actividad - Autogenerado'
+                IdNodoProceso: queryIdNodoProceso,
+                ObservacionRelacion: isNoDocumentada ? carga.descripcionActividad || 'Actividad No Documentada' : 'Actividad - Autogenerado'
             }).select('IdMapa');
           if (insErr) throw insErr;
           if (insMapa && insMapa.length > 0) realIdMapa = insMapa[0].IdMapa;
