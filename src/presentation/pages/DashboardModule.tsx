@@ -446,7 +446,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                 </div>
                 <div className="h-[350px] w-full max-w-lg mx-auto">
                   {nivelEjecutorData.length === 0 ? <EmptyChartState /> : (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <RechartsBarChart data={nivelEjecutorData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                       <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
@@ -473,7 +473,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                 </div>
                 <div className="h-[350px] w-full">
                   {distribucionFrecuenciaData.length === 0 ? <EmptyChartState /> : (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <RechartsPieChart>
                       <Pie
                         data={distribucionFrecuenciaData}
@@ -518,7 +518,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                 </div>
                 <div className="h-[350px] w-full">
                   {paretoData.length === 0 ? <EmptyChartState /> : (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <ComposedChart data={paretoData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis 
@@ -548,7 +548,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                   </div>
                   <div className="h-[180px] w-full">
                     {macroprocesosData.length === 0 ? <EmptyChartState /> : (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <RechartsPieChart>
                         <Pie 
                           data={macroprocesosData} 
@@ -590,7 +590,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                   </div>
                   <div className="h-[180px] w-full">
                     {radarOrganismosData.length === 0 ? <EmptyChartState /> : (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarOrganismosData}>
                         <PolarGrid stroke="#e2e8f0" />
                         <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 9 }} />
@@ -625,7 +625,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                 </div>
                 <div className="h-[350px] w-full">
                   {histogramaData.length === 0 ? <EmptyChartState /> : (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <RechartsBarChart data={histogramaData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="range" tick={{ fontSize: 11, fontWeight: 600, fill: "#64748b" }} axisLine={false} tickLine={false} />
@@ -649,7 +649,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
                 <div className="h-[350px] w-full overflow-y-auto pr-2 custom-scrollbar">
                   {tiemposVelasData.length === 0 ? <EmptyChartState /> : (
                   <div style={{ height: `${Math.max(350, tiemposVelasData.length * 40)}px` }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <ComposedChart data={tiemposVelasData} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                         <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />

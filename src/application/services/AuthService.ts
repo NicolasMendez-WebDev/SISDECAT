@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import { User as UserType } from '../../domain/models/types';
 
 // Use LocalStorage as a fallback DB for the first phase of testing

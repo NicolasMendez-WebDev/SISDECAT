@@ -325,16 +325,45 @@ export const DatabaseService = {
   saveUsuarioDependencia: async (vu: any) => {
     if (!supabase) return vu;
     try {
-      const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia').upsert({
-        IdUsuarioDep: vu.IdUsuarioDep,
+      const isNew = !vu.IdUsuarioDep || (typeof vu.IdUsuarioDep === 'string' && vu.IdUsuarioDep.startsWith('VU-'));
+      
+      const payload = {
         IdVigencia: vu.IdVigencia,
         EntraIdObjectId: vu.EntraIdObjectId,
         IdNodoOrg: vu.IdNodoOrg || null,
         RolFuncional: vu.RolFuncional || 'Funcionario',
         Activo: vu.Activo !== undefined ? vu.Activo : (vu.activo !== undefined ? vu.activo : true)
-      }, { onConflict: 'IdUsuarioDep' }).select();
-      if (error) throw error;
-      return data?.[0] || vu;
+      };
+
+      if (!isNew) {
+        const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia')
+          .update(payload)
+          .eq('IdUsuarioDep', vu.IdUsuarioDep)
+          .select();
+        if (error) throw error;
+        return data?.[0] || vu;
+      } else {
+        const { data: existing } = await supabase.schema('Sec').from('UsuariosDependencia')
+          .select('IdUsuarioDep')
+          .eq('IdVigencia', vu.IdVigencia)
+          .eq('EntraIdObjectId', vu.EntraIdObjectId)
+          .maybeSingle();
+
+        if (existing) {
+          const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia')
+            .update(payload)
+            .eq('IdUsuarioDep', existing.IdUsuarioDep)
+            .select();
+          if (error) throw error;
+          return data?.[0] || vu;
+        }
+
+        const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia')
+          .insert([payload])
+          .select();
+        if (error) throw error;
+        return data?.[0] || vu;
+      }
     } catch (e: any) {
       console.error("Error saving usuario dependencia", e);
       throw new Error(e.message || "Error al guardar asignación de usuario");
