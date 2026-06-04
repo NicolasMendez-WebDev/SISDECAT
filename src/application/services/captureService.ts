@@ -38,10 +38,14 @@ export const captureService = {
        if (isNoDoc) {
            actividadId = "actividad_no_documentada";
            let currProcNode = procTree?.find(p => p.IdNodoProceso === mappedNodoProceso);
-           if (currProcNode?.Nivel === 2) {
+           if (currProcNode?.Nivel >= 4) {
+               actNode = currProcNode;
+               pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
+               procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
+           } else if (currProcNode?.Nivel === 3) {
                pcdNode = currProcNode;
                procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
-           } else if (currProcNode?.Nivel === 1) {
+           } else if (currProcNode?.Nivel <= 2) {
                pcdNode = undefined;
                procNode = currProcNode;
            }
