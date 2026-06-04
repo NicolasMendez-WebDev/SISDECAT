@@ -25,10 +25,32 @@ export const captureService = {
        const cargo = cargos?.find(c => c.IdCargo === row.IdCargoEjecutor);
        const factor = factores?.find(f => f.IdFactor === row.IdFactorFrecuencia);
 
-       const actividadId = mapa?.IdNodoProceso || "actividad_no_documentada";
-       const actNode = procTree?.find(p => p.IdNodoProceso === actividadId);
-       const pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
-       const procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
+       const isUndocumented = true;
+       const mappedNodoProceso = mapa?.IdNodoProceso;
+       
+       let actNode = null;
+       let pcdNode = null;
+       let procNode = null;
+
+       let currProcNode = procTree?.find(p => p.IdNodoProceso === mappedNodoProceso);
+       
+       // Using row.Descripcion or row.descripcion to know if undocumented activity has a description!
+       // If it is a process/procedure, or if it has a Descripcion field -> it implies undocumented.
+       const currDesc = row.Descripcion || row.descripcion;
+       const actuallyUndocumented = Boolean(currDesc) || (!procTree?.some(p => p.IdPadre === mappedNodoProceso && p.Nivel === 3) && currProcNode?.Nivel !== 3); // it's 3 for Actividad typically.
+       
+       if (currProcNode?.Nivel === 3) {
+           actNode = currProcNode;
+           pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
+           procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
+       } else if (currProcNode?.Nivel === 2) {
+           pcdNode = currProcNode;
+           procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
+       } else if (currProcNode?.Nivel === 1) {
+           procNode = currProcNode;
+       }
+
+       const actividadId = currDesc ? "actividad_no_documentada" : (actNode?.IdNodoProceso || (currProcNode ? "actividad_no_documentada" : undefined));
 
        const dependenciaId = mapa?.IdNodoOrg || row.IdMapa;
        const depNode = orgTree?.find(o => o.IdNodoOrg === dependenciaId);
@@ -48,7 +70,7 @@ export const captureService = {
          procesoId: procNode?.IdNodoProceso,
          procedimientoId: pcdNode?.IdNodoProceso,
          actividadId: actividadId,
-         descripcionActividad: actividadId === "actividad_no_documentada" ? mapa?.ObservacionRelacion : undefined,
+         descripcionActividad: currDesc || (actividadId === "actividad_no_documentada" ? 'Actividad no documentada' : undefined),
          rolEjecutor: cargo?.NivelJerarquico || cargo?.Denominacion || row.IdCargoEjecutor,
          frecuencia: factor?.Nombre || row.IdFactorFrecuencia,
          volumenQ: row.Volumen,
@@ -76,22 +98,18 @@ export const captureService = {
       // 1. Resolve IdMapa based on dependencies (Vigencia + NodoOrg + NodoProceso)
       let realIdMapa = null;
       const isNoDocumentada = carga.actividadId === "actividad_no_documentada";
-      const queryIdNodoProceso = isNoDocumentada ? null : carga.actividadId;
+      const queryIdNodoProceso = isNoDocumentada ? (carga.procedimientoId || carga.procesoId) : carga.actividadId;
       console.log("Resolving mapa for:", carga);
       
+      if (!queryIdNodoProceso) {
+          throw new Error("No process or procedure provided for undocumented activity mapping.");
+      }
+
       let mapQuery = supabase.schema('Org').from('MapaRelaciones')
         .select('IdMapa')
         .eq('IdVigencia', carga.vigenciaId)
-        .eq('IdNodoOrg', carga.dependenciaId);
-        
-      if (queryIdNodoProceso) {
-        mapQuery = mapQuery.eq('IdNodoProceso', queryIdNodoProceso);
-      } else {
-        mapQuery = mapQuery.is('IdNodoProceso', null);
-      }
-      if (isNoDocumentada && carga.descripcionActividad) {
-        mapQuery = mapQuery.eq('ObservacionRelacion', carga.descripcionActividad);
-      }
+        .eq('IdNodoOrg', carga.dependenciaId)
+        .eq('IdNodoProceso', queryIdNodoProceso);
         
       const { data: mapData, error: mapErr } = await mapQuery;
       
@@ -104,7 +122,7 @@ export const captureService = {
                 IdVigencia: carga.vigenciaId,
                 IdNodoOrg: carga.dependenciaId,
                 IdNodoProceso: queryIdNodoProceso,
-                ObservacionRelacion: isNoDocumentada ? carga.descripcionActividad || 'Actividad No Documentada' : 'Actividad - Autogenerado'
+                ObservacionRelacion: 'Actividad - Autogenerado'
             }).select('IdMapa');
           if (insErr) throw insErr;
           if (insMapa && insMapa.length > 0) realIdMapa = insMapa[0].IdMapa;
@@ -161,7 +179,7 @@ export const captureService = {
       
       if (!realIdFactor) throw new Error("No se pudo resolver o crear IdFactorFrecuencia.");
 
-      const payload = {
+      const payload: any = {
           IdVigencia: carga.vigenciaId,
           IdMapa: realIdMapa,
           IdCargoEjecutor: realIdCargo, 
@@ -173,9 +191,12 @@ export const captureService = {
           Tmax_Horas: parseFloat(carga.tiempoMax || '0'),
           CreatedBy: carga.autor || carga.userId || 'Sistema',
           Activo: true
-        };
-        console.log("Supabase insert CargasTrabajo Payload:", payload);
-        
+      };
+
+      if (isNoDocumentada && carga.descripcionActividad) {
+          payload.Descripcion = carga.descripcionActividad;
+      }
+      
       const { data, error } = await supabase
         .schema('Ops')
         .from('CargasTrabajo')
@@ -204,13 +225,20 @@ export const captureService = {
 
   updateCarga: async (id: string, updates: Partial<any>): Promise<any> => {
     if (!supabase) throw new Error("Supabase client is not available.");
+    
+    const payloadToUpdate: any = { 
+        Volumen: updates.volumenQ,
+        UpdatedBy: updates.autor || updates.userId || 'Sistema' 
+    };
+
+    if (updates.descripcionActividad !== undefined) {
+        payloadToUpdate.Descripcion = updates.descripcionActividad;
+    }
+
     const { data, error } = await supabase
       .schema('Ops')
       .from('CargasTrabajo')
-      .update({ 
-          Volumen: updates.volumenQ, 
-          UpdatedBy: updates.autor || updates.userId || 'Sistema' 
-      })
+      .update(payloadToUpdate)
       .eq('IdCarga', id)
       .select();
 
