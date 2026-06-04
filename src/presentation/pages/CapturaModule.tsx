@@ -260,7 +260,7 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
     return cargas.filter((c) => {
       // En Captura de Cargas, cada usuario ve únicamente sus propios registros,
       // independientemente de su rol.
-      return c.userId === currentUser.id;
+      return c.userId === currentUser.id || c.autor === currentUser.nombre;
     });
   }, [cargas, currentUser.id]);
 

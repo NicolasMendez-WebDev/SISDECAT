@@ -179,7 +179,6 @@ export const CargasTable: React.FC<CargasTableProps> = ({
                 {uniqueFechas.map(f => <option key={f as string} value={f as string}>{f as string}</option>)}
               </select>
             </th>
-            {!isFuncionario && (
               <th className="p-4 align-top w-auto resizable-th">
                 <SortHeader title="Dependencia" field="depName" />
                 <select
@@ -191,7 +190,6 @@ export const CargasTable: React.FC<CargasTableProps> = ({
                   {uniqueDependencias.map(d => <option key={d as string} value={d as string}>{d as string}</option>)}
                 </select>
               </th>
-            )}
             <th className="p-4 align-top w-auto resizable-th">
               <SortHeader title="Procedimiento" field="prodName" />
               <select
@@ -251,11 +249,9 @@ export const CargasTable: React.FC<CargasTableProps> = ({
             return (
               <tr key={carga.id} className="hover:bg-slate-50/80 transition-colors">
                 <td className="p-4 text-xs text-slate-500 whitespace-nowrap">{carga.dateStr}</td>
-                {!isFuncionario && (
-                  <td className="p-4">
-                    <span className="text-xs text-slate-700 whitespace-normal block" title={carga.depName}>{carga.depName}</span>
-                  </td>
-                )}
+                <td className="p-4">
+                  <span className="text-xs text-slate-700 whitespace-normal block" title={carga.depName}>{carga.depName}</span>
+                </td>
                 <td className="p-4">
                   <span className="text-xs text-slate-700 whitespace-normal block" title={carga.prodName}>{carga.prodName}</span>
                 </td>

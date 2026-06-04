@@ -314,7 +314,18 @@ export default function App() {
   const currentPcdData = pcdData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
   const currentActData = actData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
   // Default legacy mock cargas to the current vigencia if they don't have one
-  const currentCargas = cargasTrabajo.map(c => !c.vigenciaId ? {...c, vigenciaId: currentVigenciaId} : c).filter(c => c.vigenciaId === currentVigenciaId);
+  const currentCargas = cargasTrabajo.map(c => {
+    let newC = !c.vigenciaId ? {...c, vigenciaId: currentVigenciaId} : {...c};
+    if (!newC.userRole || !newC.userId) {
+       // Match by autor
+       const foundUser = usuarios.find(u => u.nombre === c.autor || u.id === c.autor);
+       if (foundUser) {
+           newC.userRole = foundUser.rol;
+           newC.userId = foundUser.id;
+       }
+    }
+    return newC;
+  }).filter(c => c.vigenciaId === currentVigenciaId);
   const currentRelaciones = relaciones.filter(r => String(r.vigenciaId) === String(currentVigenciaId));
 
   // Compute UI-friendly pseudo relations to properly wrap Procedimientos inside their Procesos
