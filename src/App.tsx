@@ -317,11 +317,16 @@ export default function App() {
   const currentCargas = cargasTrabajo.map(c => {
     let newC = !c.vigenciaId ? {...c, vigenciaId: currentVigenciaId} : {...c};
     if (!newC.userRole || !newC.userId) {
-       // Match by autor
-       const foundUser = usuarios.find(u => u.nombre === c.autor || u.id === c.autor);
-       if (foundUser) {
-           newC.userRole = foundUser.rol;
-           newC.userId = foundUser.id;
+       if (currentUser && (c.autor === currentUser.nombre || c.autor === currentUser.id || c.userId === currentUser.id)) {
+           newC.userRole = currentUser.rol;
+           newC.userId = currentUser.id;
+       } else {
+           // Match by autor
+           const foundUser = usuarios.find(u => u.nombre === c.autor || u.id === c.autor);
+           if (foundUser) {
+               newC.userRole = foundUser.rol;
+               newC.userId = foundUser.id;
+           }
        }
     }
     return newC;
