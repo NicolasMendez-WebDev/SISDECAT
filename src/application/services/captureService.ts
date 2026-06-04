@@ -25,32 +25,27 @@ export const captureService = {
        const cargo = cargos?.find(c => c.IdCargo === row.IdCargoEjecutor);
        const factor = factores?.find(f => f.IdFactor === row.IdFactorFrecuencia);
 
-       const isUndocumented = true;
        const mappedNodoProceso = mapa?.IdNodoProceso;
        
-       let actNode = null;
-       let pcdNode = null;
-       let procNode = null;
-
-       let currProcNode = procTree?.find(p => p.IdNodoProceso === mappedNodoProceso);
-       
-       // Using row.Descripcion or row.descripcion to know if undocumented activity has a description!
-       // If it is a process/procedure, or if it has a Descripcion field -> it implies undocumented.
        const currDesc = row.Descripcion || row.descripcion;
-       const actuallyUndocumented = Boolean(currDesc) || (!procTree?.some(p => p.IdPadre === mappedNodoProceso && p.Nivel === 3) && currProcNode?.Nivel !== 3); // it's 3 for Actividad typically.
+       const isNoDoc = Boolean(currDesc);
        
-       if (currProcNode?.Nivel === 3) {
-           actNode = currProcNode;
-           pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
-           procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
-       } else if (currProcNode?.Nivel === 2) {
-           pcdNode = currProcNode;
-           procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
-       } else if (currProcNode?.Nivel === 1) {
-           procNode = currProcNode;
-       }
+       let actividadId = mappedNodoProceso || "actividad_no_documentada";
+       let actNode = procTree?.find(p => p.IdNodoProceso === actividadId);
+       let pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
+       let procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
 
-       const actividadId = currDesc ? "actividad_no_documentada" : (actNode?.IdNodoProceso || (currProcNode ? "actividad_no_documentada" : undefined));
+       if (isNoDoc) {
+           actividadId = "actividad_no_documentada";
+           let currProcNode = procTree?.find(p => p.IdNodoProceso === mappedNodoProceso);
+           if (currProcNode?.Nivel === 2) {
+               pcdNode = currProcNode;
+               procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
+           } else if (currProcNode?.Nivel === 1) {
+               pcdNode = undefined;
+               procNode = currProcNode;
+           }
+       }
 
        const dependenciaId = mapa?.IdNodoOrg || row.IdMapa;
        const depNode = orgTree?.find(o => o.IdNodoOrg === dependenciaId);
