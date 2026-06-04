@@ -145,6 +145,7 @@ export default function App() {
   const [hiddenPaths, setHiddenPaths] = useState<string[]>([]);
   const [recentlyModifiedIds, setRecentlyModifiedIds] = useState<string[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isLoadingRecords, setIsLoadingRecords] = useState(true);
 
   const [selectedVigenciaId, setSelectedVigenciaId] = useState<string | null>(
     null,
@@ -346,17 +347,47 @@ export default function App() {
 
           setUsuarios(uniqueUsers);
 
-          const { captureService } =
-            await import("./application/services/captureService");
-          const existingCargas = await captureService.getCargas();
-          setCargasTrabajo(existingCargas || []);
+          // We have basic structure, let the user in
+          setIsLoadingData(false);
 
-          const [cargosDb, factDb] = await Promise.all([
-            DatabaseService.getCargos(),
-            DatabaseService.getFactoresFrecuencia(),
-          ]);
-          setCargos(cargosDb || []);
-          setFactoresFrecuencia(factDb || []);
+          try {
+            const { captureService } =
+              await import("./application/services/captureService");
+            const existingCargas = await captureService.getCargas();
+            setCargasTrabajo(existingCargas || []);
+
+            // Extract users from CargasTrabajo
+            if (existingCargas && existingCargas.length > 0) {
+              setUsuarios((prev) => {
+                const updated = [...prev];
+                existingCargas.forEach((c) => {
+                  const author = c.autor || "Usuario Desconocido";
+                  const id = author.includes("@") ? author : author.toLowerCase().replace(/ /g, "_");
+                  if (!updated.find((u) => u.id === id || u.nombre === author || u.email === author)) {
+                    updated.push({
+                      id: id,
+                      email: author.includes("@") ? author : `${id}@sisdecat.gov.co`,
+                      nombre: author.includes("@") ? author.split("@")[0] : author,
+                      rol: "Funcionario",
+                    });
+                  }
+                });
+                return updated;
+              });
+            }
+
+            const [cargosDb, factDb] = await Promise.all([
+              DatabaseService.getCargos(),
+              DatabaseService.getFactoresFrecuencia(),
+            ]);
+            setCargos(cargosDb || []);
+            setFactoresFrecuencia(factDb || []);
+          } catch(e) {
+            console.error("Error fetching background records:", e);
+          } finally {
+            setIsLoadingRecords(false);
+          }
+
         } catch (e: any) {
           console.error("Error loading prod data from supabase:", e);
           showToast(
@@ -380,6 +411,7 @@ export default function App() {
         );
       } finally {
         setIsLoadingData(false);
+        setIsLoadingRecords(false);
       }
     };
     initializeData();
@@ -1998,6 +2030,7 @@ export default function App() {
                   relaciones={uiRelaciones}
                   onSave={handleSaveCarga}
                   onDelete={handleDeleteCarga}
+                  isLoadingRecords={isLoadingRecords}
                 />
               )}
               {activeModule === "estructura" && (
@@ -2058,6 +2091,7 @@ export default function App() {
               )}
               {activeModule === "admin" && (
                 <AdminModule
+                  isLoadingRecords={isLoadingRecords}
                   showToast={showToast}
                   cargas={currentCargas}
                   cargos={cargos}

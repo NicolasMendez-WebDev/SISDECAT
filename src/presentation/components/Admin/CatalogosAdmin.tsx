@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Vigencia } from '../../../domain/models/types';
-import { Pencil, Save, PlusCircle, Trash2 } from 'lucide-react';
+import { Pencil, Save, PlusCircle, Trash2, X } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface CatalogosAdminProps {
   vigencias: Vigencia[];
@@ -20,48 +21,33 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
   const currentCargos = cargos.filter(c => c.IdVigencia === selectedVigenciaId || c.vigenciaId === selectedVigenciaId);
   const currentFactores = factores.filter(f => f.IdVigencia === selectedVigenciaId || f.vigenciaId === selectedVigenciaId);
 
-  const [editingCargoId, setEditingCargoId] = useState<number | null>(null);
-  const [editedCargo, setEditedCargo] = useState<any>({});
-  
-  const [editingFactorId, setEditingFactorId] = useState<number | null>(null);
-  const [editedFactor, setEditedFactor] = useState<any>({});
-
-  const startEditCargo = (c: any) => {
-    setEditingCargoId(c.IdCargo);
-    setEditedCargo({ ...c });
-  };
+  const [editingCargo, setEditingCargo] = useState<any>(null);
+  const [editingFactor, setEditingFactor] = useState<any>(null);
 
   const handleSaveCargo = async () => {
-    if (onSaveCargo && editedCargo.Denominacion) {
-      await onSaveCargo(editedCargo);
-      setEditingCargoId(null);
+    if (onSaveCargo && editingCargo?.Denominacion) {
+      await onSaveCargo(editingCargo);
+      setEditingCargo(null);
     }
   };
 
-  const startEditFactor = (f: any) => {
-    setEditingFactorId(f.IdFactor);
-    setEditedFactor({ ...f });
-  };
-
   const handleSaveFactor = async () => {
-    if (onSaveFactor && editedFactor.Nombre) {
-      await onSaveFactor(editedFactor);
-      setEditingFactorId(null);
+    if (onSaveFactor && editingFactor?.Nombre) {
+      await onSaveFactor(editingFactor);
+      setEditingFactor(null);
     }
   };
 
   const addNewCargo = () => {
     const newId = -Math.round(Math.random() * 1000000);
     const newC = { IdCargo: newId, IdVigencia: selectedVigenciaId, Denominacion: 'Nuevo Cargo', Activo: true };
-    setEditedCargo(newC);
-    setEditingCargoId(newId);
+    setEditingCargo(newC);
   };
 
   const addNewFactor = () => {
     const newId = -Math.round(Math.random() * 1000000);
     const newF = { IdFactor: newId, IdVigencia: selectedVigenciaId, Nombre: 'Nueva Frecuencia', FactorMensual: 1, EsSistema: false };
-    setEditedFactor(newF);
-    setEditingFactorId(newId);
+    setEditingFactor(newF);
   };
 
   return (
@@ -104,24 +90,15 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                     ) : currentCargos.map(c => (
                       <tr key={c.IdCargo} className="hover:bg-slate-50/50">
                         <td className="py-2 px-4">
-                          {editingCargoId === c.IdCargo ? (
-                            <input autoFocus className="w-full border border-slate-300 rounded px-2 py-1" value={editedCargo.Denominacion} onChange={(e) => setEditedCargo({...editedCargo, Denominacion: e.target.value})} />
-                          ) : <span className="font-medium text-slate-700">{c.Denominacion}</span>}
+                          <span className="font-medium text-slate-700">{c.Denominacion}</span>
                         </td>
                         <td className="py-2 px-4 text-right whitespace-nowrap">
-                          {editingCargoId === c.IdCargo ? (
-                            <div className="flex justify-end gap-2">
-                               <button onClick={handleSaveCargo} className="text-green-600 hover:bg-green-50 p-1.5 rounded"><Save size={16}/></button>
-                               <button onClick={() => setEditingCargoId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded text-xs font-bold">cancel</button>
-                            </div>
-                          ) : (
-                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity">
-                               <button onClick={() => startEditCargo(c)} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
-                               {onDeleteCargo && (
-                                 <button onClick={() => onDeleteCargo(c.IdCargo)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
-                               )}
-                            </div>
-                          )}
+                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity">
+                             <button onClick={() => setEditingCargo(c)} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
+                             {onDeleteCargo && (
+                               <button onClick={() => onDeleteCargo(c.IdCargo)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
+                             )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -153,30 +130,19 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                     ) : currentFactores.map(f => (
                       <tr key={f.IdFactor} className="hover:bg-slate-50/50">
                         <td className="py-2 px-4">
-                          {editingFactorId === f.IdFactor ? (
-                            <input autoFocus className="w-full border border-slate-300 rounded px-2 py-1" value={editedFactor.Nombre} onChange={(e) => setEditedFactor({...editedFactor, Nombre: e.target.value})} />
-                          ) : <span className="font-medium text-slate-700 capitalize">{f.Nombre}</span>}
+                          <span className="font-medium text-slate-700 capitalize">{f.Nombre}</span>
                         </td>
                         <td className="py-2 px-4 text-slate-600">
-                           {editingFactorId === f.IdFactor ? (
-                             <input type="number" step="0.01" className="w-20 border border-slate-300 rounded px-2 py-1" value={editedFactor.FactorMensual} onChange={(e) => setEditedFactor({...editedFactor, FactorMensual: parseFloat(e.target.value)})} />
-                           ) : <span className="font-mono text-xs">{f.FactorMensual}</span>}
+                           <span className="font-mono text-xs">{f.FactorMensual}</span>
                         </td>
                         <td className="py-2 px-4 text-right whitespace-nowrap">
-                          {editingFactorId === f.IdFactor ? (
-                            <div className="flex justify-end gap-2">
-                               <button onClick={handleSaveFactor} className="text-green-600 hover:bg-green-50 p-1.5 rounded"><Save size={16}/></button>
-                               <button onClick={() => setEditingFactorId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded text-xs font-bold">cancel</button>
-                            </div>
-                          ) : (
-                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity">
-                               {f.EsSistema && <span className="text-[9px] text-slate-400 bg-slate-100 rounded px-1.5 py-0.5">Sistema</span>}
-                               <button onClick={() => startEditFactor(f)} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
-                               {onDeleteFactor && (
-                                 <button onClick={() => onDeleteFactor(f.IdFactor)} disabled={f.EsSistema} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors disabled:opacity-30"><Trash2 size={14}/></button>
-                               )}
-                            </div>
-                          )}
+                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity">
+                             {f.EsSistema && <span className="text-[9px] text-slate-400 bg-slate-100 rounded px-1.5 py-0.5 mr-1">Sistema</span>}
+                             <button onClick={() => setEditingFactor(f)} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
+                             {onDeleteFactor && (
+                               <button onClick={() => onDeleteFactor(f.IdFactor)} disabled={f.EsSistema} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors disabled:opacity-30"><Trash2 size={14}/></button>
+                             )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -186,6 +152,89 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
           </div>
         </div>
       )}
+
+      {/* Cargo Modal */}
+      {editingCargo && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingCargo(null)}>
+           <motion.div 
+             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+             onClick={e => e.stopPropagation()}
+             className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+           >
+              <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                 <h3 className="font-bold text-slate-800 text-sm">{editingCargo.IdCargo < 0 ? 'Crear Nuevo Cargo' : 'Editar Cargo'}</h3>
+                 <button onClick={() => setEditingCargo(null)} className="text-slate-400 hover:text-slate-600"><X size={18}/></button>
+              </div>
+              <div className="p-5 space-y-4">
+                 <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Denominación</label>
+                    <input 
+                      autoFocus
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue outline-none" 
+                      value={editingCargo.Denominacion} 
+                      onChange={(e) => setEditingCargo({...editingCargo, Denominacion: e.target.value})} 
+                      placeholder="Ej: Profesional Especializado"
+                    />
+                 </div>
+              </div>
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+                 <button onClick={() => setEditingCargo(null)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">Cancelar</button>
+                 <button onClick={handleSaveCargo} className="px-4 py-2 text-sm font-bold bg-institutional-blue text-white rounded-lg hover:bg-institutional-blue/90 shadow-sm flex items-center gap-2 transition-all">
+                    <Save size={16}/> Guardar
+                 </button>
+              </div>
+           </motion.div>
+        </div>
+      )}
+
+      {/* Factor Modal */}
+      {editingFactor && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingFactor(null)}>
+           <motion.div 
+             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+             onClick={e => e.stopPropagation()}
+             className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+           >
+              <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                 <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    {editingFactor.IdFactor < 0 ? 'Crear Nueva Frecuencia' : 'Editar Frecuencia'}
+                    {editingFactor.EsSistema && <span className="bg-institutional-blue/10 text-institutional-blue text-[10px] px-2 py-0.5 rounded uppercase ml-2">Sistema</span>}
+                 </h3>
+                 <button onClick={() => setEditingFactor(null)} className="text-slate-400 hover:text-slate-600"><X size={18}/></button>
+              </div>
+              <div className="p-5 space-y-4">
+                 <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre</label>
+                    <input 
+                      autoFocus
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue outline-none" 
+                      value={editingFactor.Nombre} 
+                      onChange={(e) => setEditingFactor({...editingFactor, Nombre: e.target.value})} 
+                      placeholder="Ej: Mensual"
+                    />
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Factor Mensual</label>
+                    <input 
+                      type="number" step="0.01" min="0"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue outline-none" 
+                      value={editingFactor.FactorMensual} 
+                      onChange={(e) => setEditingFactor({...editingFactor, FactorMensual: parseFloat(e.target.value)})} 
+                      placeholder="Ej: 19"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Este valor representa cuántas veces se ejecuta esta frecuencia en un mes de trabajo activo.</p>
+                 </div>
+              </div>
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+                 <button onClick={() => setEditingFactor(null)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">Cancelar</button>
+                 <button onClick={handleSaveFactor} className="px-4 py-2 text-sm font-bold bg-institutional-blue text-white rounded-lg hover:bg-institutional-blue/90 shadow-sm flex items-center gap-2 transition-all">
+                    <Save size={16}/> Guardar
+                 </button>
+              </div>
+           </motion.div>
+        </div>
+      )}
     </div>
   );
 };
+

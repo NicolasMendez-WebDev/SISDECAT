@@ -224,10 +224,41 @@ export const captureService = {
   updateCarga: async (id: string, updates: Partial<any>): Promise<any> => {
     if (!supabase) throw new Error("Supabase client is not available.");
     
+    let realIdFactor = null;
+    if (updates.frecuencia) {
+        const targetFreq = updates.frecuencia;
+        const targetVig = updates.vigenciaId || updates.IdVigencia;
+        const { data: dbFactores, error: efq } = await supabase.schema('Sys').from('FactoresFrecuencia').select('*').eq('IdVigencia', targetVig);
+        if (!efq && dbFactores && dbFactores.length > 0) {
+            const factorMatch = dbFactores.find(f => f.Nombre.toLowerCase() === targetFreq.toLowerCase());
+            if (factorMatch) {
+              realIdFactor = factorMatch.IdFactor;
+            } else {
+              const { data: insFact, error: eF } = await supabase.schema('Sys').from('FactoresFrecuencia')
+                .insert({
+                  IdVigencia: targetVig,
+                  Nombre: targetFreq,
+                  FactorMensual: targetFreq === 'Diario' || targetFreq === 'Diaria' ? 19 : 1,
+                  EsSistema: true
+                }).select('IdFactor');
+              if (!eF && insFact && insFact.length > 0) realIdFactor = insFact[0].IdFactor;
+            }
+        }
+    }
+
     const payloadToUpdate: any = { 
-        Volumen: updates.volumenQ,
         UpdatedBy: updates.autor || updates.userId || 'Sistema' 
     };
+
+    if (updates.volumenQ !== undefined) payloadToUpdate.Volumen = parseFloat(updates.volumenQ);
+    if (updates.tiempoMin !== undefined) payloadToUpdate.Tmin_Horas = parseFloat(updates.tiempoMin);
+    if (updates.tiempoNormal !== undefined) payloadToUpdate.Tnorm_Horas = parseFloat(updates.tiempoNormal);
+    if (updates.tiempoMax !== undefined) payloadToUpdate.Tmax_Horas = parseFloat(updates.tiempoMax);
+    if (updates.unidadTiempo !== undefined) payloadToUpdate.UnidadTiempoInput = (updates.unidadTiempo || 'minutos').charAt(0).toUpperCase() + (updates.unidadTiempo || 'minutos').slice(1).toLowerCase();
+    
+    if (realIdFactor) {
+        payloadToUpdate.IdFactorFrecuencia = realIdFactor;
+    }
 
     if (updates.descripcionActividad !== undefined) {
         payloadToUpdate.Descripcion = updates.descripcionActividad;

@@ -216,7 +216,7 @@ export const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
                   {isEditMode ? (
                     <select
                       className="w-full text-center text-base font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:border-institutional-blue capitalize focus:bg-white transition-colors"
-                      value={editedRecord.frecuencia}
+                      value={(editedRecord.frecuencia || '').toLowerCase()}
                       onChange={(e) => handleFieldChange('frecuencia', e.target.value)}
                     >
                       <option value="diaria">Diaria</option>
@@ -244,7 +244,7 @@ export const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
                   {isEditMode ? (
                     <select
                       className="w-full text-center text-base font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:border-institutional-blue capitalize focus:bg-white transition-colors"
-                      value={editedRecord.unidadTiempo === 'min' ? 'minutos' : (editedRecord.unidadTiempo === 'hor' ? 'horas' : (editedRecord.unidadTiempo || "minutos"))}
+                      value={(editedRecord.unidadTiempo || '').toLowerCase() === 'min' ? 'minutos' : ((editedRecord.unidadTiempo || '').toLowerCase() === 'hor' ? 'horas' : (editedRecord.unidadTiempo || "minutos").toLowerCase())}
                       onChange={(e) => handleFieldChange('unidadTiempo', e.target.value)}
                     >
                       <option value="minutos">Minutos</option>

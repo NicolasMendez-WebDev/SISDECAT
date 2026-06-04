@@ -47,6 +47,7 @@ interface CapturaModuleProps {
   }[];
   onSave: (data: any) => void;
   onDelete?: (id: string) => void;
+  isLoadingRecords?: boolean;
 }
 
 export const CapturaModule: React.FC<CapturaModuleProps> = ({
@@ -63,6 +64,7 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
   relaciones,
   onSave,
   onDelete,
+  isLoadingRecords
 }) => {
   const initialFormState = {
     organismoId: "",
@@ -937,6 +939,7 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
             </div>
           </div>
           <CargasTable
+            isLoading={isLoadingRecords}
             cargas={completedRecords}
             actividades={actividades}
             dependencias={dependencias}

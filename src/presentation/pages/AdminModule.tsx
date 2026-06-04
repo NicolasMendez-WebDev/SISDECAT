@@ -34,13 +34,14 @@ interface AdminModuleProps {
   onRestoreMockData?: () => void;
   vigenciaActiva?: boolean;
   showToast?: (msg: string, type: 'success'|'error') => void;
+  isLoadingRecords?: boolean;
 }
 
 export const AdminModule: React.FC<AdminModuleProps> = ({ 
   cargas, cargos = [], factores = [], onSaveCargo, onDeleteCargo, onSaveFactor, onDeleteFactor,
   onUpdate, onDelete, organismos, dependencias, actividades, procesos, procedimientos,
   vigencias, onVigenciaUpdate, onVigenciaCreate, usuarios = [], onUpdateUsuario, onAddUsuario, currentUser,
-  vigenciasUsuarios = [], onUpdateVigenciaUsuario, onRestoreMockData, vigenciaActiva = true, showToast
+  vigenciasUsuarios = [], onUpdateVigenciaUsuario, onRestoreMockData, vigenciaActiva = true, showToast, isLoadingRecords
 }) => {
   const [activeTab, setActiveTab] = useState<'registros' | 'vigencias' | 'usuarios' | 'catalogos'>('vigencias');
   const [selectedCarga, setSelectedCarga] = useState<any | null>(null);
@@ -288,6 +289,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                 </div>
               </div>
               <CargasTable
+                isLoading={isLoadingRecords}
                 cargas={cargas}
                 actividades={actividades}
                 dependencias={dependencias}

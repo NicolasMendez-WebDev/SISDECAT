@@ -9,13 +9,14 @@ interface CargasTableProps {
   dependencias: Dependencia[];
   procedimientos: Procedimiento[];
   currentUser: User;
-  onViewDetails: (carga: any) => void;
+  onViewDetails?: (carga: any) => void;
   onEdit?: (carga: any) => void;
   onDelete?: (cargaId: string) => void;
+  isLoading?: boolean;
 }
 
 export const CargasTable: React.FC<CargasTableProps> = ({
-  cargas, actividades, dependencias, procedimientos, currentUser, onViewDetails, onEdit, onDelete
+  cargas, actividades, dependencias, procedimientos, currentUser, onViewDetails, onEdit, onDelete, isLoading = false
 }) => {
   const isFuncionario = currentUser.rol === 'Funcionario';
 
@@ -133,6 +134,15 @@ export const CargasTable: React.FC<CargasTableProps> = ({
       return acc;
     }, { volumenQ: 0, etp: 0 });
   }, [filteredCargas]);
+
+  if (isLoading) {
+    return (
+      <div className="p-12 flex flex-col items-center justify-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-slate-50/50">
+        <div className="w-8 h-8 border-4 border-institutional-blue/20 border-t-institutional-blue rounded-full animate-spin"></div>
+        <p className="mt-4 text-sm font-medium animate-pulse">Cargando registros...</p>
+      </div>
+    );
+  }
 
   if (cargas.length === 0) {
     return (
