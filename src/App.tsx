@@ -411,11 +411,11 @@ export default function App() {
 
       // Set default Cargos and FactoresFrecuencia
       const defaultCargos = [
-        { IdVigencia: v.IdVigencia, Denominacion: 'Asistencial', NivelJerarquico: 'Asistencial', Activo: true },
-        { IdVigencia: v.IdVigencia, Denominacion: 'Técnico', NivelJerarquico: 'Tecnico', Activo: true },
-        { IdVigencia: v.IdVigencia, Denominacion: 'Profesional', NivelJerarquico: 'Profesional', Activo: true },
-        { IdVigencia: v.IdVigencia, Denominacion: 'Asesor', NivelJerarquico: 'Asesor', Activo: true },
-        { IdVigencia: v.IdVigencia, Denominacion: 'Directivo', NivelJerarquico: 'Directivo', Activo: true }
+        { IdVigencia: v.IdVigencia, Denominacion: 'Asistencial', Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: 'Técnico', Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: 'Profesional', Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: 'Asesor', Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: 'Directivo', Activo: true }
       ];
 
       const defaultFactores = [

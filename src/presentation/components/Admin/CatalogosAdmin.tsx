@@ -52,7 +52,7 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
 
   const addNewCargo = () => {
     const newId = -Math.round(Math.random() * 1000000);
-    const newC = { IdCargo: newId, IdVigencia: selectedVigenciaId, Denominacion: 'Nuevo Cargo', NivelJerarquico: 'Profesional', Activo: true };
+    const newC = { IdCargo: newId, IdVigencia: selectedVigenciaId, Denominacion: 'Nuevo Cargo', Activo: true };
     setEditedCargo(newC);
     setEditingCargoId(newId);
   };
@@ -95,30 +95,18 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                   <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-bold text-slate-500 sticky top-0">
                     <tr>
                       <th className="py-2 px-4 whitespace-nowrap">Denominación</th>
-                      <th className="py-2 px-4 whitespace-nowrap">Nivel Jerárquico</th>
                       <th className="py-2 px-4 text-right whitespace-nowrap">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {currentCargos.length === 0 ? (
-                      <tr><td colSpan={3} className="py-4 text-center text-slate-500">No hay cargos registrados.</td></tr>
+                      <tr><td colSpan={2} className="py-4 text-center text-slate-500">No hay cargos registrados.</td></tr>
                     ) : currentCargos.map(c => (
                       <tr key={c.IdCargo} className="hover:bg-slate-50/50">
                         <td className="py-2 px-4">
                           {editingCargoId === c.IdCargo ? (
                             <input autoFocus className="w-full border border-slate-300 rounded px-2 py-1" value={editedCargo.Denominacion} onChange={(e) => setEditedCargo({...editedCargo, Denominacion: e.target.value})} />
                           ) : <span className="font-medium text-slate-700">{c.Denominacion}</span>}
-                        </td>
-                        <td className="py-2 px-4 text-slate-600">
-                           {editingCargoId === c.IdCargo ? (
-                             <select className="w-full border border-slate-300 rounded px-2 py-1" value={editedCargo.NivelJerarquico} onChange={(e) => setEditedCargo({...editedCargo, NivelJerarquico: e.target.value})}>
-                               <option value="Asistencial">Asistencial</option>
-                               <option value="Tecnico">Técnico</option>
-                               <option value="Profesional">Profesional</option>
-                               <option value="Asesor">Asesor</option>
-                               <option value="Directivo">Directivo</option>
-                             </select>
-                           ) : c.NivelJerarquico}
                         </td>
                         <td className="py-2 px-4 text-right whitespace-nowrap">
                           {editingCargoId === c.IdCargo ? (

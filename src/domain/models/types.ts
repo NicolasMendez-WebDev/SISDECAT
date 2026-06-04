@@ -62,7 +62,7 @@ export interface Cargo {
   CodigoDANE?: string;
   Denominacion: string;
   Grado?: string;
-  NivelJerarquico: 'Directivo' | 'Asesor' | 'Profesional' | 'Tecnico' | 'Asistencial';
+  NivelJerarquico: string;
   Activo: boolean;
 }
 

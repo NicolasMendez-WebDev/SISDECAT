@@ -263,7 +263,7 @@ export const DatabaseService = {
       const payload: any = {
         IdVigencia: cargo.IdVigencia || cargo.vigenciaId,
         Denominacion: cargo.Denominacion || cargo.denominacion,
-        NivelJerarquico: cargo.NivelJerarquico || cargo.nivelJerarquico,
+        NivelJerarquico: cargo.Denominacion || cargo.denominacion,
         Activo: cargo.Activo !== undefined ? cargo.Activo : true
       };
       if (cargo.IdCargo && String(cargo.IdCargo).indexOf('-') === -1) {
