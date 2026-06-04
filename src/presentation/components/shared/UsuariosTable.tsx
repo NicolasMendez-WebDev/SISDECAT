@@ -35,18 +35,13 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
 
   // Enhance users with vigencia info if applicable
   const mappedUsers = useMemo(() => {
-    return usuarios.filter(u => {
-      if (!editMode) return true;
-      const isMockUser = u.id.startsWith("USR-DEV") || u.id.startsWith("USR-00");
-      const isEnrolled = selectedVigenciaId && vigenciasUsuarios.some(vu => vu.idUsuario === u.id && vu.idVigencia === selectedVigenciaId);
-      return isMockUser || isEnrolled;
-    }).map(u => {
+    return usuarios.map(u => {
       let currentRol = u.rol || 'Funcionario';
       let currentDepId = u.dependenciaId || '';
       let vu: VigenciaUsuario | undefined = undefined;
 
       if (selectedVigenciaId) {
-        vu = vigenciasUsuarios.find(x => x.idUsuario === u.id && x.idVigencia === selectedVigenciaId);
+        vu = vigenciasUsuarios.find(x => x.idUsuario === u.id && String(x.idVigencia) === String(selectedVigenciaId));
         if (vu) {
           currentRol = vu.rol;
           currentDepId = vu.idDependencia || '';

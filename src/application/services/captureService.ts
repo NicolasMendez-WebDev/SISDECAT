@@ -70,7 +70,7 @@ export const captureService = {
          procedimientoId: pcdNode?.IdNodoProceso,
          actividadId: actividadId,
          descripcionActividad: currDesc || (actividadId === "actividad_no_documentada" ? 'Actividad no documentada' : undefined),
-         rolEjecutor: cargo?.NivelJerarquico || cargo?.Denominacion || row.IdCargoEjecutor,
+         rolEjecutor: cargo?.Denominacion || row.IdCargoEjecutor,
          frecuencia: factor?.Nombre || row.IdFactorFrecuencia,
          volumenQ: row.Volumen,
          unidadTiempo: row.UnidadTiempoInput,
@@ -145,7 +145,6 @@ export const captureService = {
           .insert({
             IdVigencia: carga.vigenciaId,
             Denominacion: targetNivel,
-            NivelJerarquico: targetNivel,
             Activo: true
           }).select('IdCargo');
         if (eC) throw eC;

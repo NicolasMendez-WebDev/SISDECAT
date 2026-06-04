@@ -263,7 +263,6 @@ export const DatabaseService = {
       const payload: any = {
         IdVigencia: cargo.IdVigencia || cargo.vigenciaId,
         Denominacion: cargo.Denominacion || cargo.denominacion,
-        NivelJerarquico: cargo.Denominacion || cargo.denominacion,
         Activo: cargo.Activo !== undefined ? cargo.Activo : true
       };
       if (cargo.IdCargo && String(cargo.IdCargo).indexOf('-') === -1) {
@@ -327,13 +326,20 @@ export const DatabaseService = {
     try {
       const isNew = !vu.IdUsuarioDep || (typeof vu.IdUsuarioDep === 'string' && vu.IdUsuarioDep.startsWith('VU-'));
       
-      const payload = {
+      const payload: any = {
         IdVigencia: vu.IdVigencia,
         EntraIdObjectId: vu.EntraIdObjectId,
-        IdNodoOrg: vu.IdNodoOrg || null,
         RolFuncional: vu.RolFuncional || 'Funcionario',
         Activo: vu.Activo !== undefined ? vu.Activo : (vu.activo !== undefined ? vu.activo : true)
       };
+      
+      if (vu.UPN) {
+         payload.UPN = vu.UPN;
+      }
+      
+      if (vu.IdNodoOrg) {
+         payload.IdNodoOrg = vu.IdNodoOrg;
+      }
 
       if (!isNew) {
         const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia')

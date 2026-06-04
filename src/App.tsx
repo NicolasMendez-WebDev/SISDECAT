@@ -146,151 +146,238 @@ export default function App() {
   const [recentlyModifiedIds, setRecentlyModifiedIds] = useState<string[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  const [selectedVigenciaId, setSelectedVigenciaId] = useState<string | null>(null);
+  const [selectedVigenciaId, setSelectedVigenciaId] = useState<string | null>(
+    null,
+  );
 
   React.useEffect(() => {
     const initializeData = async () => {
       try {
         setIsLoadingData(true);
+        let sessionUser = null;
         try {
-          const { supabase } = await import('./lib/supabaseClient');
+          const { supabase } = await import("./lib/supabaseClient");
           if (supabase) {
-            const { data: { session } } = await supabase.auth.getSession();
+            const {
+              data: { session },
+            } = await supabase.auth.getSession();
             if (session && session.user) {
-              setCurrentUser({
-                 id: session.user.id,
-                 nombre: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || "Usuario",
-                 email: session.user.email!,
-                 rol: session.user.user_metadata?.rol || 'Funcionario'
-              });
+              sessionUser = {
+                id: session.user.id,
+                nombre:
+                  session.user.user_metadata?.full_name ||
+                  session.user.email?.split("@")[0] ||
+                  "Usuario",
+                email: session.user.email,
+                rol: session.user.user_metadata?.rol || "Funcionario",
+              };
+              setCurrentUser(sessionUser);
             }
           }
 
-          const { DatabaseService } = await import("./application/services/DatabaseService");
+          const { DatabaseService } =
+            await import("./application/services/DatabaseService");
           const vDb = await DatabaseService.getVigencias();
           setVigencias(vDb || []);
 
           const orgDb = await DatabaseService.getEstructuraOrg();
-          const fetchedOrgs = orgDb.filter(x => x.Nivel === 1).map(x => ({
-            id: x.IdNodoOrg,
-            vigenciaId: x.IdVigencia,
-            codigo: x.CodigoInterno,
-            nombre: x.Nombre,
-            level: 1,
-            activo: x.Activo,
-            estado: x.Activo ? 'Activo' : 'Inactivo'
-          }));
-          const fetchedDeps = orgDb.filter(x => x.Nivel > 1).map(x => ({
-            id: x.IdNodoOrg,
-            vigenciaId: x.IdVigencia,
-            codigo: x.CodigoInterno,
-            nombre: x.Nombre,
-            parentId: x.IdPadre,
-            level: x.Nivel,
-            activo: x.Activo,
-            estado: x.Activo ? 'Activo' : 'Inactivo'
-          }));
+          const fetchedOrgs = orgDb
+            .filter((x) => x.Nivel === 1)
+            .map((x) => ({
+              id: x.IdNodoOrg,
+              vigenciaId: x.IdVigencia,
+              codigo: x.CodigoInterno,
+              nombre: x.Nombre,
+              level: 1,
+              activo: x.Activo,
+              estado: x.Activo ? "Activo" : "Inactivo",
+            }));
+          const fetchedDeps = orgDb
+            .filter((x) => x.Nivel > 1)
+            .map((x) => ({
+              id: x.IdNodoOrg,
+              vigenciaId: x.IdVigencia,
+              codigo: x.CodigoInterno,
+              nombre: x.Nombre,
+              parentId: x.IdPadre,
+              level: x.Nivel,
+              activo: x.Activo,
+              estado: x.Activo ? "Activo" : "Inactivo",
+            }));
           setOrgData(fetchedOrgs);
           setDepData(fetchedDeps);
 
           const mapaDb = await DatabaseService.getMapaRelaciones();
-          const mappedRels = mapaDb.map(m => ({
-             vigenciaId: m.IdVigencia || m.idvigencia || m.vigenciaId || (m as any).id_vigencia,
-             parentId: m.IdNodoOrg || m.idnodoorg || m.parentId || (m as any).id_nodo_org,
-             childId: m.IdNodoProceso || m.idnodoproceso || m.childId || (m as any).id_nodo_proceso,
-             type: m.ObservacionRelacion || m.observacionrelacion || (m as any).observacion_relacion || m.type || "Proceso"
-          })).filter(r => r.parentId && r.childId);
-          
+          const mappedRels = mapaDb
+            .map((m) => ({
+              vigenciaId:
+                m.IdVigencia ||
+                m.idvigencia ||
+                m.vigenciaId ||
+                (m as any).id_vigencia,
+              parentId:
+                m.IdNodoOrg ||
+                m.idnodoorg ||
+                m.parentId ||
+                (m as any).id_nodo_org,
+              childId:
+                m.IdNodoProceso ||
+                m.idnodoproceso ||
+                m.childId ||
+                (m as any).id_nodo_proceso,
+              type:
+                m.ObservacionRelacion ||
+                m.observacionrelacion ||
+                (m as any).observacion_relacion ||
+                m.type ||
+                "Proceso",
+            }))
+            .filter((r) => r.parentId && r.childId);
+
           // ... Continue the block completely by matching what it was doing, wait, I can just replace lines 155 to 191
 
-            setRelaciones(mappedRels);
+          setRelaciones(mappedRels);
 
-            const procDb = await DatabaseService.getEstructuraProc();
-            // UI expects Proceso in procData, Procedimiento in pcdData, Actividad in actData (Nivel 1 are just categories)
-            const fetchedProcs = procDb.filter(x => x.Nivel <= 2).map(x => {
-               const parentNivel1 = procDb.find(p => p.IdNodoProceso === x.IdPadre && p.Nivel === 1);
-               return {
-                 id: x.IdNodoProceso,
-                 vigenciaId: x.IdVigencia,
-                 codigo: x.CodigoInterno,
-                 nombre: x.Nombre,
-                 dependenciaId: mappedRels.find(r => String(r.childId) === String(x.IdNodoProceso))?.parentId || null,
-                 procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 1/2 if exists
-                 level: x.Nivel,
-                 activo: x.Activo,
-                 estado: x.Activo ? 'Activo' : 'Inactivo',
-                 tipo: parentNivel1 ? parentNivel1.Nombre : 'Misional',
-                 descripcion: parentNivel1 ? `Tipo de proceso: ${parentNivel1.Nombre}` : (x.Nivel === 1 ? 'Macoproceso/Tipo' : 'Misional')
-               };
+          const procDb = await DatabaseService.getEstructuraProc();
+          // UI expects Proceso in procData, Procedimiento in pcdData, Actividad in actData (Nivel 1 are just categories)
+          const fetchedProcs = procDb
+            .filter((x) => x.Nivel <= 2)
+            .map((x) => {
+              const parentNivel1 = procDb.find(
+                (p) => p.IdNodoProceso === x.IdPadre && p.Nivel === 1,
+              );
+              return {
+                id: x.IdNodoProceso,
+                vigenciaId: x.IdVigencia,
+                codigo: x.CodigoInterno,
+                nombre: x.Nombre,
+                dependenciaId:
+                  mappedRels.find(
+                    (r) => String(r.childId) === String(x.IdNodoProceso),
+                  )?.parentId || null,
+                procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 1/2 if exists
+                level: x.Nivel,
+                activo: x.Activo,
+                estado: x.Activo ? "Activo" : "Inactivo",
+                tipo: parentNivel1 ? parentNivel1.Nombre : "Misional",
+                descripcion: parentNivel1
+                  ? `Tipo de proceso: ${parentNivel1.Nombre}`
+                  : x.Nivel === 1
+                    ? "Macoproceso/Tipo"
+                    : "Misional",
+              };
             });
-            const fetchedPcds = procDb.filter(x => x.Nivel === 3).map(x => ({
-               id: x.IdNodoProceso,
-               vigenciaId: x.IdVigencia,
-               codigo: x.CodigoInterno,
-               nombre: x.Nombre,
-               procesoId: x.IdPadre,
-               producto: x.Producto,
-               level: 3,
-               activo: x.Activo,
-               estado: x.Activo ? 'Activo' : 'Inactivo'
+          const fetchedPcds = procDb
+            .filter((x) => x.Nivel === 3)
+            .map((x) => ({
+              id: x.IdNodoProceso,
+              vigenciaId: x.IdVigencia,
+              codigo: x.CodigoInterno,
+              nombre: x.Nombre,
+              procesoId: x.IdPadre,
+              producto: x.Producto,
+              level: 3,
+              activo: x.Activo,
+              estado: x.Activo ? "Activo" : "Inactivo",
             }));
-            const fetchedActs = procDb.filter(x => x.Nivel >= 4).map(x => ({
-               id: x.IdNodoProceso,
-               vigenciaId: x.IdVigencia,
-               codigo: x.CodigoInterno,
-               nombre: x.Nombre,
-               procedimientoId: x.IdPadre,
-               level: 4,
-               activo: x.Activo,
-               estado: x.Activo ? 'Activo' : 'Inactivo'
+          const fetchedActs = procDb
+            .filter((x) => x.Nivel >= 4)
+            .map((x) => ({
+              id: x.IdNodoProceso,
+              vigenciaId: x.IdVigencia,
+              codigo: x.CodigoInterno,
+              nombre: x.Nombre,
+              procedimientoId: x.IdPadre,
+              level: 4,
+              activo: x.Activo,
+              estado: x.Activo ? "Activo" : "Inactivo",
             }));
 
-            setRelaciones(mappedRels);
-            setProcData(fetchedProcs);
-            setPcdData(fetchedPcds);
-            setActData(fetchedActs);
+          setRelaciones(mappedRels);
+          setProcData(fetchedProcs);
+          setPcdData(fetchedPcds);
+          setActData(fetchedActs);
 
-            const fetchedUsuariosDep = await DatabaseService.getUsuariosDependencia();
-            setVigenciasUsuarios(fetchedUsuariosDep.map(x => ({
-               idVigenciaUsuario: x.IdUsuarioDep,
-               idVigencia: x.IdVigencia,
-               idUsuario: x.EntraIdObjectId,
-               idDependencia: x.IdNodoOrg,
-               rol: x.RolFuncional
-            })));
-            
-            // Build simple user stubs based on Sec.UsuariosDependencia because auth.users is inaccessible
-            const uniqueUsers = Array.from(new Set(fetchedUsuariosDep.map(x => x.EntraIdObjectId))).map(id => {
-               const uRef = fetchedUsuariosDep.find(x => x.EntraIdObjectId === id);
-               return {
-                  id: id,
-                  email: uRef?.UPN || `${id}@sisdecat.gov.co`,
-                  nombre: uRef?.UPN ? uRef.UPN.split('@')[0] : `Usuario ${id.substring(0, 5)}`,
-                  rol: uRef?.RolFuncional || 'Funcionario'
-               } as User;
-            });
-            setUsuarios(uniqueUsers);
+          const fetchedUsuariosDep =
+            await DatabaseService.getUsuariosDependencia();
+          setVigenciasUsuarios(
+            fetchedUsuariosDep.map((x) => ({
+              idVigenciaUsuario: x.IdUsuarioDep,
+              idVigencia: x.IdVigencia,
+              idUsuario: x.EntraIdObjectId,
+              idDependencia: x.IdNodoOrg,
+              rol: x.RolFuncional,
+            })),
+          );
 
-            const { captureService } = await import("./application/services/captureService");
-            const existingCargas = await captureService.getCargas();
-            setCargasTrabajo(existingCargas || []);
-            
-            const [cargosDb, factDb] = await Promise.all([
-               DatabaseService.getCargos(),
-               DatabaseService.getFactoresFrecuencia()
-            ]);
-            setCargos(cargosDb || []);
-            setFactoresFrecuencia(factDb || []);
-          } catch (e: any) {
-            console.error("Error loading prod data from supabase:", e);
-            showToast(`Error al cargar datos desde Supabase: ${e.message}`, "error");
-            setOrgData([]); setDepData([]); setProcData([]); setPcdData([]); setActData([]);
-            setVigencias([]); setRelaciones([]); setCargasTrabajo([]);
+          // Build simple user stubs based on Sec.UsuariosDependencia because auth.users is inaccessible
+          const uniqueUsers = Array.from(
+            new Set(fetchedUsuariosDep.map((x) => x.EntraIdObjectId)),
+          ).map((id) => {
+            const uRef = fetchedUsuariosDep.find(
+              (x) => x.EntraIdObjectId === id,
+            );
+            return {
+              id: id,
+              email: uRef?.UPN || `${id}@sisdecat.gov.co`,
+              nombre: uRef?.UPN
+                ? uRef.UPN.split("@")[0]
+                : `Usuario ${id.substring(0, 5)}`,
+              rol: uRef?.RolFuncional || "Funcionario",
+            } as User;
+          });
+
+          let currentUserToAdd = null;
+          if (sessionUser) {
+            if (!uniqueUsers.find((x) => x.id === sessionUser.id)) {
+              currentUserToAdd = sessionUser;
+              uniqueUsers.push(sessionUser);
+            }
+          } else {
+            const mockSession = localStorage.getItem("mockSession");
+            if (mockSession) {
+              const parsed = JSON.parse(mockSession);
+              setCurrentUser(parsed);
+              if (!uniqueUsers.find((x) => x.id === parsed.id)) {
+                uniqueUsers.push(parsed);
+              }
+            }
           }
-        
+
+          setUsuarios(uniqueUsers);
+
+          const { captureService } =
+            await import("./application/services/captureService");
+          const existingCargas = await captureService.getCargas();
+          setCargasTrabajo(existingCargas || []);
+
+          const [cargosDb, factDb] = await Promise.all([
+            DatabaseService.getCargos(),
+            DatabaseService.getFactoresFrecuencia(),
+          ]);
+          setCargos(cargosDb || []);
+          setFactoresFrecuencia(factDb || []);
+        } catch (e: any) {
+          console.error("Error loading prod data from supabase:", e);
+          showToast(
+            `Error al cargar datos desde Supabase: ${e.message}`,
+            "error",
+          );
+          setOrgData([]);
+          setDepData([]);
+          setProcData([]);
+          setPcdData([]);
+          setActData([]);
+          setVigencias([]);
+          setRelaciones([]);
+          setCargasTrabajo([]);
+        }
       } catch (error: any) {
         console.error("Error de inicialización:", error);
-        showToast("Error de conexión o configuración inicial: " + error.message, "error");
+        showToast(
+          "Error de conexión o configuración inicial: " + error.message,
+          "error",
+        );
       } finally {
         setIsLoadingData(false);
       }
@@ -298,135 +385,232 @@ export default function App() {
     initializeData();
   }, []);
 
-  const _activeVigencia = vigencias.find((v) => v.Estado === "Activo" && v.Activo !== false);
-  
-  let currentVigenciaView = vigencias.find(v => v.IdVigencia === (selectedVigenciaId || _activeVigencia?.IdVigencia) && v.Activo !== false);
-  if (currentUser?.rol === 'Funcionario') {
+  const _activeVigencia = vigencias.find(
+    (v) => v.Estado === "Activo" && v.Activo !== false,
+  );
+
+  let currentVigenciaView = vigencias.find(
+    (v) =>
+      v.IdVigencia === (selectedVigenciaId || _activeVigencia?.IdVigencia) &&
+      v.Activo !== false,
+  );
+  if (currentUser?.rol === "Funcionario") {
     currentVigenciaView = _activeVigencia;
   }
-  
+
   const currentVigenciaId = currentVigenciaView?.IdVigencia;
 
   // Filter lists based on the currently viewed Vigencia
-  const currentOrgData = orgData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
-  const currentDepData = depData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
-  const currentProcData = procData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
-  const currentPcdData = pcdData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
-  const currentActData = actData.filter(x => x.vigenciaId === currentVigenciaId && x.activo !== false);
+  const currentOrgData = orgData.filter(
+    (x) => x.vigenciaId === currentVigenciaId && x.activo !== false,
+  );
+  const currentDepData = depData.filter(
+    (x) => x.vigenciaId === currentVigenciaId && x.activo !== false,
+  );
+  const currentProcData = procData.filter(
+    (x) => x.vigenciaId === currentVigenciaId && x.activo !== false,
+  );
+  const currentPcdData = pcdData.filter(
+    (x) => x.vigenciaId === currentVigenciaId && x.activo !== false,
+  );
+  const currentActData = actData.filter(
+    (x) => x.vigenciaId === currentVigenciaId && x.activo !== false,
+  );
   // Default legacy mock cargas to the current vigencia if they don't have one
-  const currentCargas = cargasTrabajo.map(c => {
-    let newC = !c.vigenciaId ? {...c, vigenciaId: currentVigenciaId} : {...c};
-    if (!newC.userRole || !newC.userId) {
-       if (currentUser && (c.autor === currentUser.nombre || c.autor === currentUser.id || c.userId === currentUser.id)) {
-           newC.userRole = currentUser.rol;
-           newC.userId = currentUser.id;
-       } else {
-           // Match by autor
-           const foundUser = usuarios.find(u => u.nombre === c.autor || u.id === c.autor);
-           if (foundUser) {
-               newC.userRole = foundUser.rol;
-               newC.userId = foundUser.id;
-           }
-       }
-    }
-    return newC;
-  }).filter(c => c.vigenciaId === currentVigenciaId);
-  const currentRelaciones = relaciones.filter(r => String(r.vigenciaId) === String(currentVigenciaId));
+  const currentCargas = cargasTrabajo
+    .map((c) => {
+      let newC = !c.vigenciaId
+        ? { ...c, vigenciaId: currentVigenciaId }
+        : { ...c };
+      if (!newC.userRole || !newC.userId) {
+        if (
+          currentUser &&
+          (c.autor === currentUser.nombre ||
+            c.autor === currentUser.id ||
+            c.userId === currentUser.id)
+        ) {
+          newC.userRole = currentUser.rol;
+          newC.userId = currentUser.id;
+        } else {
+          // Match by autor
+          const foundUser = usuarios.find(
+            (u) => u.nombre === c.autor || u.id === c.autor,
+          );
+          if (foundUser) {
+            newC.userRole = foundUser.rol;
+            newC.userId = foundUser.id;
+          }
+        }
+      }
+      return newC;
+    })
+    .filter((c) => c.vigenciaId === currentVigenciaId);
+  const currentRelaciones = relaciones.filter(
+    (r) => String(r.vigenciaId) === String(currentVigenciaId),
+  );
 
   // Compute UI-friendly pseudo relations to properly wrap Procedimientos inside their Procesos
   const uiRelaciones = React.useMemo(() => {
     const computedMap = new Map<string, any>();
-    
-    currentRelaciones.forEach(rel => {
-        let currentType = rel.type || "Proceso";
-        const childIdStr = String(rel.childId).toLowerCase().trim();
-        const parentIdStr = String(rel.parentId).toLowerCase().trim();
 
-        // Find the true nature of this ID first, no matter what `rel.type` saved in DB says
-        const pcd = currentPcdData.find(p => String(p.id).toLowerCase().trim() === childIdStr);
-        if (pcd) {
-            if (pcd.procesoId) {
-                const key = `${parentIdStr}_${String(pcd.procesoId).toLowerCase().trim()}`;
-                if (computedMap.has(key)) {
-                    const existing = computedMap.get(key);
-                    if (!existing.includedChildren) existing.includedChildren = [];
-                    if (!existing.includedChildren.includes(pcd.id)) {
-                        existing.includedChildren.push(pcd.id);
-                    }
-                } else {
-                    computedMap.set(key, {
-                        type: "Proceso", // We group procedures under a synthetic Proceso relation
-                        childId: pcd.procesoId,
-                        parentId: rel.parentId,
-                        vigenciaId: rel.vigenciaId,
-                        includedChildren: [pcd.id]
-                    });
-                }
-                return; // skip raw
-            } else {
-                currentType = "Procedimiento"; // Fix type just in case
+    currentRelaciones.forEach((rel) => {
+      let currentType = rel.type || "Proceso";
+      const childIdStr = String(rel.childId).toLowerCase().trim();
+      const parentIdStr = String(rel.parentId).toLowerCase().trim();
+
+      // Find the true nature of this ID first, no matter what `rel.type` saved in DB says
+      const pcd = currentPcdData.find(
+        (p) => String(p.id).toLowerCase().trim() === childIdStr,
+      );
+      if (pcd) {
+        if (pcd.procesoId) {
+          const key = `${parentIdStr}_${String(pcd.procesoId).toLowerCase().trim()}`;
+          if (computedMap.has(key)) {
+            const existing = computedMap.get(key);
+            if (!existing.includedChildren) existing.includedChildren = [];
+            if (!existing.includedChildren.includes(pcd.id)) {
+              existing.includedChildren.push(pcd.id);
             }
-        }
-        
-        const proc = currentProcData.find(p => String(p.id).toLowerCase().trim() === childIdStr);
-        if (proc) {
-            currentType = "Proceso"; 
-        }
-
-        const act = currentActData.find(p => String(p.id).toLowerCase().trim() === childIdStr);
-        if (act) {
-            currentType = "Actividad";
-        }
-
-        const fallbackKey = `${parentIdStr}_${childIdStr}`;
-        if (computedMap.has(fallbackKey)) {
-            // Keep includedChildren for already-seeded items (when parent process already has an entry)
-            const existing = computedMap.get(fallbackKey);
-            existing.type = currentType; 
+          } else {
+            computedMap.set(key, {
+              type: "Proceso", // We group procedures under a synthetic Proceso relation
+              childId: pcd.procesoId,
+              parentId: rel.parentId,
+              vigenciaId: rel.vigenciaId,
+              includedChildren: [pcd.id],
+            });
+          }
+          return; // skip raw
         } else {
-            computedMap.set(fallbackKey, { ...rel, type: currentType });
+          currentType = "Procedimiento"; // Fix type just in case
         }
+      }
+
+      const proc = currentProcData.find(
+        (p) => String(p.id).toLowerCase().trim() === childIdStr,
+      );
+      if (proc) {
+        currentType = "Proceso";
+      }
+
+      const act = currentActData.find(
+        (p) => String(p.id).toLowerCase().trim() === childIdStr,
+      );
+      if (act) {
+        currentType = "Actividad";
+      }
+
+      const fallbackKey = `${parentIdStr}_${childIdStr}`;
+      if (computedMap.has(fallbackKey)) {
+        // Keep includedChildren for already-seeded items (when parent process already has an entry)
+        const existing = computedMap.get(fallbackKey);
+        existing.type = currentType;
+      } else {
+        computedMap.set(fallbackKey, { ...rel, type: currentType });
+      }
     });
 
     return Array.from(computedMap.values());
   }, [currentRelaciones, currentPcdData, currentProcData, currentActData]);
-  
+
   // Calculate specific user role for current vigencia
-  const currentUserVigenciaContext = vigenciasUsuarios.find(vu => vu.idUsuario === currentUser?.id && vu.idVigencia === currentVigenciaId);
-  const effectiveUser = currentUser ? { ...currentUser, rol: currentUserVigenciaContext?.rol || currentUser.rol, dependenciaId: currentUserVigenciaContext?.idDependencia || currentUser.dependenciaId } : null;
+  const currentUserVigenciaContext = vigenciasUsuarios.find(
+    (vu) =>
+      vu.idUsuario === currentUser?.id && vu.idVigencia === currentVigenciaId,
+  );
+  const effectiveUser = currentUser
+    ? {
+        ...currentUser,
+        rol: currentUserVigenciaContext?.rol || currentUser.rol,
+        dependenciaId:
+          currentUserVigenciaContext?.idDependencia ||
+          currentUser.dependenciaId,
+      }
+    : null;
 
-  const availableVigencias = (currentUser?.rol === 'Funcionario' 
-    ? vigencias.filter(v => v.Estado === 'Activo' || v.Estado === 'Historico')
-    : vigencias).filter(v => v.Activo !== false);
+  const availableVigencias = (
+    currentUser?.rol === "Funcionario"
+      ? vigencias.filter(
+          (v) => v.Estado === "Activo" || v.Estado === "Historico",
+        )
+      : vigencias
+  ).filter((v) => v.Activo !== false);
 
-  const handleCreateVigencia = async (v: any, sourceVigenciaId?: string | null) => {
+  const handleCreateVigencia = async (
+    v: any,
+    sourceVigenciaId?: string | null,
+  ) => {
     let finalVigencias = [...vigencias];
     finalVigencias.push(v);
     setVigencias(finalVigencias);
 
     try {
-      const { DatabaseService } = await import("./application/services/DatabaseService");
+      const { DatabaseService } =
+        await import("./application/services/DatabaseService");
       await DatabaseService.saveVigencia(v);
-      showToast("Vigencia guardada exitosamente en la base de datos.", "success");
+      showToast(
+        "Vigencia guardada exitosamente en la base de datos.",
+        "success",
+      );
 
       // Set default Cargos and FactoresFrecuencia
       const defaultCargos = [
-        { IdVigencia: v.IdVigencia, Denominacion: 'Asistencial', Activo: true },
-        { IdVigencia: v.IdVigencia, Denominacion: 'Técnico', Activo: true },
-        { IdVigencia: v.IdVigencia, Denominacion: 'Profesional', Activo: true },
-        { IdVigencia: v.IdVigencia, Denominacion: 'Asesor', Activo: true },
-        { IdVigencia: v.IdVigencia, Denominacion: 'Directivo', Activo: true }
+        { IdVigencia: v.IdVigencia, Denominacion: "Asistencial", Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: "Técnico", Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: "Profesional", Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: "Asesor", Activo: true },
+        { IdVigencia: v.IdVigencia, Denominacion: "Directivo", Activo: true },
       ];
 
       const defaultFactores = [
-        { IdVigencia: v.IdVigencia, Nombre: 'Diaria', FactorMensual: 19, EsSistema: true },
-        { IdVigencia: v.IdVigencia, Nombre: 'Semanal', FactorMensual: 4, EsSistema: true },
-        { IdVigencia: v.IdVigencia, Nombre: 'Quincenal', FactorMensual: 2, EsSistema: true },
-        { IdVigencia: v.IdVigencia, Nombre: 'Mensual', FactorMensual: 1, EsSistema: true },
-        { IdVigencia: v.IdVigencia, Nombre: 'Bimestral', FactorMensual: 0.5, EsSistema: true },
-        { IdVigencia: v.IdVigencia, Nombre: 'Trimestral', FactorMensual: 0.33, EsSistema: true },
-        { IdVigencia: v.IdVigencia, Nombre: 'Semestral', FactorMensual: 0.16, EsSistema: true },
-        { IdVigencia: v.IdVigencia, Nombre: 'Anual', FactorMensual: 0.08, EsSistema: true }
+        {
+          IdVigencia: v.IdVigencia,
+          Nombre: "Diaria",
+          FactorMensual: 19,
+          EsSistema: true,
+        },
+        {
+          IdVigencia: v.IdVigencia,
+          Nombre: "Semanal",
+          FactorMensual: 4,
+          EsSistema: true,
+        },
+        {
+          IdVigencia: v.IdVigencia,
+          Nombre: "Quincenal",
+          FactorMensual: 2,
+          EsSistema: true,
+        },
+        {
+          IdVigencia: v.IdVigencia,
+          Nombre: "Mensual",
+          FactorMensual: 1,
+          EsSistema: true,
+        },
+        {
+          IdVigencia: v.IdVigencia,
+          Nombre: "Bimestral",
+          FactorMensual: 0.5,
+          EsSistema: true,
+        },
+        {
+          IdVigencia: v.IdVigencia,
+          Nombre: "Trimestral",
+          FactorMensual: 0.33,
+          EsSistema: true,
+        },
+        {
+          IdVigencia: v.IdVigencia,
+          Nombre: "Semestral",
+          FactorMensual: 0.16,
+          EsSistema: true,
+        },
+        {
+          IdVigencia: v.IdVigencia,
+          Nombre: "Anual",
+          FactorMensual: 0.08,
+          EsSistema: true,
+        },
       ];
 
       const newCargos: any[] = [];
@@ -434,73 +618,126 @@ export default function App() {
         const saved = await DatabaseService.saveCargo(dc).catch(() => dc);
         newCargos.push(saved);
       }
-      setCargos(prev => [...prev, ...newCargos]);
+      setCargos((prev) => [...prev, ...newCargos]);
 
       const newFactores: any[] = [];
       for (const df of defaultFactores) {
-        const saved = await DatabaseService.saveFactorFrecuencia(df).catch(() => df);
+        const saved = await DatabaseService.saveFactorFrecuencia(df).catch(
+          () => df,
+        );
         newFactores.push(saved);
       }
-      setFactoresFrecuencia(prev => [...prev, ...newFactores]);
-
-    } catch(e: any) {
+      setFactoresFrecuencia((prev) => [...prev, ...newFactores]);
+    } catch (e: any) {
       console.error("Could not push vigencia to API", e);
       showToast(`Error de conexión al servidor: ${e.message}`, "error");
     }
 
     if (sourceVigenciaId) {
-       // Check if there are structures in that source to clone
-       const sourceOrgData = orgData.filter(x => x.vigenciaId === sourceVigenciaId);
-       const sourceDepData = depData.filter(x => x.vigenciaId === sourceVigenciaId);
-       const sourceProcData = procData.filter(x => x.vigenciaId === sourceVigenciaId);
-       const sourcePcdData = pcdData.filter(x => x.vigenciaId === sourceVigenciaId);
-       const sourceActData = actData.filter(x => x.vigenciaId === sourceVigenciaId);
+      // Check if there are structures in that source to clone
+      const sourceOrgData = orgData.filter(
+        (x) => x.vigenciaId === sourceVigenciaId,
+      );
+      const sourceDepData = depData.filter(
+        (x) => x.vigenciaId === sourceVigenciaId,
+      );
+      const sourceProcData = procData.filter(
+        (x) => x.vigenciaId === sourceVigenciaId,
+      );
+      const sourcePcdData = pcdData.filter(
+        (x) => x.vigenciaId === sourceVigenciaId,
+      );
+      const sourceActData = actData.filter(
+        (x) => x.vigenciaId === sourceVigenciaId,
+      );
 
-       // Create an ID map to preserve relationships
-       const idMap = new Map<string, string>();
-       const getNewId = (oldId: string, prefix: string) => {
-         if (!oldId) return undefined;
-         if (!idMap.has(oldId)) {
-           idMap.set(oldId, crypto.randomUUID());
-         }
-         return idMap.get(oldId);
-       };
+      // Create an ID map to preserve relationships
+      const idMap = new Map<string, string>();
+      const getNewId = (oldId: string, prefix: string) => {
+        if (!oldId) return undefined;
+        if (!idMap.has(oldId)) {
+          idMap.set(oldId, crypto.randomUUID());
+        }
+        return idMap.get(oldId);
+      };
 
-       const newOrgData = sourceOrgData.map(x => ({...x, vigenciaId: v.IdVigencia, id: getNewId(x.id, 'org')!, parentId: getNewId(x.parentId!, 'org')}));
-       const newDepData = sourceDepData.map(x => ({...x, vigenciaId: v.IdVigencia, id: getNewId(x.id, 'dep')!, parentId: getNewId(x.parentId!, 'dep') || getNewId(x.parentId!, 'org')}));
-       const newProcData = sourceProcData.map(x => ({...x, vigenciaId: v.IdVigencia, id: getNewId(x.id, 'proc')!, dependenciaId: getNewId(x.dependenciaId, 'dep')!}));
-       const newPcdData = sourcePcdData.map(x => ({...x, vigenciaId: v.IdVigencia, id: getNewId(x.id, 'pcd')!, procesoId: getNewId(x.procesoId, 'proc')!}));
-       const newActData = sourceActData.map(x => ({...x, vigenciaId: v.IdVigencia, id: getNewId(x.id, 'act')!, procedimientoId: getNewId(x.procedimientoId, 'pcd')!}));
-       
-       setOrgData([...orgData, ...newOrgData]);
-       setDepData([...depData, ...newDepData]);
-       setProcData([...procData, ...newProcData]);
-       setPcdData([...pcdData, ...newPcdData]);
-       setActData([...actData, ...newActData]);
-       
-       // Clone relaciones too
-       const newRelaciones = relaciones.filter(r => r.vigenciaId === sourceVigenciaId && (sourceProcData.some(p => p.id === r.childId) || sourcePcdData.some(p => p.id === r.childId) || sourceActData.some(p => p.id === r.childId)))
-       .map(r => ({
-           ...r,
-           id: crypto.randomUUID(),
-           childId: idMap.get(r.childId) || r.childId,
-           parentId: idMap.get(r.parentId) || r.parentId,
-           vigenciaId: v.IdVigencia,
-           includedChildren: r.includedChildren ? r.includedChildren.map((cId: string) => idMap.get(cId) || cId) : undefined
-       }));
-       setRelaciones([...relaciones, ...newRelaciones]);
+      const newOrgData = sourceOrgData.map((x) => ({
+        ...x,
+        vigenciaId: v.IdVigencia,
+        id: getNewId(x.id, "org")!,
+        parentId: getNewId(x.parentId!, "org"),
+      }));
+      const newDepData = sourceDepData.map((x) => ({
+        ...x,
+        vigenciaId: v.IdVigencia,
+        id: getNewId(x.id, "dep")!,
+        parentId: getNewId(x.parentId!, "dep") || getNewId(x.parentId!, "org"),
+      }));
+      const newProcData = sourceProcData.map((x) => ({
+        ...x,
+        vigenciaId: v.IdVigencia,
+        id: getNewId(x.id, "proc")!,
+        dependenciaId: getNewId(x.dependenciaId, "dep")!,
+      }));
+      const newPcdData = sourcePcdData.map((x) => ({
+        ...x,
+        vigenciaId: v.IdVigencia,
+        id: getNewId(x.id, "pcd")!,
+        procesoId: getNewId(x.procesoId, "proc")!,
+      }));
+      const newActData = sourceActData.map((x) => ({
+        ...x,
+        vigenciaId: v.IdVigencia,
+        id: getNewId(x.id, "act")!,
+        procedimientoId: getNewId(x.procedimientoId, "pcd")!,
+      }));
 
-       try {
-           const { DatabaseService } = await import("./application/services/DatabaseService");
-           await DatabaseService.saveEstructuraOrg([...newOrgData, ...newDepData]);
-           await DatabaseService.saveEstructuraProc([...newProcData, ...newPcdData, ...newActData]);
-           await DatabaseService.saveMapaRelaciones(newRelaciones);
-       } catch (e: any) {
-           console.error("Could not save cloned structures to DB", e);
-           showToast(`Error al clonar estructura en la base de datos: ${e.message}`, "error");
-       }
+      setOrgData([...orgData, ...newOrgData]);
+      setDepData([...depData, ...newDepData]);
+      setProcData([...procData, ...newProcData]);
+      setPcdData([...pcdData, ...newPcdData]);
+      setActData([...actData, ...newActData]);
+
+      // Clone relaciones too
+      const newRelaciones = relaciones
+        .filter(
+          (r) =>
+            r.vigenciaId === sourceVigenciaId &&
+            (sourceProcData.some((p) => p.id === r.childId) ||
+              sourcePcdData.some((p) => p.id === r.childId) ||
+              sourceActData.some((p) => p.id === r.childId)),
+        )
+        .map((r) => ({
+          ...r,
+          id: crypto.randomUUID(),
+          childId: idMap.get(r.childId) || r.childId,
+          parentId: idMap.get(r.parentId) || r.parentId,
+          vigenciaId: v.IdVigencia,
+          includedChildren: r.includedChildren
+            ? r.includedChildren.map((cId: string) => idMap.get(cId) || cId)
+            : undefined,
+        }));
+      setRelaciones([...relaciones, ...newRelaciones]);
+
+      try {
+        const { DatabaseService } =
+          await import("./application/services/DatabaseService");
+        await DatabaseService.saveEstructuraOrg([...newOrgData, ...newDepData]);
+        await DatabaseService.saveEstructuraProc([
+          ...newProcData,
+          ...newPcdData,
+          ...newActData,
+        ]);
+        await DatabaseService.saveMapaRelaciones(newRelaciones);
+      } catch (e: any) {
+        console.error("Could not save cloned structures to DB", e);
+        showToast(
+          `Error al clonar estructura en la base de datos: ${e.message}`,
+          "error",
+        );
+      }
     }
-    showToast('Nueva Vigencia Registrada', 'success');
+    showToast("Nueva Vigencia Registrada", "success");
   };
   const handleSaveCarga = async (nuevaCarga: any) => {
     if (!effectiveUser || !currentVigenciaView) return;
@@ -511,9 +748,10 @@ export default function App() {
       userRole: effectiveUser.rol,
       vigenciaId: currentVigenciaView.IdVigencia,
     };
-    
+
     try {
-      const { captureService } = await import("./application/services/captureService");
+      const { captureService } =
+        await import("./application/services/captureService");
       const saved = await captureService.createCarga(cargaConMeta);
       setCargasTrabajo([...cargasTrabajo, saved]);
       console.log("Carga guardada en backend simulado:", saved);
@@ -524,20 +762,28 @@ export default function App() {
 
   const handleUpdateCarga = async (updatedCarga: any) => {
     try {
-      const { captureService } = await import("./application/services/captureService");
-      
-      const originalCarga = currentCargas.find(c => c.id === updatedCarga.id);
+      const { captureService } =
+        await import("./application/services/captureService");
+
+      const originalCarga = currentCargas.find((c) => c.id === updatedCarga.id);
       if (!originalCarga) return;
 
       // Track changes
       const changes = [];
-      const fieldsToCheck = ['volumenQ', 'frecuencia', 'unidadTiempo', 'tiempoMin', 'tiempoNormal', 'tiempoMax'];
-      fieldsToCheck.forEach(field => {
+      const fieldsToCheck = [
+        "volumenQ",
+        "frecuencia",
+        "unidadTiempo",
+        "tiempoMin",
+        "tiempoNormal",
+        "tiempoMax",
+      ];
+      fieldsToCheck.forEach((field) => {
         if (originalCarga[field] !== updatedCarga[field]) {
           changes.push({
             field,
             old: originalCarga[field],
-            new: updatedCarga[field]
+            new: updatedCarga[field],
           });
         }
       });
@@ -548,14 +794,17 @@ export default function App() {
           editor: currentUser?.nombre || "Administrador",
           rol: currentUser?.rol || "Súper-Administrador",
           changes,
-          comentario: updatedCarga._comentario || "Sin comentarios adicionales"
+          comentario: updatedCarga._comentario || "Sin comentarios adicionales",
         };
         updatedCarga.auditLog = [...(originalCarga.auditLog || []), auditEntry];
         delete updatedCarga._comentario;
       }
 
-      const updated = await captureService.updateCarga(updatedCarga.id, updatedCarga);
-      
+      const updated = await captureService.updateCarga(
+        updatedCarga.id,
+        updatedCarga,
+      );
+
       setCargasTrabajo((prevCargas) =>
         prevCargas.map((c) => (c.id === updated.id ? updated : c)),
       );
@@ -567,16 +816,17 @@ export default function App() {
 
   const executeDeleteCarga = async (id: string) => {
     try {
-       const { captureService } = await import("./application/services/captureService");
-       // Fake logical delete via update 
-       await captureService.updateCarga(id, { estado: "Inactivo" });
-       
-       setCargasTrabajo((prevCargas) =>
-         prevCargas.map((c) => (c.id === id ? { ...c, estado: "Inactivo" } : c)),
-       );
-       showToast("Registro desactivado exitosamente (borrado lógico).");
+      const { captureService } =
+        await import("./application/services/captureService");
+      // Fake logical delete via update
+      await captureService.updateCarga(id, { estado: "Inactivo" });
+
+      setCargasTrabajo((prevCargas) =>
+        prevCargas.map((c) => (c.id === id ? { ...c, estado: "Inactivo" } : c)),
+      );
+      showToast("Registro desactivado exitosamente (borrado lógico).");
     } catch (error) {
-       showToast("Error al desactivar el registro", "error");
+      showToast("Error al desactivar el registro", "error");
     }
   };
 
@@ -607,34 +857,43 @@ export default function App() {
     let newActs = [...actData];
 
     if (mode === "edit" && id) {
-      if (type === "Organismo") newOrgs = orgData.map((o) => (o.id === id ? { ...o, ...data } : o));
-      if (type === "Dependencia") newDeps = depData.map((d) => (d.id === id ? { ...d, ...data } : d));
-      if (type === "Proceso") newProcs = procData.map((p) => (p.id === id ? { ...p, ...data } : p));
-      if (type === "Procedimiento") newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc));
-      if (type === "Actividad") newActs = actData.map((a) => (a.id === id ? { ...a, ...data } : a));
+      if (type === "Organismo")
+        newOrgs = orgData.map((o) => (o.id === id ? { ...o, ...data } : o));
+      if (type === "Dependencia")
+        newDeps = depData.map((d) => (d.id === id ? { ...d, ...data } : d));
+      if (type === "Proceso")
+        newProcs = procData.map((p) => (p.id === id ? { ...p, ...data } : p));
+      if (type === "Procedimiento")
+        newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc));
+      if (type === "Actividad")
+        newActs = actData.map((a) => (a.id === id ? { ...a, ...data } : a));
     } else {
       const newId = crypto.randomUUID();
       modifiedId = newId;
-      
+
       let calculatedLevel = 1;
       if (type === "Organismo") calculatedLevel = 1;
       else if (type === "Dependencia") calculatedLevel = data.parentId ? 2 : 2;
-      else if (type === "Proceso") calculatedLevel = 2; // Nivel 2
-      else if (type === "Procedimiento") calculatedLevel = 3; // Nivel 3
+      else if (type === "Proceso")
+        calculatedLevel = 2; // Nivel 2
+      else if (type === "Procedimiento")
+        calculatedLevel = 3; // Nivel 3
       else if (type === "Actividad") calculatedLevel = 4; // Nivel 4
 
       // Generate a 6 digit code if user did not provide one
-      const finalCodigo = data.codigo?.trim() ? data.codigo : Math.floor(100000 + Math.random() * 900000).toString();
+      const finalCodigo = data.codigo?.trim()
+        ? data.codigo
+        : Math.floor(100000 + Math.random() * 900000).toString();
 
-      const newItem = { 
-        id: newId, 
+      const newItem = {
+        id: newId,
         ...data,
         codigo: finalCodigo,
-        activo: true, 
-        estado: 'Activo',
+        activo: true,
+        estado: "Activo",
         vigenciaId: currentVigenciaView?.IdVigencia,
         level: calculatedLevel,
-        nivel: calculatedLevel
+        nivel: calculatedLevel,
       };
 
       if (type === "Organismo") {
@@ -652,34 +911,39 @@ export default function App() {
 
     let newRels = [...relaciones];
     if (mode === "create" && type === "Proceso" && data.parentId) {
-       newRels.push({
-           type: "Proceso",
-           childId: modifiedId!,
-           parentId: data.parentId,
-           vigenciaId: currentVigenciaView?.IdVigencia
-       });
+      newRels.push({
+        type: "Proceso",
+        childId: modifiedId!,
+        parentId: data.parentId,
+        vigenciaId: currentVigenciaView?.IdVigencia,
+      });
     }
 
     try {
-      const { DatabaseService } = await import("./application/services/DatabaseService");
+      const { DatabaseService } =
+        await import("./application/services/DatabaseService");
       if (type === "Organismo" || type === "Dependencia") {
-         await DatabaseService.saveEstructuraOrg([...newOrgs, ...newDeps]);
+        await DatabaseService.saveEstructuraOrg([...newOrgs, ...newDeps]);
       } else {
-         await DatabaseService.saveEstructuraProc([...newProcs, ...newPcds, ...newActs]);
-         if (mode === "create" && type === "Proceso" && data.parentId) {
-            await DatabaseService.saveMapaRelaciones(newRels);
-         }
+        await DatabaseService.saveEstructuraProc([
+          ...newProcs,
+          ...newPcds,
+          ...newActs,
+        ]);
+        if (mode === "create" && type === "Proceso" && data.parentId) {
+          await DatabaseService.saveMapaRelaciones(newRels);
+        }
       }
-      
+
       setOrgData(newOrgs);
       setDepData(newDeps);
       setProcData(newProcs);
       setPcdData(newPcds);
       setActData(newActs);
       if (mode === "create" && type === "Proceso" && data.parentId) {
-         setRelaciones(newRels);
+        setRelaciones(newRels);
       }
-    } catch(e: any) {
+    } catch (e: any) {
       console.error("Could not push structure update to API", e);
       showToast(`Error al guardar en base de datos: ${e.message}`, "error");
       return; // DO NOT update state or show success toast if it fails
@@ -724,104 +988,148 @@ export default function App() {
         }
       }
       const allHeaders = datos.length > 0 ? Object.keys(firstValidRow) : [];
-      const codeKey = allHeaders.find(k => k.toLowerCase().includes('código') || k.toLowerCase().includes('codigo') || k.toLowerCase().includes('cÃ³digo')) || allHeaders[0];
-      const nameKey = allHeaders.find(k => k.toLowerCase().includes('dependencia') || k.toLowerCase().includes('organismo') || k.toLowerCase().includes('nombre') || k.toLowerCase().includes('descrip')) || allHeaders[1];
-      const padreKey = allHeaders.find(k => k.toLowerCase().includes('padre')) || allHeaders[2];
-      const nivelKey = allHeaders.find(k => k.toLowerCase().includes('nivel')) || allHeaders[3];
+      const codeKey =
+        allHeaders.find(
+          (k) =>
+            k.toLowerCase().includes("código") ||
+            k.toLowerCase().includes("codigo") ||
+            k.toLowerCase().includes("cÃ³digo"),
+        ) || allHeaders[0];
+      const nameKey =
+        allHeaders.find(
+          (k) =>
+            k.toLowerCase().includes("dependencia") ||
+            k.toLowerCase().includes("organismo") ||
+            k.toLowerCase().includes("nombre") ||
+            k.toLowerCase().includes("descrip"),
+        ) || allHeaders[1];
+      const padreKey =
+        allHeaders.find((k) => k.toLowerCase().includes("padre")) ||
+        allHeaders[2];
+      const nivelKey =
+        allHeaders.find((k) => k.toLowerCase().includes("nivel")) ||
+        allHeaders[3];
 
       const newOrgs: any[] = [];
       const newDeps: any[] = [];
       const idCodeMap = new Map<string, string>();
 
-      orgData.filter(o => o.vigenciaId === currentVigenciaView?.IdVigencia).forEach(o => { if (o.codigo && o.id) idCodeMap.set(o.codigo, o.id); });
-      depData.filter(d => d.vigenciaId === currentVigenciaView?.IdVigencia).forEach(d => { if (d.codigo && d.id) idCodeMap.set(d.codigo, d.id); });
+      orgData
+        .filter((o) => o.vigenciaId === currentVigenciaView?.IdVigencia)
+        .forEach((o) => {
+          if (o.codigo && o.id) idCodeMap.set(o.codigo, o.id);
+        });
+      depData
+        .filter((d) => d.vigenciaId === currentVigenciaView?.IdVigencia)
+        .forEach((d) => {
+          if (d.codigo && d.id) idCodeMap.set(d.codigo, d.id);
+        });
 
       // Generate UUIDs for all rows to ensure forward references work
-      datos.forEach(row => {
-        const codigo = String(row[codeKey as string] ?? '').trim();
+      datos.forEach((row) => {
+        const codigo = String(row[codeKey as string] ?? "").trim();
         if (codigo && !idCodeMap.has(codigo)) {
           idCodeMap.set(codigo, crypto.randomUUID());
         }
       });
 
-      datos.forEach(row => {
-        const codigo = String(row[codeKey as string] ?? '').trim();
-        const nombre = String(row[nameKey as string] ?? '').trim();
+      datos.forEach((row) => {
+        const codigo = String(row[codeKey as string] ?? "").trim();
+        const nombre = String(row[nameKey as string] ?? "").trim();
         const padreRaw = row[padreKey as string];
-        const padre = padreRaw ? String(padreRaw).trim() : '';
-        const nivel = String(row[nivelKey as string] ?? '').trim();
+        const padre = padreRaw ? String(padreRaw).trim() : "";
+        const nivel = String(row[nivelKey as string] ?? "").trim();
 
         if (!codigo || !nombre) return;
-        
+
         let nodeUuid = idCodeMap.get(codigo);
         if (!nodeUuid) {
-           nodeUuid = crypto.randomUUID();
-           idCodeMap.set(codigo, nodeUuid);
-        }
-        
-        let parentUuid = null;
-        if (padre && padre !== codigo) {
-           parentUuid = idCodeMap.get(padre) || null;
+          nodeUuid = crypto.randomUUID();
+          idCodeMap.set(codigo, nodeUuid);
         }
 
-        if (nivel === '0' || nivel === '1' || !padre || padre === codigo) {
+        let parentUuid = null;
+        if (padre && padre !== codigo) {
+          parentUuid = idCodeMap.get(padre) || null;
+        }
+
+        if (nivel === "0" || nivel === "1" || !padre || padre === codigo) {
           // Organismo usually root
           newOrgs.push({
-             id: nodeUuid,
-             codigo: codigo,
-             nombre,
-             activo: true,
-             level: 1,
-             vigenciaId: currentVigenciaView?.IdVigencia,
-             fechaCreacion: new Date().toISOString()
+            id: nodeUuid,
+            codigo: codigo,
+            nombre,
+            activo: true,
+            level: 1,
+            vigenciaId: currentVigenciaView?.IdVigencia,
+            fechaCreacion: new Date().toISOString(),
           });
         } else {
           // Dependencia
           newDeps.push({
-             id: nodeUuid,
-             codigo: codigo,
-             nombre,
-             activo: true,
-             level: 2,
-             parentId: parentUuid || undefined,
-             vigenciaId: currentVigenciaView?.IdVigencia,
-             fechaCreacion: new Date().toISOString()
+            id: nodeUuid,
+            codigo: codigo,
+            nombre,
+            activo: true,
+            level: 2,
+            parentId: parentUuid || undefined,
+            vigenciaId: currentVigenciaView?.IdVigencia,
+            fechaCreacion: new Date().toISOString(),
           });
         }
       });
 
       const combinedOrgsDeps = [...newOrgs, ...newDeps];
       const uniqueOrgsMap = new Map();
-      combinedOrgsDeps.forEach(item => uniqueOrgsMap.set(item.id, { ...item, estado: 'Activo' }));
+      combinedOrgsDeps.forEach((item) =>
+        uniqueOrgsMap.set(item.id, { ...item, estado: "Activo" }),
+      );
       const dedupedOrgs = Array.from(uniqueOrgsMap.values());
 
       if (dedupedOrgs.length > 0) {
         try {
-          const { DatabaseService } = await import("./application/services/DatabaseService");
-          const orgData = dedupedOrgs.filter(d => d.nivel === 1 || d.level === 1);
-          const depData = dedupedOrgs.filter(d => d.nivel === 2 || d.level === 2);
-          
-          if (orgData.length > 0) await DatabaseService.saveEstructuraOrg(orgData);
-          if (depData.length > 0) await DatabaseService.saveEstructuraOrg(depData);
+          const { DatabaseService } =
+            await import("./application/services/DatabaseService");
+          const orgData = dedupedOrgs.filter(
+            (d) => d.nivel === 1 || d.level === 1,
+          );
+          const depData = dedupedOrgs.filter(
+            (d) => d.nivel === 2 || d.level === 2,
+          );
+
+          if (orgData.length > 0)
+            await DatabaseService.saveEstructuraOrg(orgData);
+          if (depData.length > 0)
+            await DatabaseService.saveEstructuraOrg(depData);
         } catch (e: any) {
           console.error("Error saving imported orgs", e);
-          showToast(`Error guardando exportación en base de datos: ${e.message}`, "error");
+          showToast(
+            `Error guardando exportación en base de datos: ${e.message}`,
+            "error",
+          );
         }
       }
 
       if (dedupedOrgs.length > 0) {
-          setOrgData(prev => {
-              const map = new Map(prev.map(o => [o.id, o]));
-              dedupedOrgs.filter(d => d.level === 1 || d.nivel === 1).forEach(d => map.set(d.id, d));
-              return Array.from(map.values());
-          });
-          setDepData(prev => {
-              const map = new Map(prev.map(d => [d.id, d]));
-              dedupedOrgs.filter(d => d.level === 2 || d.nivel === 2).forEach(d => map.set(d.id, d));
-              return Array.from(map.values());
-          });
+        setOrgData((prev) => {
+          const map = new Map(prev.map((o) => [o.id, o]));
+          dedupedOrgs
+            .filter((d) => d.level === 1 || d.nivel === 1)
+            .forEach((d) => map.set(d.id, d));
+          return Array.from(map.values());
+        });
+        setDepData((prev) => {
+          const map = new Map(prev.map((d) => [d.id, d]));
+          dedupedOrgs
+            .filter((d) => d.level === 2 || d.nivel === 2)
+            .forEach((d) => map.set(d.id, d));
+          return Array.from(map.values());
+        });
       }
-      showToast(`Se importaron/actualizaron ${dedupedOrgs.length} organismos y dependencias.`, "success");
+      showToast(
+        `Se importaron/actualizaron ${dedupedOrgs.length} organismos y dependencias.`,
+        "success",
+      );
     } catch (e) {
       showToast("Error importando organización.", "error");
     } finally {
@@ -840,139 +1148,194 @@ export default function App() {
         }
       }
       const allHeaders = datos.length > 0 ? Object.keys(firstValidRow) : [];
-      const codeKey = allHeaders.find(k => k.toLowerCase().includes('código') || k.toLowerCase().includes('codigo') || k.toLowerCase().includes('cÃ³digo')) || allHeaders[0];
-      const nameKey = allHeaders.find(k => k.toLowerCase().includes('proceso') || k.toLowerCase().includes('procedimiento') || k.toLowerCase().includes('actividad') || k.toLowerCase().includes('nombre') || k.toLowerCase().includes('dependencia')) || allHeaders[1];
-      const padreKey = allHeaders.find(k => k.toLowerCase().includes('padre')) || allHeaders[2];
-      const nivelKey = allHeaders.find(k => k.toLowerCase().includes('nivel')) || allHeaders[3];
+      const codeKey =
+        allHeaders.find(
+          (k) =>
+            k.toLowerCase().includes("código") ||
+            k.toLowerCase().includes("codigo") ||
+            k.toLowerCase().includes("cÃ³digo"),
+        ) || allHeaders[0];
+      const nameKey =
+        allHeaders.find(
+          (k) =>
+            k.toLowerCase().includes("proceso") ||
+            k.toLowerCase().includes("procedimiento") ||
+            k.toLowerCase().includes("actividad") ||
+            k.toLowerCase().includes("nombre") ||
+            k.toLowerCase().includes("dependencia"),
+        ) || allHeaders[1];
+      const padreKey =
+        allHeaders.find((k) => k.toLowerCase().includes("padre")) ||
+        allHeaders[2];
+      const nivelKey =
+        allHeaders.find((k) => k.toLowerCase().includes("nivel")) ||
+        allHeaders[3];
 
       const newProcs: any[] = [];
       const newPcds: any[] = [];
       const newActs: any[] = [];
-      
+
       const tiposProceso: Record<string, string> = {};
       const idCodeMap = new Map<string, string>(); // Maps legacy code to UUID
-      
+
       // Use all elements (including inactive ones) from the DB to avoid UNIQUE constraint conflicts on CodigoInterno
-      procData.filter(p => p.vigenciaId === currentVigenciaView?.IdVigencia).forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
-      pcdData.filter(p => p.vigenciaId === currentVigenciaView?.IdVigencia).forEach(p => { if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id); });
-      actData.filter(a => a.vigenciaId === currentVigenciaView?.IdVigencia).forEach(a => { if (a.codigo && a.id) idCodeMap.set(a.codigo, a.id); });
+      procData
+        .filter((p) => p.vigenciaId === currentVigenciaView?.IdVigencia)
+        .forEach((p) => {
+          if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id);
+        });
+      pcdData
+        .filter((p) => p.vigenciaId === currentVigenciaView?.IdVigencia)
+        .forEach((p) => {
+          if (p.codigo && p.id) idCodeMap.set(p.codigo, p.id);
+        });
+      actData
+        .filter((a) => a.vigenciaId === currentVigenciaView?.IdVigencia)
+        .forEach((a) => {
+          if (a.codigo && a.id) idCodeMap.set(a.codigo, a.id);
+        });
 
       // Generate UUIDs for all rows to ensure forward references work
-      datos.forEach(row => {
-        const codigo = String(row[codeKey as string] ?? '').trim();
+      datos.forEach((row) => {
+        const codigo = String(row[codeKey as string] ?? "").trim();
         if (codigo && !idCodeMap.has(codigo)) {
           idCodeMap.set(codigo, crypto.randomUUID());
         }
       });
 
       // Primera pasada: identificar Tipos de Proceso (Nivel 1)
-      datos.forEach(row => {
-        const codigo = String(row[codeKey as string] ?? '').trim();
-        const nombre = String(row[nameKey as string] ?? '').trim();
-        const nivel = String(row[nivelKey as string] ?? '').trim();
-        
-        if (codigo && nombre && (nivel === '1' || nivel === '0')) {
+      datos.forEach((row) => {
+        const codigo = String(row[codeKey as string] ?? "").trim();
+        const nombre = String(row[nameKey as string] ?? "").trim();
+        const nivel = String(row[nivelKey as string] ?? "").trim();
+
+        if (codigo && nombre && (nivel === "1" || nivel === "0")) {
           tiposProceso[codigo] = nombre;
         }
       });
-      
-      datos.forEach(row => {
-        const codigo = String(row[codeKey as string] ?? '').trim();
-        const nombre = String(row[nameKey as string] ?? '').trim();
+
+      datos.forEach((row) => {
+        const codigo = String(row[codeKey as string] ?? "").trim();
+        const nombre = String(row[nameKey as string] ?? "").trim();
         const padreRaw = row[padreKey as string];
-        const padre = padreRaw ? String(padreRaw).trim() : '';
-        const nivel = String(row[nivelKey as string] ?? '').trim();
+        const padre = padreRaw ? String(padreRaw).trim() : "";
+        const nivel = String(row[nivelKey as string] ?? "").trim();
 
         if (!codigo || !nombre) return;
-        
+
         let nodeUuid = idCodeMap.get(codigo);
         if (!nodeUuid) {
-           nodeUuid = crypto.randomUUID();
-           idCodeMap.set(codigo, nodeUuid);
+          nodeUuid = crypto.randomUUID();
+          idCodeMap.set(codigo, nodeUuid);
         }
-        
+
         let parentUuid = null;
         if (padre && padre !== codigo) {
-           parentUuid = idCodeMap.get(padre) || null;
+          parentUuid = idCodeMap.get(padre) || null;
         }
 
         const nivelLower = nivel.toLowerCase();
-        
+
         // If it's explicitly 2 or explicitly 'proceso' or has no parent (making it root in the new structure)
-        if (!padre || codigo === padre || nivel === '1' || nivel === '2' || nivelLower.includes('proceso') || nivelLower === '0') {
+        if (
+          !padre ||
+          codigo === padre ||
+          nivel === "1" ||
+          nivel === "2" ||
+          nivelLower.includes("proceso") ||
+          nivelLower === "0"
+        ) {
           newProcs.push({
-             id: nodeUuid,
-             codigo: codigo,
-             nombre,
-             procesoId: parentUuid || undefined,
-             descripcion: "Importado",
-             activo: true,
-             nivel: 2, // Force level 2 for Proceso to match UI logic
-             tipo: "Misional",
-             vigenciaId: currentVigenciaView?.IdVigencia,
+            id: nodeUuid,
+            codigo: codigo,
+            nombre,
+            procesoId: parentUuid || undefined,
+            descripcion: "Importado",
+            activo: true,
+            nivel: 2, // Force level 2 for Proceso to match UI logic
+            tipo: "Misional",
+            vigenciaId: currentVigenciaView?.IdVigencia,
           });
-        } else if (nivel === '3' || nivelLower.includes('procedimiento')) {
+        } else if (nivel === "3" || nivelLower.includes("procedimiento")) {
           newPcds.push({
-             id: nodeUuid,
-             codigo: codigo,
-             nombre,
-             procesoId: parentUuid || undefined,
-             activo: true,
-             nivel: 3,
-             vigenciaId: currentVigenciaView?.IdVigencia,
+            id: nodeUuid,
+            codigo: codigo,
+            nombre,
+            procesoId: parentUuid || undefined,
+            activo: true,
+            nivel: 3,
+            vigenciaId: currentVigenciaView?.IdVigencia,
           });
         } else {
           newActs.push({
-             id: nodeUuid,
-             codigo: codigo,
-             nombre,
-             procedimientoId: parentUuid || undefined,
-             activo: true,
-             nivel: 4,
-             vigenciaId: currentVigenciaView?.IdVigencia,
+            id: nodeUuid,
+            codigo: codigo,
+            nombre,
+            procedimientoId: parentUuid || undefined,
+            activo: true,
+            nivel: 4,
+            vigenciaId: currentVigenciaView?.IdVigencia,
           });
         }
       });
 
       const combinedProcs = [...newProcs, ...newPcds, ...newActs];
       const uniqueProcsMap = new Map();
-      combinedProcs.forEach(item => uniqueProcsMap.set(item.id, { ...item, estado: 'Activo' }));
+      combinedProcs.forEach((item) =>
+        uniqueProcsMap.set(item.id, { ...item, estado: "Activo" }),
+      );
       const dedupedProcs = Array.from(uniqueProcsMap.values());
-      
+
       if (dedupedProcs.length > 0) {
         try {
-          const { DatabaseService } = await import("./application/services/DatabaseService");
-          const procsNivel1_2 = dedupedProcs.filter(p => p.nivel <= 2);
-          const procsNivel3 = dedupedProcs.filter(p => p.nivel === 3);
-          const procsNivel4 = dedupedProcs.filter(p => p.nivel >= 4);
+          const { DatabaseService } =
+            await import("./application/services/DatabaseService");
+          const procsNivel1_2 = dedupedProcs.filter((p) => p.nivel <= 2);
+          const procsNivel3 = dedupedProcs.filter((p) => p.nivel === 3);
+          const procsNivel4 = dedupedProcs.filter((p) => p.nivel >= 4);
 
-          if (procsNivel1_2.length > 0) await DatabaseService.saveEstructuraProc(procsNivel1_2);
-          if (procsNivel3.length > 0) await DatabaseService.saveEstructuraProc(procsNivel3);
-          if (procsNivel4.length > 0) await DatabaseService.saveEstructuraProc(procsNivel4);
+          if (procsNivel1_2.length > 0)
+            await DatabaseService.saveEstructuraProc(procsNivel1_2);
+          if (procsNivel3.length > 0)
+            await DatabaseService.saveEstructuraProc(procsNivel3);
+          if (procsNivel4.length > 0)
+            await DatabaseService.saveEstructuraProc(procsNivel4);
         } catch (e: any) {
           console.error("Error saving imported procs", e);
-          showToast(`Error guardando importación en base de datos: ${e.message}`, "error");
+          showToast(
+            `Error guardando importación en base de datos: ${e.message}`,
+            "error",
+          );
         }
       }
 
       if (dedupedProcs.length > 0) {
-        setProcData(prev => {
-            const map = new Map(prev.map(p => [p.id, p]));
-            dedupedProcs.filter(d => d.nivel === 1 || d.nivel === 2).forEach(d => map.set(d.id, d));
-            return Array.from(map.values());
+        setProcData((prev) => {
+          const map = new Map(prev.map((p) => [p.id, p]));
+          dedupedProcs
+            .filter((d) => d.nivel === 1 || d.nivel === 2)
+            .forEach((d) => map.set(d.id, d));
+          return Array.from(map.values());
         });
-        setPcdData(prev => {
-            const map = new Map(prev.map(p => [p.id, p]));
-            dedupedProcs.filter(d => d.nivel === 3).forEach(d => map.set(d.id, d));
-            return Array.from(map.values());
+        setPcdData((prev) => {
+          const map = new Map(prev.map((p) => [p.id, p]));
+          dedupedProcs
+            .filter((d) => d.nivel === 3)
+            .forEach((d) => map.set(d.id, d));
+          return Array.from(map.values());
         });
-        setActData(prev => {
-            const map = new Map(prev.map(p => [p.id, p]));
-            dedupedProcs.filter(d => d.nivel >= 4).forEach(d => map.set(d.id, d));
-            return Array.from(map.values());
+        setActData((prev) => {
+          const map = new Map(prev.map((p) => [p.id, p]));
+          dedupedProcs
+            .filter((d) => d.nivel >= 4)
+            .forEach((d) => map.set(d.id, d));
+          return Array.from(map.values());
         });
       }
-      showToast(`Se importaron/actualizaron ${dedupedProcs.length} elementos de procesos.`, "success");
+      showToast(
+        `Se importaron/actualizaron ${dedupedProcs.length} elementos de procesos.`,
+        "success",
+      );
     } catch {
       showToast("Error importando mapa de procesos.", "error");
     } finally {
@@ -983,7 +1346,7 @@ export default function App() {
   const handleImportRelaciones = async (nuevasRelaciones: any[]) => {
     try {
       setIsLoadingData(true);
-      
+
       let firstValidRow = {};
       for (const row of nuevasRelaciones) {
         if (Object.keys(row).length > 0) {
@@ -991,79 +1354,127 @@ export default function App() {
           break;
         }
       }
-      
-      const allHeaders = nuevasRelaciones.length > 0 ? Object.keys(firstValidRow) : [];
-      const orgKey = allHeaders.find(k => k.toLowerCase().includes('org_dep') || k.toLowerCase().includes('org') || k.toLowerCase().includes('dependencia')) || allHeaders[0];
-      const proKey = allHeaders.find(k => k.toLowerCase().includes('pro_proc') || k.toLowerCase().includes('proceso') || k.toLowerCase().includes('procedimiento')) || allHeaders[1];
+
+      const allHeaders =
+        nuevasRelaciones.length > 0 ? Object.keys(firstValidRow) : [];
+      const orgKey =
+        allHeaders.find(
+          (k) =>
+            k.toLowerCase().includes("org_dep") ||
+            k.toLowerCase().includes("org") ||
+            k.toLowerCase().includes("dependencia"),
+        ) || allHeaders[0];
+      const proKey =
+        allHeaders.find(
+          (k) =>
+            k.toLowerCase().includes("pro_proc") ||
+            k.toLowerCase().includes("proceso") ||
+            k.toLowerCase().includes("procedimiento"),
+        ) || allHeaders[1];
 
       const mappedRels: any[] = [];
 
-      nuevasRelaciones.forEach(row => {
-          let parentIdRaw = String(row[orgKey] ?? row.IdNodoOrg ?? row.parentId ?? '').trim();
-          let childIdRaw = String(row[proKey] ?? row.IdNodoProceso ?? row.childId ?? '').trim();
+      nuevasRelaciones.forEach((row) => {
+        let parentIdRaw = String(
+          row[orgKey] ?? row.IdNodoOrg ?? row.parentId ?? "",
+        ).trim();
+        let childIdRaw = String(
+          row[proKey] ?? row.IdNodoProceso ?? row.childId ?? "",
+        ).trim();
 
-          if (!parentIdRaw || !childIdRaw) return;
+        if (!parentIdRaw || !childIdRaw) return;
 
-          let trueParentId = parentIdRaw;
-          const foundOrg = orgData.find(o => o.codigo === parentIdRaw || o.id === parentIdRaw);
-          const foundDep = depData.find(d => d.codigo === parentIdRaw || d.id === parentIdRaw);
-          if (foundOrg) trueParentId = foundOrg.id;
-          else if (foundDep) trueParentId = foundDep.id;
-          
-          let trueChildId = childIdRaw;
-          let childType = "Proceso";
-          
-          const foundProc = procData.find(p => p.codigo === childIdRaw || p.id === childIdRaw);
-          const foundPcd = pcdData.find(p => p.codigo === childIdRaw || p.id === childIdRaw);
-          const foundAct = actData.find(a => a.codigo === childIdRaw || a.id === childIdRaw);
+        let trueParentId = parentIdRaw;
+        const foundOrg = orgData.find(
+          (o) => o.codigo === parentIdRaw || o.id === parentIdRaw,
+        );
+        const foundDep = depData.find(
+          (d) => d.codigo === parentIdRaw || d.id === parentIdRaw,
+        );
+        if (foundOrg) trueParentId = foundOrg.id;
+        else if (foundDep) trueParentId = foundDep.id;
 
-          if (foundProc) {
-              trueChildId = foundProc.id;
-              childType = "Proceso";
-          } else if (foundPcd) {
-              trueChildId = foundPcd.id;
-              childType = "Procedimiento";
-          } else if (foundAct) {
-              trueChildId = foundAct.id;
-              childType = "Actividad";
-          } else {
-             if (childIdRaw.startsWith('proc_') || trueChildId.toLowerCase().includes('proceso')) childType = "Proceso";
-             else if (childIdRaw.startsWith('pcd_') || trueChildId.toLowerCase().includes('procedimiento')) childType = "Procedimiento";
-             else if (childIdRaw.startsWith('act_') || trueChildId.toLowerCase().includes('actividad')) childType = "Actividad";
-          }
+        let trueChildId = childIdRaw;
+        let childType = "Proceso";
 
-          mappedRels.push({
-             type: childType,
-             childId: trueChildId,
-             parentId: trueParentId
-          });
+        const foundProc = procData.find(
+          (p) => p.codigo === childIdRaw || p.id === childIdRaw,
+        );
+        const foundPcd = pcdData.find(
+          (p) => p.codigo === childIdRaw || p.id === childIdRaw,
+        );
+        const foundAct = actData.find(
+          (a) => a.codigo === childIdRaw || a.id === childIdRaw,
+        );
+
+        if (foundProc) {
+          trueChildId = foundProc.id;
+          childType = "Proceso";
+        } else if (foundPcd) {
+          trueChildId = foundPcd.id;
+          childType = "Procedimiento";
+        } else if (foundAct) {
+          trueChildId = foundAct.id;
+          childType = "Actividad";
+        } else {
+          if (
+            childIdRaw.startsWith("proc_") ||
+            trueChildId.toLowerCase().includes("proceso")
+          )
+            childType = "Proceso";
+          else if (
+            childIdRaw.startsWith("pcd_") ||
+            trueChildId.toLowerCase().includes("procedimiento")
+          )
+            childType = "Procedimiento";
+          else if (
+            childIdRaw.startsWith("act_") ||
+            trueChildId.toLowerCase().includes("actividad")
+          )
+            childType = "Actividad";
+        }
+
+        mappedRels.push({
+          type: childType,
+          childId: trueChildId,
+          parentId: trueParentId,
+        });
       });
 
-      const validRels = mappedRels.filter(r => r.childId && r.parentId);
+      const validRels = mappedRels.filter((r) => r.childId && r.parentId);
 
       if (validRels.length > 0) {
         try {
-          const { DatabaseService } = await import("./application/services/DatabaseService");
-          
+          const { DatabaseService } =
+            await import("./application/services/DatabaseService");
+
           // Map to correct format before updating state to get right Vigencia
-          validRels.forEach(newRel => {
-             newRel.vigenciaId = currentVigenciaView?.IdVigencia;
+          validRels.forEach((newRel) => {
+            newRel.vigenciaId = currentVigenciaView?.IdVigencia;
           });
-          
+
           await DatabaseService.saveMapaRelaciones(validRels);
         } catch (e: any) {
           console.error("Error saving imported relaciones", e);
-          showToast(`Error guardando exportación en base de datos: ${e.message}`, "error");
+          showToast(
+            `Error guardando exportación en base de datos: ${e.message}`,
+            "error",
+          );
         }
       }
 
-      setRelaciones(prev => {
+      setRelaciones((prev) => {
         const combined = [...prev];
-        validRels.forEach(newRel => {
-           const existing = combined.find(r => r.childId === newRel.childId && r.parentId === newRel.parentId && r.vigenciaId === newRel.vigenciaId);
-           if (!existing) {
-               combined.push(newRel);
-           }
+        validRels.forEach((newRel) => {
+          const existing = combined.find(
+            (r) =>
+              r.childId === newRel.childId &&
+              r.parentId === newRel.parentId &&
+              r.vigenciaId === newRel.vigenciaId,
+          );
+          if (!existing) {
+            combined.push(newRel);
+          }
         });
         return combined;
       });
@@ -1087,7 +1498,15 @@ export default function App() {
 
     childIds.forEach((childId) => {
       // Logica estandar para todo: vincular el nodo directamente sin pseudo-relaciones
-      if (!modifiedRelations.some(r => r.type === childType && r.childId === childId && r.parentId === parentId && r.vigenciaId === vigenciaId)) {
+      if (
+        !modifiedRelations.some(
+          (r) =>
+            r.type === childType &&
+            r.childId === childId &&
+            r.parentId === parentId &&
+            r.vigenciaId === vigenciaId,
+        )
+      ) {
         const newRel = { type: childType, childId, parentId, vigenciaId };
         modifiedRelations.push(newRel);
         newRelations.push(newRel);
@@ -1103,18 +1522,22 @@ export default function App() {
     }
 
     setRelaciones(modifiedRelations);
-    
+
     // Save to DatabaseService
-    import("./application/services/DatabaseService").then(({ DatabaseService }) => {
-       DatabaseService.saveMapaRelaciones(modifiedRelations).catch(e => {
+    import("./application/services/DatabaseService").then(
+      ({ DatabaseService }) => {
+        DatabaseService.saveMapaRelaciones(modifiedRelations).catch((e) => {
           console.error("Could not save mapped relations remotely", e);
           showToast(`Error guardando relaciones: ${e.message}`, "error");
-       });
-    });
+        });
+      },
+    );
 
     // Obtenemos unicamente los que no fueron updates implicitos para los mensajes y ui logs
-    const explicitNewRels = newRelations.filter(r => !r.implicitUpdate);
-    const linkIds = explicitNewRels.map((r) => `link:${r.parentId}:${r.childId}`);
+    const explicitNewRels = newRelations.filter((r) => !r.implicitUpdate);
+    const linkIds = explicitNewRels.map(
+      (r) => `link:${r.parentId}:${r.childId}`,
+    );
     setRecentlyModifiedIds((prev) => [...prev, ...linkIds]);
 
     let parentName = "Elemento";
@@ -1198,33 +1621,48 @@ export default function App() {
     if (isLinked) {
       // Remove from relations array if it's a custom link
       const isUnlinkingProceso = childType === "Proceso";
-      
+
       const toDeleteChildIds: string[] = [childId];
-      
+
       if (isUnlinkingProceso) {
-          // If we are unlinking a pseudo Proceso connection, we should also delete all Procedimiento links under it
-          const pcdsInProceso = pcdData.filter(p => p.procesoId === childId).map(p => p.id);
-          toDeleteChildIds.push(...pcdsInProceso);
+        // If we are unlinking a pseudo Proceso connection, we should also delete all Procedimiento links under it
+        const pcdsInProceso = pcdData
+          .filter((p) => p.procesoId === childId)
+          .map((p) => p.id);
+        toDeleteChildIds.push(...pcdsInProceso);
       }
-      
+
       const newRels = relaciones.filter(
-          (r) =>
-            !(
-              (r.type === childType && r.childId === childId && r.parentId === parentId && r.vigenciaId === currentVigenciaView?.IdVigencia) ||
-              (isUnlinkingProceso && r.type === "Procedimiento" && toDeleteChildIds.includes(r.childId) && r.parentId === parentId && r.vigenciaId === currentVigenciaView?.IdVigencia)
-            ),
-       );
+        (r) =>
+          !(
+            (r.type === childType &&
+              r.childId === childId &&
+              r.parentId === parentId &&
+              r.vigenciaId === currentVigenciaView?.IdVigencia) ||
+            (isUnlinkingProceso &&
+              r.type === "Procedimiento" &&
+              toDeleteChildIds.includes(r.childId) &&
+              r.parentId === parentId &&
+              r.vigenciaId === currentVigenciaView?.IdVigencia)
+          ),
+      );
       setRelaciones(newRels);
-      
+
       // Sync Delete in background
       if (currentVigenciaView?.IdVigencia) {
-        import("./application/services/DatabaseService").then(({ DatabaseService }) => {
-            toDeleteChildIds.forEach(idToDelete => {
-               DatabaseService.deleteMapaRelacion(currentVigenciaView.IdVigencia, parentId, idToDelete).catch(e => {
-                  console.error("Error al sincronizar borrado", e);
-               });
+        import("./application/services/DatabaseService").then(
+          ({ DatabaseService }) => {
+            toDeleteChildIds.forEach((idToDelete) => {
+              DatabaseService.deleteMapaRelacion(
+                currentVigenciaView.IdVigencia,
+                parentId,
+                idToDelete,
+              ).catch((e) => {
+                console.error("Error al sincronizar borrado", e);
+              });
             });
-        });
+          },
+        );
       }
     } else {
       // If it's a base relationship, we just hide it from the UI for this specific contextual path
@@ -1291,7 +1729,10 @@ export default function App() {
 
   const executeDeleteStructure = async (type: string, id: string) => {
     let itemName = "Elemento";
-    const changeToInactive = (item: any) => item.id === id ? { ...item, Activo: false, activo: false, estado: "Inactivo" } : item;
+    const changeToInactive = (item: any) =>
+      item.id === id
+        ? { ...item, Activo: false, activo: false, estado: "Inactivo" }
+        : item;
 
     let updatedList: any[] = [];
     if (type === "Organismo") {
@@ -1316,21 +1757,21 @@ export default function App() {
     }
 
     try {
-      const { DatabaseService } = await import("./application/services/DatabaseService");
+      const { DatabaseService } =
+        await import("./application/services/DatabaseService");
       if (type === "Organismo" || type === "Dependencia") {
-         await DatabaseService.saveEstructuraOrg(updatedList);
+        await DatabaseService.saveEstructuraOrg(updatedList);
       } else {
-         await DatabaseService.saveEstructuraProc(updatedList);
+        await DatabaseService.saveEstructuraProc(updatedList);
       }
-      
+
       // Only apply state updates if save succeeds
       if (type === "Organismo") setOrgData(updatedList);
       if (type === "Dependencia") setDepData(updatedList);
       if (type === "Proceso") setProcData(updatedList);
       if (type === "Procedimiento") setPcdData(updatedList);
       if (type === "Actividad") setActData(updatedList);
-      
-    } catch(e: any) {
+    } catch (e: any) {
       console.error("Could not save deletion to DB", e);
       showToast(`Error remoto al eliminar: ${e.message}`, "error");
       return; // DO NOT update state or show success toast if it fails
@@ -1379,53 +1820,61 @@ export default function App() {
   React.useEffect(() => {
     const handleNavigate = (e: Event) => {
       const customEvent = e as CustomEvent;
-      if (customEvent.detail && typeof customEvent.detail === 'string') {
+      if (customEvent.detail && typeof customEvent.detail === "string") {
         setActiveModule(customEvent.detail as Module);
       }
     };
-    window.addEventListener('navigate-module', handleNavigate);
-    return () => window.removeEventListener('navigate-module', handleNavigate);
+    window.addEventListener("navigate-module", handleNavigate);
+    return () => window.removeEventListener("navigate-module", handleNavigate);
   }, []);
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     if (!import.meta.env.VITE_SUPABASE_URL) {
-      localStorage.setItem('mockSession', JSON.stringify(user));
+      localStorage.setItem("mockSession", JSON.stringify(user));
     }
     setSelectedVigenciaId(null);
-    if (!usuarios.find(u => u.id === user.id)) {
+    if (!usuarios.find((u) => u.id === user.id)) {
       setUsuarios([...usuarios, user]);
     }
 
     // Auto-enroll the user into the current active vigencia if they aren't already enrolled
-    const activeVigencia = vigencias.find(v => v.Estado === 'Activo');
+    const activeVigencia = vigencias.find((v) => v.Estado === "Activo");
     if (activeVigencia) {
-      const alreadyEnrolled = vigenciasUsuarios.some(vu => vu.idUsuario === user.id && vu.idVigencia === activeVigencia.IdVigencia);
+      const alreadyEnrolled = vigenciasUsuarios.some(
+        (vu) =>
+          vu.idUsuario === user.id &&
+          vu.idVigencia === activeVigencia.IdVigencia,
+      );
       if (!alreadyEnrolled) {
         // Admins retain their global roles in the vigencia so they don't get locked out
-        const isAdmin = user.rol === "AdminFuncional" || user.rol === "Administrador";
-        
+        const isAdmin =
+          user.rol === "AdminFuncional" || user.rol === "Administrador";
+
         const newVu: any = {
           idVigenciaUsuario: `VU-${user.id}-${activeVigencia.IdVigencia}-${Date.now()}`,
           idVigencia: activeVigencia.IdVigencia,
           idUsuario: user.id,
-          rol: isAdmin ? user.rol : 'Funcionario',
-          idDependencia: ''
+          rol: isAdmin ? user.rol : "Funcionario",
+          idDependencia: "",
         };
-        setVigenciasUsuarios(prev => [...prev, newVu]);
+        setVigenciasUsuarios((prev) => [...prev, newVu]);
 
-        import("./application/services/DatabaseService").then(({ DatabaseService }) => {
-          DatabaseService.saveUsuarioDependencia({
-             IdUsuarioDep: newVu.idVigenciaUsuario,
-             IdVigencia: newVu.idVigencia,
-             EntraIdObjectId: newVu.idUsuario,
-             IdNodoOrg: newVu.idDependencia || null,
-             RolFuncional: newVu.rol,
-             Activo: true
-          }).catch((e: any) => {
-             console.error("Failed to save auto-enrollment to DB", e);
-          });
-        });
+        import("./application/services/DatabaseService").then(
+          ({ DatabaseService }) => {
+            DatabaseService.saveUsuarioDependencia({
+              IdUsuarioDep: newVu.idVigenciaUsuario,
+              IdVigencia: newVu.idVigencia,
+              EntraIdObjectId: newVu.idUsuario,
+              IdNodoOrg: newVu.idDependencia || null,
+              RolFuncional: newVu.rol,
+              UPN: user.email,
+              Activo: true,
+            }).catch((e: any) => {
+              console.error("Failed to save auto-enrollment to DB", e);
+            });
+          },
+        );
       }
     }
 
@@ -1438,12 +1887,23 @@ export default function App() {
 
   const handleLogout = async () => {
     setCurrentUser(null);
-    localStorage.removeItem('mockSession');
-    const { supabase } = await import('./lib/supabaseClient');
+    localStorage.removeItem("mockSession");
+    const { supabase } = await import("./lib/supabaseClient");
     if (supabase) {
-       await supabase.auth.signOut();
+      await supabase.auth.signOut();
     }
   };
+
+  if (isLoadingData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50 relative z-50">
+        <div className="w-12 h-12 border-4 border-institutional-blue/20 border-t-institutional-blue rounded-full animate-spin"></div>
+        <p className="mt-4 text-sm font-medium text-slate-500 animate-pulse">
+          Sincronizando información del sistema...
+        </p>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return <Login onLogin={handleLogin} usuarios={usuarios} />;
@@ -1522,9 +1982,7 @@ export default function App() {
               transition={{ duration: 0.2 }}
               className="h-full"
             >
-              {activeModule === "inicio" && (
-                <InicioModule />
-              )}
+              {activeModule === "inicio" && <InicioModule />}
               {activeModule === "captura" && (
                 <CapturaModule
                   currentUser={currentUser}
@@ -1536,7 +1994,7 @@ export default function App() {
                   cargas={currentCargas}
                   cargos={cargos}
                   factores={factoresFrecuencia}
-                  vigenciaActiva={currentVigenciaView?.Estado === 'Activo'}
+                  vigenciaActiva={currentVigenciaView?.Estado === "Activo"}
                   relaciones={uiRelaciones}
                   onSave={handleSaveCarga}
                   onDelete={handleDeleteCarga}
@@ -1545,13 +2003,19 @@ export default function App() {
               {activeModule === "estructura" && (
                 <EstructuraModule
                   hasVigencia={!!currentVigenciaId}
-                  isReadOnly={currentUser?.rol === "Funcionario" || currentUser?.rol === "Analista"}
+                  isReadOnly={
+                    currentUser?.rol === "Funcionario" ||
+                    currentUser?.rol === "Analista"
+                  }
                   organismos={currentOrgData}
                   dependencias={currentDepData}
                   procesos={currentProcData}
                   procedimientos={currentPcdData}
                   actividades={currentActData}
-                  vigenciaActiva={currentVigenciaView?.Estado === 'Activo' || currentVigenciaView?.Estado === 'Borrador'}
+                  vigenciaActiva={
+                    currentVigenciaView?.Estado === "Activo" ||
+                    currentVigenciaView?.Estado === "Borrador"
+                  }
                   relaciones={uiRelaciones}
                   hiddenPaths={hiddenPaths}
                   focusElement={focusElement}
@@ -1599,24 +2063,46 @@ export default function App() {
                   cargos={cargos}
                   factores={factoresFrecuencia}
                   onSaveCargo={async (c) => {
-                    const { DatabaseService } = await import("./application/services/DatabaseService");
+                    const { DatabaseService } =
+                      await import("./application/services/DatabaseService");
                     const saved = await DatabaseService.saveCargo(c);
-                    setCargos(prev => prev.map(x => x.IdCargo === saved.IdCargo ? saved : x).concat(prev.find(x => x.IdCargo === saved.IdCargo) ? [] : [saved]));
+                    setCargos((prev) =>
+                      prev
+                        .map((x) => (x.IdCargo === saved.IdCargo ? saved : x))
+                        .concat(
+                          prev.find((x) => x.IdCargo === saved.IdCargo)
+                            ? []
+                            : [saved],
+                        ),
+                    );
                   }}
                   onDeleteCargo={async (id) => {
-                    const { DatabaseService } = await import("./application/services/DatabaseService");
+                    const { DatabaseService } =
+                      await import("./application/services/DatabaseService");
                     await DatabaseService.deleteCargo(id);
-                    setCargos(prev => prev.filter(x => x.IdCargo !== id));
+                    setCargos((prev) => prev.filter((x) => x.IdCargo !== id));
                   }}
                   onSaveFactor={async (f) => {
-                    const { DatabaseService } = await import("./application/services/DatabaseService");
+                    const { DatabaseService } =
+                      await import("./application/services/DatabaseService");
                     const saved = await DatabaseService.saveFactorFrecuencia(f);
-                    setFactoresFrecuencia(prev => prev.map(x => x.IdFactor === saved.IdFactor ? saved : x).concat(prev.find(x => x.IdFactor === saved.IdFactor) ? [] : [saved]));
+                    setFactoresFrecuencia((prev) =>
+                      prev
+                        .map((x) => (x.IdFactor === saved.IdFactor ? saved : x))
+                        .concat(
+                          prev.find((x) => x.IdFactor === saved.IdFactor)
+                            ? []
+                            : [saved],
+                        ),
+                    );
                   }}
                   onDeleteFactor={async (id) => {
-                    const { DatabaseService } = await import("./application/services/DatabaseService");
+                    const { DatabaseService } =
+                      await import("./application/services/DatabaseService");
                     await DatabaseService.deleteFactorFrecuencia(id);
-                    setFactoresFrecuencia(prev => prev.filter(x => x.IdFactor !== id));
+                    setFactoresFrecuencia((prev) =>
+                      prev.filter((x) => x.IdFactor !== id),
+                    );
                   }}
                   currentUser={effectiveUser!}
                   onUpdate={handleUpdateCarga}
@@ -1627,49 +2113,65 @@ export default function App() {
                   procesos={currentProcData}
                   procedimientos={currentPcdData}
                   vigencias={availableVigencias}
-                  vigenciaActiva={currentVigenciaView?.Estado === 'Activo'}
+                  vigenciaActiva={currentVigenciaView?.Estado === "Activo"}
                   onVigenciaUpdate={async (v) => {
                     let finalVigencias = [...vigencias];
-                    finalVigencias = finalVigencias.map(vig => 
-                      vig.IdVigencia === v.IdVigencia ? v : vig
+                    finalVigencias = finalVigencias.map((vig) =>
+                      vig.IdVigencia === v.IdVigencia ? v : vig,
                     );
                     setVigencias(finalVigencias);
-                    
+
                     try {
-                      const { DatabaseService } = await import("./application/services/DatabaseService");
+                      const { DatabaseService } =
+                        await import("./application/services/DatabaseService");
                       await DatabaseService.saveVigencia(v);
-                      showToast('Vigencia y parámetros actualizados en la base de datos', 'success');
+                      showToast(
+                        "Vigencia y parámetros actualizados en la base de datos",
+                        "success",
+                      );
                     } catch (e) {
-                      showToast('Datos actualizados localmente. Error en red.', 'success');
+                      showToast(
+                        "Datos actualizados localmente. Error en red.",
+                        "success",
+                      );
                     }
                   }}
                   onVigenciaCreate={handleCreateVigencia}
                   usuarios={usuarios}
                   vigenciasUsuarios={vigenciasUsuarios}
                   onUpdateVigenciaUsuario={async (vu) => {
-                    const exists = vigenciasUsuarios.find(x => x.idVigenciaUsuario === vu.idVigenciaUsuario);
+                    const exists = vigenciasUsuarios.find(
+                      (x) => x.idVigenciaUsuario === vu.idVigenciaUsuario,
+                    );
                     if (exists) {
-                       setVigenciasUsuarios(vigenciasUsuarios.map(x => x.idVigenciaUsuario === vu.idVigenciaUsuario ? vu : x));
+                      setVigenciasUsuarios(
+                        vigenciasUsuarios.map((x) =>
+                          x.idVigenciaUsuario === vu.idVigenciaUsuario ? vu : x,
+                        ),
+                      );
                     } else {
-                       setVigenciasUsuarios([...vigenciasUsuarios, vu]);
+                      setVigenciasUsuarios([...vigenciasUsuarios, vu]);
                     }
                     try {
-                      const { DatabaseService } = await import("./application/services/DatabaseService");
+                      const { DatabaseService } =
+                        await import("./application/services/DatabaseService");
                       await DatabaseService.saveUsuarioDependencia({
-                         IdUsuarioDep: vu.idVigenciaUsuario,
-                         IdVigencia: vu.idVigencia,
-                         EntraIdObjectId: vu.idUsuario,
-                         IdNodoOrg: vu.idDependencia,
-                         RolFuncional: vu.rol,
-                         Activo: true
+                        IdUsuarioDep: vu.idVigenciaUsuario,
+                        IdVigencia: vu.idVigencia,
+                        EntraIdObjectId: vu.idUsuario,
+                        IdNodoOrg: vu.idDependencia,
+                        RolFuncional: vu.rol,
+                        Activo: true,
                       });
-                      showToast('Asignación de usuario guardada', 'success');
-                    } catch(e) {
-                      showToast('Error de red al guardar asignación', 'error');
+                      showToast("Asignación de usuario guardada", "success");
+                    } catch (e) {
+                      showToast("Error de red al guardar asignación", "error");
                     }
                   }}
                   onUpdateUsuario={(user) => {
-                    setUsuarios(usuarios.map(u => u.id === user.id ? user : u));
+                    setUsuarios(
+                      usuarios.map((u) => (u.id === user.id ? user : u)),
+                    );
                     showToast("Usuario actualizado", "success");
                   }}
                   onAddUsuario={(user) => {
@@ -1679,13 +2181,16 @@ export default function App() {
                   onRestoreMockData={async () => {
                     try {
                       if (!currentVigenciaView) {
-                         showToast('Debe haber una vigencia activa para generar datos', 'error');
-                         return;
+                        showToast(
+                          "Debe haber una vigencia activa para generar datos",
+                          "error",
+                        );
+                        return;
                       }
 
                       const generatedCargas: any[] = [];
                       const sampleCount = 20000; // Generate a robust 20,000 records
-                      
+
                       const validRelaciones = currentRelaciones;
                       const validOrgs = currentOrgData;
                       const validDeps = currentDepData;
@@ -1694,33 +2199,78 @@ export default function App() {
                       const validActs = currentActData;
 
                       if (validActs.length === 0) {
-                        showToast('Debe existir una estructura (con actividades) y mapas de relación', 'error');
+                        showToast(
+                          "Debe existir una estructura (con actividades) y mapas de relación",
+                          "error",
+                        );
                         return;
                       }
 
-                      const nivelesEjecutor = ['Directivo', 'Asesor', 'Profesional', 'Tecnico', 'Asistencial'];
-                      const frecuencias = ['Diaria', 'Semanal', 'Quincenal', 'Mensual', 'Bimestral', 'Trimestral', 'Semestral', 'Anual'];
-                      const timeUnits: ('minutos' | 'horas' | 'dias')[] = ['minutos', 'minutos', 'horas'];
+                      const nivelesEjecutor = [
+                        "Directivo",
+                        "Asesor",
+                        "Profesional",
+                        "Tecnico",
+                        "Asistencial",
+                      ];
+                      const frecuencias = [
+                        "Diaria",
+                        "Semanal",
+                        "Quincenal",
+                        "Mensual",
+                        "Bimestral",
+                        "Trimestral",
+                        "Semestral",
+                        "Anual",
+                      ];
+                      const timeUnits: ("minutos" | "horas" | "dias")[] = [
+                        "minutos",
+                        "minutos",
+                        "horas",
+                      ];
 
                       // Pre-generate some mock users representing "Funcionarios"
-                      const mockUsers = Array.from({ length: 20 }).map((_, i) => {
-                         const randomOrgId = validOrgs[Math.floor(Math.random() * validOrgs.length)]?.id || "ORG-FALLBACK";
-                         return {
-                           id: `USR-MOCK-${i+1}`,
-                           nombre: `Funcionario ${i+1}`,
-                           rol: 'Funcionario' as const,
-                           email: `funcionario${i+1}@ejemplo.com`,
-                           organismoId: randomOrgId
-                         };
-                      });
+                      const mockUsers = Array.from({ length: 20 }).map(
+                        (_, i) => {
+                          const randomOrgId =
+                            validOrgs[
+                              Math.floor(Math.random() * validOrgs.length)
+                            ]?.id || "ORG-FALLBACK";
+                          return {
+                            id: `USR-MOCK-${i + 1}`,
+                            nombre: `Funcionario ${i + 1}`,
+                            rol: "Funcionario" as const,
+                            email: `funcionario${i + 1}@ejemplo.com`,
+                            organismoId: randomOrgId,
+                          };
+                        },
+                      );
 
                       // We will simulate the Captura UI to generate all truly valid paths.
-                      const validPaths: { orgId: string; depId: string; procId: string; pcdId: string; actId: string }[] = [];
+                      const validPaths: {
+                        orgId: string;
+                        depId: string;
+                        procId: string;
+                        pcdId: string;
+                        actId: string;
+                      }[] = [];
 
-                      const getAllDescendantDependencias = (parentId: string): string[] => {
-                        const direct = validDeps.filter((d) => d.parentId === parentId).map((d) => d.id);
-                        const linked = validRelaciones.filter((r) => r.type === "Dependencia" && r.parentId === parentId).map((r) => r.childId);
-                        const combined = Array.from(new Set([...direct, ...linked]));
+                      const getAllDescendantDependencias = (
+                        parentId: string,
+                      ): string[] => {
+                        const direct = validDeps
+                          .filter((d) => d.parentId === parentId)
+                          .map((d) => d.id);
+                        const linked = validRelaciones
+                          .filter(
+                            (r) =>
+                              r.type === "Dependencia" &&
+                              r.parentId === parentId,
+                          )
+                          .map((r) => r.childId);
+                        const combined = Array.from(
+                          new Set([...direct, ...linked]),
+                        );
 
                         let all = [...combined];
                         combined.forEach((id) => {
@@ -1730,104 +2280,190 @@ export default function App() {
                       };
 
                       for (const org of validOrgs) {
-                        const availableDeps = getAllDescendantDependencias(org.id);
-                        const filteredDeps = validDeps.filter(d => availableDeps.includes(d.id));
-                        
+                        const availableDeps = getAllDescendantDependencias(
+                          org.id,
+                        );
+                        const filteredDeps = validDeps.filter((d) =>
+                          availableDeps.includes(d.id),
+                        );
+
                         for (const dep of filteredDeps) {
-                          const filteredProcesos = validProcs.filter((p) =>
-                            p.dependenciaId === dep.id || p.dependenciaId === org.id ||
-                            validRelaciones.some((r) => r.type === "Proceso" && r.childId === p.id && (r.parentId === dep.id || r.parentId === org.id))
+                          const filteredProcesos = validProcs.filter(
+                            (p) =>
+                              p.dependenciaId === dep.id ||
+                              p.dependenciaId === org.id ||
+                              validRelaciones.some(
+                                (r) =>
+                                  r.type === "Proceso" &&
+                                  r.childId === p.id &&
+                                  (r.parentId === dep.id ||
+                                    r.parentId === org.id),
+                              ),
                           );
 
                           for (const proc of filteredProcesos) {
-                            let currProcs = validPcds.filter((pc) =>
-                              pc.procesoId === proc.id ||
-                              validRelaciones.some((r) => r.type === "Procedimiento" && r.childId === pc.id && r.parentId === proc.id) ||
-                              validRelaciones.some((r) => r.type === "Procedimiento" && r.childId === pc.id && r.parentId === dep.id) ||
-                              validRelaciones.some((r) => r.type === "Procedimiento" && r.childId === pc.id && r.parentId === org.id)
+                            let currProcs = validPcds.filter(
+                              (pc) =>
+                                pc.procesoId === proc.id ||
+                                validRelaciones.some(
+                                  (r) =>
+                                    r.type === "Procedimiento" &&
+                                    r.childId === pc.id &&
+                                    r.parentId === proc.id,
+                                ) ||
+                                validRelaciones.some(
+                                  (r) =>
+                                    r.type === "Procedimiento" &&
+                                    r.childId === pc.id &&
+                                    r.parentId === dep.id,
+                                ) ||
+                                validRelaciones.some(
+                                  (r) =>
+                                    r.type === "Procedimiento" &&
+                                    r.childId === pc.id &&
+                                    r.parentId === org.id,
+                                ),
                             );
-                            
-                            const procRelation = validRelaciones.find((r) => r.type === "Proceso" && r.childId === proc.id && (r.parentId === dep.id || r.parentId === org.id));
+
+                            const procRelation = validRelaciones.find(
+                              (r) =>
+                                r.type === "Proceso" &&
+                                r.childId === proc.id &&
+                                (r.parentId === dep.id ||
+                                  r.parentId === org.id),
+                            );
                             if (procRelation?.includedChildren?.length) {
-                              currProcs = currProcs.filter(pc => procRelation.includedChildren!.includes(pc.id));
+                              currProcs = currProcs.filter((pc) =>
+                                procRelation.includedChildren!.includes(pc.id),
+                              );
                             }
 
                             for (const pcd of currProcs) {
-                              let currActs = validActs.filter((a) =>
-                                a.procedimientoId === pcd.id ||
-                                validRelaciones.some((r) => r.type === "Actividad" && r.childId === a.id && r.parentId === pcd.id)
+                              let currActs = validActs.filter(
+                                (a) =>
+                                  a.procedimientoId === pcd.id ||
+                                  validRelaciones.some(
+                                    (r) =>
+                                      r.type === "Actividad" &&
+                                      r.childId === a.id &&
+                                      r.parentId === pcd.id,
+                                  ),
                               );
-                              
-                              const pcdRelation = validRelaciones.find((r) => r.type === "Procedimiento" && r.childId === pcd.id && r.parentId === proc.id);
+
+                              const pcdRelation = validRelaciones.find(
+                                (r) =>
+                                  r.type === "Procedimiento" &&
+                                  r.childId === pcd.id &&
+                                  r.parentId === proc.id,
+                              );
                               if (pcdRelation?.includedChildren?.length) {
-                                currActs = currActs.filter(a => pcdRelation.includedChildren!.includes(a.id));
+                                currActs = currActs.filter((a) =>
+                                  pcdRelation.includedChildren!.includes(a.id),
+                                );
                               }
 
                               for (const act of currActs) {
-                                validPaths.push({ orgId: org.id, depId: dep.id, procId: proc.id, pcdId: pcd.id, actId: act.id });
+                                validPaths.push({
+                                  orgId: org.id,
+                                  depId: dep.id,
+                                  procId: proc.id,
+                                  pcdId: pcd.id,
+                                  actId: act.id,
+                                });
                               }
                             }
                           }
                         }
                       }
-                      
+
                       if (validPaths.length === 0) {
-                        showToast('La estructura de datos provista no contiene rutas completas válidas (Organismo -> Dependencia -> Proceso -> ...). Por favor verifica los mapas de relación.', 'error');
+                        showToast(
+                          "La estructura de datos provista no contiene rutas completas válidas (Organismo -> Dependencia -> Proceso -> ...). Por favor verifica los mapas de relación.",
+                          "error",
+                        );
                         return;
                       }
 
                       for (let i = 0; i < sampleCount; i++) {
-                         const selectedPath = validPaths[Math.floor(Math.random() * validPaths.length)];
+                        const selectedPath =
+                          validPaths[
+                            Math.floor(Math.random() * validPaths.length)
+                          ];
 
-                         const sysRol = 'Funcionario';
-                         const lvlEjecutor = nivelesEjecutor[Math.floor(Math.random() * nivelesEjecutor.length)];
-                         const tNormal = Math.floor(Math.random() * 60) + 10;
-                         const randomlySelectedUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
+                        const sysRol = "Funcionario";
+                        const lvlEjecutor =
+                          nivelesEjecutor[
+                            Math.floor(Math.random() * nivelesEjecutor.length)
+                          ];
+                        const tNormal = Math.floor(Math.random() * 60) + 10;
+                        const randomlySelectedUser =
+                          mockUsers[
+                            Math.floor(Math.random() * mockUsers.length)
+                          ];
 
-                         generatedCargas.push({
-                            id: crypto.randomUUID(),
-                            vigenciaId: currentVigenciaView.IdVigencia,
-                            organismoId: selectedPath.orgId,
-                            dependenciaId: selectedPath.depId,
-                            procesoId: selectedPath.procId,
-                            procedimientoId: selectedPath.pcdId,
-                            actividadId: selectedPath.actId,
-                            tiempoMin: Math.max(1, tNormal - Math.floor(Math.random() * 10)),
-                            tiempoNormal: tNormal,
-                            tiempoMax: tNormal + Math.floor(Math.random() * 15) + 5,
-                            volumenQ: Math.floor(Math.random() * 50) + 1,
-                            unidadTiempo: timeUnits[Math.floor(Math.random() * timeUnits.length)],
-                            frecuencia: frecuencias[Math.floor(Math.random() * frecuencias.length)],
-                            participantes: 1,
-                            userId: randomlySelectedUser.id,
-                            autor: randomlySelectedUser.nombre,
-                            rolEjecutor: lvlEjecutor,
-                            userRole: sysRol,
-                            createdAt: new Date().toISOString(),
-                            updatedAt: new Date().toISOString(),
-                         });
+                        generatedCargas.push({
+                          id: crypto.randomUUID(),
+                          vigenciaId: currentVigenciaView.IdVigencia,
+                          organismoId: selectedPath.orgId,
+                          dependenciaId: selectedPath.depId,
+                          procesoId: selectedPath.procId,
+                          procedimientoId: selectedPath.pcdId,
+                          actividadId: selectedPath.actId,
+                          tiempoMin: Math.max(
+                            1,
+                            tNormal - Math.floor(Math.random() * 10),
+                          ),
+                          tiempoNormal: tNormal,
+                          tiempoMax:
+                            tNormal + Math.floor(Math.random() * 15) + 5,
+                          volumenQ: Math.floor(Math.random() * 50) + 1,
+                          unidadTiempo:
+                            timeUnits[
+                              Math.floor(Math.random() * timeUnits.length)
+                            ],
+                          frecuencia:
+                            frecuencias[
+                              Math.floor(Math.random() * frecuencias.length)
+                            ],
+                          participantes: 1,
+                          userId: randomlySelectedUser.id,
+                          autor: randomlySelectedUser.nombre,
+                          rolEjecutor: lvlEjecutor,
+                          userRole: sysRol,
+                          createdAt: new Date().toISOString(),
+                          updatedAt: new Date().toISOString(),
+                        });
                       }
 
                       if (generatedCargas.length === 0) {
-                         showToast('No se pudieron generar datos. Verifica los mapas de relación.', 'error');
-                         return;
+                        showToast(
+                          "No se pudieron generar datos. Verifica los mapas de relación.",
+                          "error",
+                        );
+                        return;
                       }
 
                       // Check which mockUsers were actually used, or just append all
-                      const newMockUsers = mockUsers.filter(mu => !usuarios.some(u => u.id === mu.id));
+                      const newMockUsers = mockUsers.filter(
+                        (mu) => !usuarios.some((u) => u.id === mu.id),
+                      );
                       if (newMockUsers.length > 0) {
                         setUsuarios([...usuarios, ...newMockUsers]);
                       }
 
-                      const { del } = await import('idb-keyval');
+                      const { del } = await import("idb-keyval");
                       await del("sdmct_cargas_trabajo");
-                      const { captureService } = await import("./application/services/captureService");
+                      const { captureService } =
+                        await import("./application/services/captureService");
                       await captureService.initialize();
                       setCargasTrabajo(generatedCargas);
-                      showToast(`Generadas ${generatedCargas.length} cargas de trabajo correctamente asociadas.`, 'success');
+                      showToast(
+                        `Generadas ${generatedCargas.length} cargas de trabajo correctamente asociadas.`,
+                        "success",
+                      );
                     } catch (error) {
                       console.error(error);
-                      showToast('Error generando datos de prueba', 'error');
+                      showToast("Error generando datos de prueba", "error");
                     }
                   }}
                 />
