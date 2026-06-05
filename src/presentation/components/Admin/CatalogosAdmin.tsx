@@ -63,34 +63,13 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
     e.preventDefault();
     if (draggedCargoIndex === null || draggedCargoIndex === index || !onReorderCargos) return;
     
-    let masterCopy = [...cargos];
     const itemToMove = currentCargos[draggedCargoIndex];
-    const itemAtTarget = currentCargos[index];
     
     // Create new array with item moved
     const newCurrent = [...currentCargos];
     newCurrent.splice(draggedCargoIndex, 1);
     newCurrent.splice(index, 0, itemToMove);
     
-    // Update the master map using the new relative order of the filtered subset
-    newCurrent.forEach((cItem, i) => {
-       const mIndex = masterCopy.findIndex(c => c.IdCargo === cItem.IdCargo);
-       if (mIndex > -1) {
-          masterCopy.push(masterCopy.splice(mIndex, 1)[0]); // This modifies the absolute ordering, but it's simpler to just map the original values if we sort locally.
-       }
-    });
-
-    // An easier approach for updating order overall is to just replace the local ones in their original bounds
-    let reorderedMaster = [...cargos];
-    const minIndex = Math.min(reorderedMaster.findIndex(c => c.IdCargo === currentCargos[0].IdCargo) ?? 0, 0); // Need to place them back into the array
-    
-    const idsToReplace = currentCargos.map(c => c.IdCargo);
-    // filter them out
-    let newMasterList = cargos.filter(c => !idsToReplace.includes(c.IdCargo));
-    // append them at the end (or just call reorder which saves to localStorage).
-    
-    // Actually the easiest way is to pass the new subset, but our `cargos` is all cargos.
-    // If we only sort via localStorage, `onReorderCargos` will save the order using exactly the new order passed + existing orders. We can just pass the array.
     setCurrentCargosSort(newCurrent, index);  
   };
   

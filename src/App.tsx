@@ -322,7 +322,7 @@ export default function App() {
               id: id,
               email: uRef?.UPN || `${id}@sisdecat.gov.co`,
               nombre: uRef?.UPN
-                ? uRef.UPN.split("@")[0]
+                ? uRef.UPN.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, l => l.toUpperCase())
                 : `Usuario ${id.substring(0, 5)}`,
               rol: uRef?.RolFuncional || "Funcionario",
             } as User;
@@ -362,12 +362,12 @@ export default function App() {
                 const updated = [...prev];
                 existingCargas.forEach((c) => {
                   const author = c.autor || "Usuario Desconocido";
-                  const id = author.includes("@") ? author : author.toLowerCase().replace(/ /g, "_");
+                  const id = author.includes("@") ? author : author.toLowerCase().replace(/ /g, ".");
                   if (!updated.find((u) => u.id === id || u.nombre === author || u.email === author)) {
                     updated.push({
                       id: id,
                       email: author.includes("@") ? author : `${id}@sisdecat.gov.co`,
-                      nombre: author.includes("@") ? author.split("@")[0] : author,
+                      nombre: author.includes("@") ? author.split("@")[0].replace(/[._]/g, " ") : author,
                       rol: "Funcionario",
                     });
                   }
@@ -2227,6 +2227,7 @@ export default function App() {
                         IdNodoOrg: vu.idDependencia,
                         RolFuncional: vu.rol,
                         Activo: true,
+                        UPN: usuarios.find(u => u.id === vu.idUsuario)?.email
                       });
                       showToast("Asignación de usuario guardada", "success");
                     } catch (e) {

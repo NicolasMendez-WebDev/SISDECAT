@@ -351,12 +351,9 @@ export const DatabaseService = {
         IdVigencia: vu.IdVigencia,
         EntraIdObjectId: vu.EntraIdObjectId,
         RolFuncional: vu.RolFuncional || 'Funcionario',
-        Activo: vu.Activo !== undefined ? vu.Activo : (vu.activo !== undefined ? vu.activo : true)
+        Activo: vu.Activo !== undefined ? vu.Activo : (vu.activo !== undefined ? vu.activo : true),
+        UPN: vu.UPN || vu.EntraIdObjectId || 'unknown_upn@domain.com'
       };
-      
-      if (vu.UPN) {
-         payload.UPN = vu.UPN;
-      }
       
       if (vu.IdNodoOrg) {
          payload.IdNodoOrg = vu.IdNodoOrg;
