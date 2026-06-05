@@ -254,10 +254,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                            onUpdateVigenciaUsuario({ ...u.vu, idDependencia: e.target.value });
                          }
                       }}
-                      disabled={u.currentRol === 'AdminFuncional' || u.currentRol === 'Administrador'}
-                      className={`w-full min-w-[150px] bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs font-medium text-slate-700 hover:border-institutional-blue transition-colors focus:outline-none ${
-                        (u.currentRol === 'AdminFuncional' || u.currentRol === 'Administrador') ? 'opacity-50 cursor-not-allowed bg-slate-50' : ''
-                      }`}
+                      className={`w-full min-w-[150px] bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs font-medium text-slate-700 hover:border-institutional-blue transition-colors focus:outline-none`}
                     >
                       <option value="">-- Global --</option>
                       {dependencias.map(d => (
@@ -266,7 +263,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                     </select>
                   ) : (
                     <span className="text-xs text-slate-600 truncate block max-w-[200px]" title={u.currentDepName}>
-                      {(!u.currentDepId || u.currentRol === 'AdminFuncional' || u.currentRol === 'Administrador') ? '-- Global --' : u.currentDepName}
+                      {(!u.currentDepId || u.currentDepId === '') ? '-- Global --' : u.currentDepName}
                     </span>
                   )}
                 </td>

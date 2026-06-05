@@ -299,34 +299,68 @@ export default function App() {
           setPcdData(fetchedPcds);
           setActData(fetchedActs);
 
-          const fetchedUsuariosDep =
-            await DatabaseService.getUsuariosDependencia();
-          setVigenciasUsuarios(
-            fetchedUsuariosDep.map((x) => ({
-              idVigenciaUsuario: x.IdUsuarioDep,
-              idVigencia: x.IdVigencia,
-              idUsuario: x.EntraIdObjectId,
-              idDependencia: x.IdNodoOrg,
-              rol: x.RolFuncional,
-            })),
-          );
+          const fetchedUsuariosDep = await DatabaseService.getUsuariosDependencia();
 
           // Build simple user stubs based on Sec.UsuariosDependencia because auth.users is inaccessible
-          const uniqueUsers = Array.from(
-            new Set(fetchedUsuariosDep.map((x) => x.EntraIdObjectId)),
-          ).map((id) => {
-            const uRef = fetchedUsuariosDep.find(
-              (x) => x.EntraIdObjectId === id,
-            );
-            return {
-              id: id,
-              email: uRef?.UPN || `${id}@sisdecat.gov.co`,
-              nombre: uRef?.UPN
-                ? uRef.UPN.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, l => l.toUpperCase())
-                : `Usuario ${id.substring(0, 5)}`,
-              rol: uRef?.RolFuncional || "Funcionario",
-            } as User;
+          const tmpUsersMap = new Map<string, User>();
+          // Map to keep track of the canonical ID we assigned for each email to correct any duplicate IDs
+          const emailToCanonicalId = new Map<string, string>();
+          
+          fetchedUsuariosDep.forEach((x) => {
+             const id = x.EntraIdObjectId;
+             const rawEmail = x.UPN || `${id}@sisdecat.gov.co`;
+             const email = rawEmail.toLowerCase();
+             
+               if (!tmpUsersMap.has(email)) {
+                 tmpUsersMap.set(email, {
+                   id: id,
+                   email: rawEmail,
+                   nombre: rawEmail
+                     ? rawEmail.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
+                     : `Usuario ${id.substring(0, 5)}`,
+                   rol: x.RolFuncional || "Funcionario",
+                 });
+                 emailToCanonicalId.set(email, id);
+               } else {
+                 // If the user appears in another relation with a higher privilege, elevate their global directory role
+                 const existing = tmpUsersMap.get(email)!;
+                 const roleHierarchy: Record<string, number> = {
+                   "Funcionario": 1,
+                   "Analista": 2,
+                   "AdminFuncional": 3,
+                   "Administrador": 4
+                 };
+                 const currentVal = roleHierarchy[existing.rol] || 0;
+                 const newVal = roleHierarchy[x.RolFuncional || "Funcionario"] || 0;
+                 if (newVal > currentVal) {
+                   existing.rol = x.RolFuncional;
+                 }
+               }
           });
+          const uniqueUsers = Array.from(tmpUsersMap.values());
+          
+          // Deduplicate vigenciasUsuarios prioritizing the most recent/actual rol if there are duplicates
+          const seenVigenciaUsuario = new Set<string>();
+          const dedupedVigenciasUsuarios: VigenciaUsuario[] = [];
+          
+          fetchedUsuariosDep.forEach((x) => {
+             const rawEmail = x.UPN || `${x.EntraIdObjectId}@sisdecat.gov.co`;
+             const canonicalId = emailToCanonicalId.get(rawEmail.toLowerCase()) || x.EntraIdObjectId;
+             
+             const key = `${canonicalId}-${x.IdVigencia}`;
+             if (!seenVigenciaUsuario.has(key)) {
+                seenVigenciaUsuario.add(key);
+                dedupedVigenciasUsuarios.push({
+                  idVigenciaUsuario: x.IdUsuarioDep,
+                  idVigencia: x.IdVigencia,
+                  idUsuario: canonicalId,
+                  idDependencia: x.IdNodoOrg,
+                  rol: x.RolFuncional,
+                });
+             }
+          });
+          
+          setVigenciasUsuarios(dedupedVigenciasUsuarios);
 
           let currentUserToAdd = null;
           if (sessionUser) {
@@ -362,11 +396,13 @@ export default function App() {
                 const updated = [...prev];
                 existingCargas.forEach((c) => {
                   const author = c.autor || "Usuario Desconocido";
-                  const id = c.userId || (author.includes("@") ? author : author.toLowerCase().replace(/ /g, "."));
-                  if (!updated.find((u) => u.id === id || u.nombre === author || u.email === author)) {
+                  let id = c.userId || (author.includes("@") ? author : author.toLowerCase().replace(/ /g, "."));
+                  let email = author.includes("@") ? author : `${id}@sisdecat.gov.co`;
+                  
+                  if (!updated.find((u) => u.id === id || u.email.toLowerCase() === email.toLowerCase())) {
                     updated.push({
                       id: id,
-                      email: author.includes("@") ? author : `${id}@sisdecat.gov.co`,
+                      email: email,
                       nombre: author.includes("@") ? author.split("@")[0].replace(/[._]/g, " ") : author,
                       rol: "Funcionario",
                     });
@@ -559,12 +595,12 @@ export default function App() {
   // Calculate specific user role for current vigencia
   const currentUserVigenciaContext = vigenciasUsuarios.find(
     (vu) =>
-      vu.idUsuario === currentUser?.id && vu.idVigencia === currentVigenciaId,
+      vu.idUsuario === currentUser?.id && String(vu.idVigencia) === String(currentVigenciaId),
   );
   const effectiveUser = currentUser
     ? {
         ...currentUser,
-        rol: currentUserVigenciaContext?.rol || currentUser.rol,
+        rol: currentUserVigenciaContext?.rol || usuarios.find(u => u.email.toLowerCase() === currentUser.email.toLowerCase())?.rol || currentUser.rol,
         dependenciaId:
           currentUserVigenciaContext?.idDependencia ||
           currentUser.dependenciaId,
@@ -1877,7 +1913,7 @@ export default function App() {
       localStorage.setItem("mockSession", JSON.stringify(user));
     }
     setSelectedVigenciaId(null);
-    if (!usuarios.find((u) => u.id === user.id)) {
+    if (!usuarios.find((u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase())) {
       setUsuarios([...usuarios, user]);
     }
 
@@ -2248,8 +2284,12 @@ export default function App() {
                     showToast("Usuario actualizado", "success");
                   }}
                   onAddUsuario={(user) => {
-                    setUsuarios([user, ...usuarios]);
-                    showToast("Usuario creado", "success");
+                    if (!usuarios.some((u) => u.email.toLowerCase() === user.email.toLowerCase())) {
+                       setUsuarios([user, ...usuarios]);
+                       showToast("Usuario creado", "success");
+                    } else {
+                       showToast("El usuario ya existe en otra fuente", "error");
+                    }
                   }}
                   onRestoreMockData={async () => {
                     try {
