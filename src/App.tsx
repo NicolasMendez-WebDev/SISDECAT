@@ -299,9 +299,9 @@ export default function App() {
           setPcdData(fetchedPcds);
           setActData(fetchedActs);
 
-          const fetchedUsuariosDep = await DatabaseService.getUsuariosDependencia();
+          const fetchedUsuariosDep = await DatabaseService.getUsuariosOrganismos();
 
-          // Build simple user stubs based on Sec.UsuariosDependencia because auth.users is inaccessible
+          // Build simple user stubs based on Sec.UsuariosOrganismos because auth.users is inaccessible
           const tmpUsersMap = new Map<string, User>();
           // Map to keep track of the canonical ID we assigned for each email to correct any duplicate IDs
           const emailToCanonicalId = new Map<string, string>();
@@ -2276,6 +2276,7 @@ export default function App() {
 
                     // Sync global role to all of their vigencias
                     const userRelations = vigenciasUsuarios.filter(vu => vu.idUsuario === user.id);
+                    const safeRol = user.rol || "Funcionario";
                     try {
                       const { DatabaseService } = await import("./application/services/DatabaseService");
                       if (userRelations.length > 0) {
@@ -2285,19 +2286,19 @@ export default function App() {
                               IdVigencia: vu.idVigencia,
                               EntraIdObjectId: vu.idUsuario,
                               IdNodoOrg: user.dependenciaId !== undefined ? user.dependenciaId : vu.idDependencia,
-                              RolFuncional: user.rol, // The new global role
+                              RolFuncional: safeRol, // The new global role
                               Activo: true,
                               UPN: user.email
                             })
                          ));
-                         setVigenciasUsuarios(prev => prev.map(vu => vu.idUsuario === user.id ? { ...vu, rol: user.rol, idDependencia: user.dependenciaId !== undefined ? user.dependenciaId : vu.idDependencia } : vu));
+                         setVigenciasUsuarios(prev => prev.map(vu => vu.idUsuario === user.id ? { ...vu, rol: safeRol, idDependencia: user.dependenciaId !== undefined ? user.dependenciaId : vu.idDependencia } : vu));
                       } else if (currentVigenciaView) {
                          // No relations, but we need to save the role to DB. We insert a dummy record in the active vigencia with no dependency.
                          const newRel = await DatabaseService.saveUsuarioDependencia({
                            IdVigencia: currentVigenciaView.IdVigencia,
                            EntraIdObjectId: user.id,
                            IdNodoOrg: user.dependenciaId || null,
-                           RolFuncional: user.rol,
+                           RolFuncional: safeRol,
                            Activo: true,
                            UPN: user.email
                          });
@@ -2308,7 +2309,7 @@ export default function App() {
                              idVigencia: currentVigenciaView.IdVigencia,
                              idUsuario: user.id,
                              idDependencia: user.dependenciaId || null,
-                             rol: user.rol
+                             rol: safeRol
                            }]);
                          }
                       } else {
@@ -2331,8 +2332,8 @@ export default function App() {
                              const newRel = await DatabaseService.saveUsuarioDependencia({
                                IdVigencia: currentVigenciaView.IdVigencia,
                                EntraIdObjectId: user.id,
-                               IdNodoOrg: null,
-                               RolFuncional: user.rol,
+                               IdNodoOrg: user.dependenciaId || null,
+                               RolFuncional: user.rol || "Funcionario",
                                Activo: true,
                                UPN: user.email
                              });

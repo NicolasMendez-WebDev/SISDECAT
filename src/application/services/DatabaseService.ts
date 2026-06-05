@@ -200,10 +200,10 @@ export const DatabaseService = {
     }
   },
 
-  getUsuariosDependencia: async () => {
+  getUsuariosOrganismos: async () => {
     if (!supabase) return [];
     try {
-      const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia').select('*');
+      const { data, error } = await supabase.schema('Sec').from('UsuariosOrganismos').select('*');
       if (error) throw error;
       return data || [];
     } catch (e: any) {
@@ -362,21 +362,21 @@ export const DatabaseService = {
       }
 
       if (!isNew) {
-        const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia')
+        const { data, error } = await supabase.schema('Sec').from('UsuariosOrganismos')
           .update(payload)
           .eq('IdUsuarioDep', vu.IdUsuarioDep)
           .select();
         if (error) throw error;
         return data?.[0] || vu;
       } else {
-        const { data: existing } = await supabase.schema('Sec').from('UsuariosDependencia')
+        const { data: existing } = await supabase.schema('Sec').from('UsuariosOrganismos')
           .select('IdUsuarioDep')
           .eq('IdVigencia', vu.IdVigencia)
           .eq('EntraIdObjectId', vu.EntraIdObjectId)
           .maybeSingle();
 
         if (existing) {
-          const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia')
+          const { data, error } = await supabase.schema('Sec').from('UsuariosOrganismos')
             .update(payload)
             .eq('IdUsuarioDep', existing.IdUsuarioDep)
             .select();
@@ -384,7 +384,7 @@ export const DatabaseService = {
           return data?.[0] || vu;
         }
 
-        const { data, error } = await supabase.schema('Sec').from('UsuariosDependencia')
+        const { data, error } = await supabase.schema('Sec').from('UsuariosOrganismos')
           .insert([payload])
           .select();
         if (error) throw error;

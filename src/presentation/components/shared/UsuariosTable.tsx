@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { User as UserType, VigenciaUsuario, Dependencia } from '../../../domain/models/types';
+import { User as UserType, VigenciaUsuario, Organismo } from '../../../domain/models/types';
 import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface UsuariosTableProps {
   usuarios: UserType[];
   vigenciasUsuarios?: VigenciaUsuario[];
-  dependencias: Dependencia[];
+  organismos: Organismo[];
   selectedVigenciaId?: string | null;
   editMode: boolean; // if true, shows selects for role and dependency
   onUpdateVigenciaUsuario?: (vu: VigenciaUsuario) => void;
@@ -16,7 +16,7 @@ interface UsuariosTableProps {
 export const UsuariosTable: React.FC<UsuariosTableProps> = ({
   usuarios,
   vigenciasUsuarios = [],
-  dependencias,
+  organismos,
   selectedVigenciaId,
   editMode,
   onUpdateVigenciaUsuario,
@@ -59,7 +59,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
         }
       }
 
-      const currentDepName = dependencias.find(d => d.id === currentDepId)?.nombre || 'Sin Dependencia';
+      const currentDepName = organismos.find(d => d.id === currentDepId)?.nombre || 'Sin Organismo';
 
       return {
         ...u,
@@ -69,7 +69,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
         vu
       };
     });
-  }, [usuarios, vigenciasUsuarios, dependencias, selectedVigenciaId, editMode]);
+  }, [usuarios, vigenciasUsuarios, organismos, selectedVigenciaId, editMode]);
 
   const filteredUsers = useMemo(() => {
     return mappedUsers.filter(u => {
@@ -185,9 +185,9 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
             value={filters.dependencia}
             onChange={(e) => setFilters(f => ({ ...f, dependencia: e.target.value }))}
           >
-            <option value="">Todas las Dependencias</option>
+            <option value="">Todos los Organismos</option>
             {uniqueDepIds.filter(id => id).map(id => {
-               const depName = dependencias.find(d => d.id === id)?.nombre || 'Desconocida';
+               const depName = organismos.find(d => d.id === id)?.nombre || 'Desconocido';
                return <option key={id} value={id}>{depName}</option>;
             })}
           </select>
@@ -260,13 +260,13 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                          if (selectedVigenciaId && u.vu && onUpdateVigenciaUsuario) {
                            onUpdateVigenciaUsuario({ ...u.vu, idDependencia: newDep });
                          } else if (!selectedVigenciaId && onUpdateGlobalUsuario) {
-                           onUpdateGlobalUsuario({ ...u, dependenciaId: newDep } as UserType);
+                           onUpdateGlobalUsuario({ ...u, rol: u.currentRol, dependenciaId: newDep } as UserType);
                          }
                       }}
                       className={`w-full min-w-[150px] bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs font-medium text-slate-700 hover:border-institutional-blue transition-colors focus:outline-none`}
                     >
                       <option value="">-- Sin organismo --</option>
-                      {dependencias.map(d => (
+                      {organismos.map(d => (
                         <option key={d.id} value={d.id}>{d.nombre}</option>
                       ))}
                     </select>

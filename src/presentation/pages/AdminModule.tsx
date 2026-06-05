@@ -325,7 +325,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
             <UsuariosTable
               usuarios={usuarios}
               vigenciasUsuarios={vigenciasUsuarios}
-              dependencias={dependencias}
+              organismos={organismos}
               selectedVigenciaId={null} // Null triggers global mode
               editMode={true}
               showRolesAndDeps={true}
