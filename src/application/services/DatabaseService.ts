@@ -358,14 +358,7 @@ export const DatabaseService = {
       if (vu.IdNodoOrg) {
          payload.IdNodoOrg = vu.IdNodoOrg;
       } else {
-         const { data: rootNodes } = await supabase.schema('Org').from('EstructuraJerarquica')
-             .select('IdNodoOrg')
-             .eq('IdVigencia', vu.IdVigencia)
-             .order('TipoNodo', { ascending: false }) // 'Organismo' > 'Dependencia' alphabetically
-             .limit(1);
-         if (rootNodes && rootNodes.length > 0) {
-             payload.IdNodoOrg = rootNodes[0].IdNodoOrg;
-         }
+         payload.IdNodoOrg = null;
       }
 
       if (!isNew) {

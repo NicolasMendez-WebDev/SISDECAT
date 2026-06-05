@@ -362,7 +362,7 @@ export default function App() {
                 const updated = [...prev];
                 existingCargas.forEach((c) => {
                   const author = c.autor || "Usuario Desconocido";
-                  const id = author.includes("@") ? author : author.toLowerCase().replace(/ /g, ".");
+                  const id = c.userId || (author.includes("@") ? author : author.toLowerCase().replace(/ /g, "."));
                   if (!updated.find((u) => u.id === id || u.nombre === author || u.email === author)) {
                     updated.push({
                       id: id,
@@ -2206,22 +2206,19 @@ export default function App() {
                   vigenciasUsuarios={vigenciasUsuarios}
                   onUpdateVigenciaUsuario={async (vu) => {
                     const exists = vigenciasUsuarios.find(
-                      (x) => x.idVigenciaUsuario === vu.idVigenciaUsuario,
+                      (x) => x.idUsuario === vu.idUsuario && String(x.idVigencia) === String(vu.idVigencia),
                     );
-                    if (exists) {
-                      setVigenciasUsuarios(
-                        vigenciasUsuarios.map((x) =>
-                          x.idVigenciaUsuario === vu.idVigenciaUsuario ? vu : x,
-                        ),
-                      );
-                    } else {
-                      setVigenciasUsuarios([...vigenciasUsuarios, vu]);
-                    }
+                    
+                    const optimisticallyUpdated = exists 
+                      ? vigenciasUsuarios.map(x => (x.idUsuario === vu.idUsuario && String(x.idVigencia) === String(vu.idVigencia)) ? vu : x)
+                      : [...vigenciasUsuarios, vu];
+                      
+                    setVigenciasUsuarios(optimisticallyUpdated);
+
                     try {
-                      const { DatabaseService } =
-                        await import("./application/services/DatabaseService");
-                      await DatabaseService.saveUsuarioDependencia({
-                        IdUsuarioDep: vu.idVigenciaUsuario,
+                      const { DatabaseService } = await import("./application/services/DatabaseService");
+                      const result = await DatabaseService.saveUsuarioDependencia({
+                        IdUsuarioDep: exists ? exists.idVigenciaUsuario : vu.idVigenciaUsuario,
                         IdVigencia: vu.idVigencia,
                         EntraIdObjectId: vu.idUsuario,
                         IdNodoOrg: vu.idDependencia,
@@ -2229,6 +2226,16 @@ export default function App() {
                         Activo: true,
                         UPN: usuarios.find(u => u.id === vu.idUsuario)?.email
                       });
+                      
+                      // Refresh front-end with the actual IDs from the DB
+                      if (result && result.IdUsuarioDep) {
+                        setVigenciasUsuarios(prev => prev.map(x => 
+                           (x.idUsuario === vu.idUsuario && String(x.idVigencia) === String(vu.idVigencia))
+                           ? { ...vu, idVigenciaUsuario: result.IdUsuarioDep }
+                           : x
+                        ));
+                      }
+                      
                       showToast("Asignación de usuario guardada", "success");
                     } catch (e) {
                       showToast("Error de red al guardar asignación", "error");
