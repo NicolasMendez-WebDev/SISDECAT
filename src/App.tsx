@@ -2275,9 +2275,9 @@ export default function App() {
 
                     // Sync global role to all of their vigencias
                     const userRelations = vigenciasUsuarios.filter(vu => vu.idUsuario === user.id);
-                    if (userRelations.length > 0) {
-                       try {
-                         const { DatabaseService } = await import("./application/services/DatabaseService");
+                    try {
+                      const { DatabaseService } = await import("./application/services/DatabaseService");
+                      if (userRelations.length > 0) {
                          await Promise.all(userRelations.map(vu => 
                             DatabaseService.saveUsuarioDependencia({
                               IdUsuarioDep: vu.idVigenciaUsuario,
@@ -2290,17 +2290,66 @@ export default function App() {
                             })
                          ));
                          setVigenciasUsuarios(prev => prev.map(vu => vu.idUsuario === user.id ? { ...vu, rol: user.rol } : vu));
-                       } catch (e) {
-                         console.error("Failed to sync global role to all assignments", e);
-                         showToast("Error parcial al actualizar en servidor", "error");
-                       }
+                      } else if (currentVigenciaView) {
+                         // No relations, but we need to save the role to DB. We insert a dummy record in the active vigencia with no dependency.
+                         const newRel = await DatabaseService.saveUsuarioDependencia({
+                           IdVigencia: currentVigenciaView.IdVigencia,
+                           EntraIdObjectId: user.id,
+                           IdNodoOrg: null,
+                           RolFuncional: user.rol,
+                           Activo: true,
+                           UPN: user.email
+                         });
+                         
+                         if (newRel) {
+                           setVigenciasUsuarios(prev => [...prev, {
+                             idVigenciaUsuario: newRel.IdUsuarioDep,
+                             idVigencia: currentVigenciaView.IdVigencia,
+                             idUsuario: user.id,
+                             idDependencia: null,
+                             rol: user.rol
+                           }]);
+                         }
+                      } else {
+                         // Cannot persist role if no vigencia exists and no fallback schema exists.
+                         showToast("No se puede persistir el rol sin una vigencia en el sistema", "error");
+                         return;
+                      }
+                      showToast("Rol global del usuario actualizado", "success");
+                    } catch (e) {
+                      console.error("Failed to sync global role", e);
+                      showToast("Error parcial al actualizar en servidor", "error");
                     }
-                    showToast("Rol global del usuario actualizado", "success");
                   }}
-                  onAddUsuario={(user) => {
+                  onAddUsuario={async (user) => {
                     if (!usuarios.some((u) => u.email.toLowerCase() === user.email.toLowerCase())) {
                        setUsuarios([user, ...usuarios]);
-                       showToast("Usuario creado", "success");
+                       try {
+                         const { DatabaseService } = await import("./application/services/DatabaseService");
+                         if (currentVigenciaView) {
+                             const newRel = await DatabaseService.saveUsuarioDependencia({
+                               IdVigencia: currentVigenciaView.IdVigencia,
+                               EntraIdObjectId: user.id,
+                               IdNodoOrg: null,
+                               RolFuncional: user.rol,
+                               Activo: true,
+                               UPN: user.email
+                             });
+                             
+                             if (newRel) {
+                               setVigenciasUsuarios(prev => [...prev, {
+                                 idVigenciaUsuario: newRel.IdUsuarioDep,
+                                 idVigencia: currentVigenciaView.IdVigencia,
+                                 idUsuario: user.id,
+                                 idDependencia: null,
+                                 rol: user.rol
+                               }]);
+                             }
+                         }
+                         showToast("Usuario creado", "success");
+                       } catch (e) {
+                         showToast("Usuario creado, pero hubo un error al persistirlo", "warning");
+                       }
                     } else {
                        showToast("El usuario ya existe en otra fuente", "error");
                     }
