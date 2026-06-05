@@ -6,9 +6,10 @@ interface UsuariosTableProps {
   usuarios: UserType[];
   vigenciasUsuarios?: VigenciaUsuario[];
   dependencias: Dependencia[];
-  selectedVigenciaId?: string;
+  selectedVigenciaId?: string | null;
   editMode: boolean; // if true, shows selects for role and dependency
   onUpdateVigenciaUsuario?: (vu: VigenciaUsuario) => void;
+  onUpdateGlobalUsuario?: (u: UserType) => void;
   showRolesAndDeps?: boolean;
 }
 
@@ -19,6 +20,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
   selectedVigenciaId,
   editMode,
   onUpdateVigenciaUsuario,
+  onUpdateGlobalUsuario,
   showRolesAndDeps = true
 }) => {
   const [filters, setFilters] = useState({
@@ -200,8 +202,8 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
             <tr>
               <th className="p-4 resizable-th w-auto"><SortHeader title="Nombre del Usuario" field="nombre" /></th>
               <th className="p-4 resizable-th w-auto"><SortHeader title="Correo Institucional" field="email" /></th>
-              {showRolesAndDeps && <th className="p-4 resizable-th w-auto"><SortHeader title={editMode ? 'Rol en Vigencia' : selectedVigenciaId ? 'Rol (Vigencia Activa)' : 'Rol (Global)'} field="currentRol" /></th>}
-              {showRolesAndDeps && <th className="p-4 resizable-th w-auto"><SortHeader title={editMode ? 'Dependencia' : selectedVigenciaId ? 'Dependencia (Vigencia Activa)' : 'Dependencia (Global)'} field="currentDepName" /></th>}
+              {showRolesAndDeps && <th className="p-4 resizable-th w-auto"><SortHeader title={!selectedVigenciaId ? 'Rol en el Sistema' : 'Rol en Vigencia'} field="currentRol" /></th>}
+              {showRolesAndDeps && selectedVigenciaId && <th className="p-4 resizable-th w-auto"><SortHeader title="Dependencia (Vigencia Activa)" field="currentDepName" /></th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 min-h-[300px]">
@@ -225,8 +227,12 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                     <select
                       value={u.currentRol}
                       onChange={(e) => {
-                        if (u.vu && onUpdateVigenciaUsuario) {
-                          onUpdateVigenciaUsuario({ ...u.vu, rol: e.target.value as any });
+                        const newRol = e.target.value as any;
+                        if (selectedVigenciaId && u.vu && onUpdateVigenciaUsuario) {
+                          onUpdateVigenciaUsuario({ ...u.vu, rol: newRol });
+                        } else if (!selectedVigenciaId && onUpdateGlobalUsuario) {
+                          // Updating the global role of the user (all their vigencias)
+                          onUpdateGlobalUsuario({ ...u, rol: newRol, currentRol: newRol } as UserType);
                         }
                       }}
                       className="w-full min-w-[150px] bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs font-medium text-slate-700 hover:border-institutional-blue transition-colors focus:outline-none"
@@ -245,6 +251,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                     </span>
                   )}
                 </td>
+                {selectedVigenciaId && (
                 <td className="p-4">
                   {editMode ? (
                     <select
@@ -267,6 +274,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                     </span>
                   )}
                 </td>
+                )}
                   </>
                 )}
               </tr>

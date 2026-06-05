@@ -322,19 +322,9 @@ export default function App() {
                  });
                  emailToCanonicalId.set(email, id);
                } else {
-                 // If the user appears in another relation with a higher privilege, elevate their global directory role
-                 const existing = tmpUsersMap.get(email)!;
-                 const roleHierarchy: Record<string, number> = {
-                   "Funcionario": 1,
-                   "Analista": 2,
-                   "AdminFuncional": 3,
-                   "Administrador": 4
-                 };
-                 const currentVal = roleHierarchy[existing.rol] || 0;
-                 const newVal = roleHierarchy[x.RolFuncional || "Funcionario"] || 0;
-                 if (newVal > currentVal) {
-                   existing.rol = x.RolFuncional;
-                 }
+                 // Check if there are any conflicting roles. In a unified role system, they should all be identical.
+                 // We simply maintain the role they have. If there are duplicates, we keep the role mapped.
+                 // No more automatic rank elevation that damages global role.
                }
           });
           const uniqueUsers = Array.from(tmpUsersMap.values());
@@ -600,7 +590,7 @@ export default function App() {
   const effectiveUser = currentUser
     ? {
         ...currentUser,
-        rol: currentUserVigenciaContext?.rol || usuarios.find(u => u.email.toLowerCase() === currentUser.email.toLowerCase())?.rol || currentUser.rol,
+        rol: usuarios.find(u => u.email.toLowerCase() === currentUser.email.toLowerCase())?.rol || currentUser.rol,
         dependenciaId:
           currentUserVigenciaContext?.idDependencia ||
           currentUser.dependenciaId,
@@ -2277,11 +2267,35 @@ export default function App() {
                       showToast("Error de red al guardar asignación", "error");
                     }
                   }}
-                  onUpdateUsuario={(user) => {
+                  onUpdateUsuario={async (user) => {
+                    // Update state optimistically
                     setUsuarios(
-                      usuarios.map((u) => (u.id === user.id ? user : u)),
+                      usuarios.map((u) => (u.id === user.id ? user : u))
                     );
-                    showToast("Usuario actualizado", "success");
+
+                    // Sync global role to all of their vigencias
+                    const userRelations = vigenciasUsuarios.filter(vu => vu.idUsuario === user.id);
+                    if (userRelations.length > 0) {
+                       try {
+                         const { DatabaseService } = await import("./application/services/DatabaseService");
+                         await Promise.all(userRelations.map(vu => 
+                            DatabaseService.saveUsuarioDependencia({
+                              IdUsuarioDep: vu.idVigenciaUsuario,
+                              IdVigencia: vu.idVigencia,
+                              EntraIdObjectId: vu.idUsuario,
+                              IdNodoOrg: vu.idDependencia,
+                              RolFuncional: user.rol, // The new global role
+                              Activo: true,
+                              UPN: user.email
+                            })
+                         ));
+                         setVigenciasUsuarios(prev => prev.map(vu => vu.idUsuario === user.id ? { ...vu, rol: user.rol } : vu));
+                       } catch (e) {
+                         console.error("Failed to sync global role to all assignments", e);
+                         showToast("Error parcial al actualizar en servidor", "error");
+                       }
+                    }
+                    showToast("Rol global del usuario actualizado", "success");
                   }}
                   onAddUsuario={(user) => {
                     if (!usuarios.some((u) => u.email.toLowerCase() === user.email.toLowerCase())) {

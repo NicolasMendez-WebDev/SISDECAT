@@ -330,9 +330,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               usuarios={usuarios}
               vigenciasUsuarios={vigenciasUsuarios}
               dependencias={dependencias}
-              selectedVigenciaId={vigencias.find(v => v.Estado === 'Activo')?.IdVigencia}
-              editMode={false}
-              showRolesAndDeps={false}
+              selectedVigenciaId={null} // Null triggers global mode
+              editMode={true}
+              showRolesAndDeps={true}
+              onUpdateGlobalUsuario={onUpdateUsuario}
             />
           </motion.div>
         )}
