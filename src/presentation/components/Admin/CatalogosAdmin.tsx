@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Vigencia } from '../../../domain/models/types';
-import { Pencil, Save, PlusCircle, Trash2, X } from 'lucide-react';
+import { Pencil, Save, PlusCircle, Trash2, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface CatalogosAdminProps {
@@ -11,10 +11,13 @@ interface CatalogosAdminProps {
   onDeleteCargo?: (id: number) => Promise<void>;
   onSaveFactor?: (f: any) => Promise<void>;
   onDeleteFactor?: (id: number) => Promise<void>;
+  onReorderCargos?: (c: any[]) => void;
+  onReorderFactores?: (f: any[]) => void;
 }
 
 export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
-  vigencias, cargos, factores, onSaveCargo, onDeleteCargo, onSaveFactor, onDeleteFactor
+  vigencias, cargos, factores, onSaveCargo, onDeleteCargo, onSaveFactor, onDeleteFactor,
+  onReorderCargos, onReorderFactores
 }) => {
   const [selectedVigenciaId, setSelectedVigenciaId] = useState<string>(vigencias.find(v => v.Estado === 'Activo')?.IdVigencia || '');
   
@@ -48,6 +51,46 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
     const newId = -Math.round(Math.random() * 1000000);
     const newF = { IdFactor: newId, IdVigencia: selectedVigenciaId, Nombre: 'Nueva Frecuencia', FactorMensual: 1, EsSistema: false };
     setEditingFactor(newF);
+  };
+
+  const moveCargo = (index: number, direction: 'up' | 'down') => {
+    if (!onReorderCargos) return;
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= currentCargos.length) return;
+    
+    // We only swap within the filtered currentCargos context
+    const cargoA = currentCargos[index];
+    const cargoB = currentCargos[newIndex];
+    
+    // We update the master cargos array by moving these two elements
+    let masterCopy = [...cargos];
+    const indexA = masterCopy.findIndex(c => c.IdCargo === cargoA.IdCargo);
+    const indexB = masterCopy.findIndex(c => c.IdCargo === cargoB.IdCargo);
+    
+    if (indexA > -1 && indexB > -1) {
+       masterCopy[indexA] = cargoB;
+       masterCopy[indexB] = cargoA;
+       onReorderCargos(masterCopy);
+    }
+  };
+
+  const moveFactor = (index: number, direction: 'up' | 'down') => {
+    if (!onReorderFactores) return;
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= currentFactores.length) return;
+    
+    const factorA = currentFactores[index];
+    const factorB = currentFactores[newIndex];
+    
+    let masterCopy = [...factores];
+    const indexA = masterCopy.findIndex(f => f.IdFactor === factorA.IdFactor);
+    const indexB = masterCopy.findIndex(f => f.IdFactor === factorB.IdFactor);
+    
+    if (indexA > -1 && indexB > -1) {
+       masterCopy[indexA] = factorB;
+       masterCopy[indexB] = factorA;
+       onReorderFactores(masterCopy);
+    }
   };
 
   return (
@@ -87,13 +130,19 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {currentCargos.length === 0 ? (
                       <tr><td colSpan={2} className="py-4 text-center text-slate-500">No hay cargos registrados.</td></tr>
-                    ) : currentCargos.map(c => (
+                    ) : currentCargos.map((c, idx) => (
                       <tr key={c.IdCargo} className="hover:bg-slate-50/50">
                         <td className="py-2 px-4">
                           <span className="font-medium text-slate-700">{c.Denominacion}</span>
                         </td>
                         <td className="py-2 px-4 text-right whitespace-nowrap">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity">
+                             {idx > 0 && (
+                               <button onClick={() => moveCargo(idx, 'up')} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors" title="Mover Arriba"><ArrowUp size={14}/></button>
+                             )}
+                             {idx < currentCargos.length - 1 && (
+                               <button onClick={() => moveCargo(idx, 'down')} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors" title="Mover Abajo"><ArrowDown size={14}/></button>
+                             )}
                              <button onClick={() => setEditingCargo(c)} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
                              {onDeleteCargo && (
                                <button onClick={() => onDeleteCargo(c.IdCargo)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
@@ -127,7 +176,7 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {currentFactores.length === 0 ? (
                       <tr><td colSpan={3} className="py-4 text-center text-slate-500">No hay frecuencias.</td></tr>
-                    ) : currentFactores.map(f => (
+                    ) : currentFactores.map((f, idx) => (
                       <tr key={f.IdFactor} className="hover:bg-slate-50/50">
                         <td className="py-2 px-4">
                           <span className="font-medium text-slate-700 capitalize">{f.Nombre}</span>
@@ -137,6 +186,12 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                         </td>
                         <td className="py-2 px-4 text-right whitespace-nowrap">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity">
+                             {idx > 0 && (
+                               <button onClick={() => moveFactor(idx, 'up')} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors" title="Mover Arriba"><ArrowUp size={14}/></button>
+                             )}
+                             {idx < currentFactores.length - 1 && (
+                               <button onClick={() => moveFactor(idx, 'down')} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors" title="Mover Abajo"><ArrowDown size={14}/></button>
+                             )}
                              {f.EsSistema && <span className="text-[9px] text-slate-400 bg-slate-100 rounded px-1.5 py-0.5 mr-1">Sistema</span>}
                              <button onClick={() => setEditingFactor(f)} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
                              {onDeleteFactor && (

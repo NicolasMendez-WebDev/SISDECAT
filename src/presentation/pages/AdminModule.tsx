@@ -35,10 +35,13 @@ interface AdminModuleProps {
   vigenciaActiva?: boolean;
   showToast?: (msg: string, type: 'success'|'error') => void;
   isLoadingRecords?: boolean;
+  onReorderCargos?: (c: any[]) => void;
+  onReorderFactores?: (f: any[]) => void;
 }
 
 export const AdminModule: React.FC<AdminModuleProps> = ({ 
   cargas, cargos = [], factores = [], onSaveCargo, onDeleteCargo, onSaveFactor, onDeleteFactor,
+  onReorderCargos, onReorderFactores,
   onUpdate, onDelete, organismos, dependencias, actividades, procesos, procedimientos,
   vigencias, onVigenciaUpdate, onVigenciaCreate, usuarios = [], onUpdateUsuario, onAddUsuario, currentUser,
   vigenciasUsuarios = [], onUpdateVigenciaUsuario, onRestoreMockData, vigenciaActiva = true, showToast, isLoadingRecords
@@ -356,6 +359,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               onDeleteCargo={onDeleteCargo}
               onSaveFactor={onSaveFactor}
               onDeleteFactor={onDeleteFactor}
+              onReorderCargos={onReorderCargos}
+              onReorderFactores={onReorderFactores}
             />
           </motion.div>
         )}

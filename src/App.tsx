@@ -380,8 +380,19 @@ export default function App() {
               DatabaseService.getCargos(),
               DatabaseService.getFactoresFrecuencia(),
             ]);
-            setCargos(cargosDb || []);
-            setFactoresFrecuencia(factDb || []);
+            
+            const savedCargosOrder = JSON.parse(localStorage.getItem('cargos_order') || '{}');
+            const sortedCargos = (cargosDb || []).sort((a: any, b: any) => 
+               (savedCargosOrder[a.IdCargo] ?? 9999) - (savedCargosOrder[b.IdCargo] ?? 9999)
+            );
+            
+            const savedFactOrder = JSON.parse(localStorage.getItem('factores_order') || '{}');
+            const sortedFact = (factDb || []).sort((a: any, b: any) => 
+               (savedFactOrder[a.IdFactor] ?? 9999) - (savedFactOrder[b.IdFactor] ?? 9999)
+            );
+
+            setCargos(sortedCargos);
+            setFactoresFrecuencia(sortedFact);
           } catch(e) {
             console.error("Error fetching background records:", e);
           } finally {
@@ -2099,16 +2110,21 @@ export default function App() {
                   onSaveCargo={async (c) => {
                     const { DatabaseService } =
                       await import("./application/services/DatabaseService");
-                    const saved = await DatabaseService.saveCargo(c);
-                    setCargos((prev) =>
-                      prev
-                        .map((x) => (x.IdCargo === saved.IdCargo ? saved : x))
-                        .concat(
-                          prev.find((x) => x.IdCargo === saved.IdCargo)
-                            ? []
-                            : [saved],
-                        ),
-                    );
+                    try {
+                      const saved = await DatabaseService.saveCargo(c);
+                      setCargos((prev) =>
+                        prev
+                          .map((x) => (x.IdCargo === saved.IdCargo ? saved : x))
+                          .concat(
+                            prev.find((x) => x.IdCargo === saved.IdCargo)
+                              ? []
+                              : [saved],
+                          ),
+                      );
+                      showToast("Rol guardado exitosamente", "success");
+                    } catch (e: any) {
+                      showToast(e.message || "Error al guardar el rol", "error");
+                    }
                   }}
                   onDeleteCargo={async (id) => {
                     const { DatabaseService } =
@@ -2119,16 +2135,21 @@ export default function App() {
                   onSaveFactor={async (f) => {
                     const { DatabaseService } =
                       await import("./application/services/DatabaseService");
-                    const saved = await DatabaseService.saveFactorFrecuencia(f);
-                    setFactoresFrecuencia((prev) =>
-                      prev
-                        .map((x) => (x.IdFactor === saved.IdFactor ? saved : x))
-                        .concat(
-                          prev.find((x) => x.IdFactor === saved.IdFactor)
-                            ? []
-                            : [saved],
-                        ),
-                    );
+                    try {
+                      const saved = await DatabaseService.saveFactorFrecuencia(f);
+                      setFactoresFrecuencia((prev) =>
+                        prev
+                          .map((x) => (x.IdFactor === saved.IdFactor ? saved : x))
+                          .concat(
+                            prev.find((x) => x.IdFactor === saved.IdFactor)
+                              ? []
+                              : [saved],
+                          ),
+                      );
+                      showToast("Factor de frecuencia guardado exitosamente", "success");
+                    } catch (e: any) {
+                      showToast(e.message || "Error al guardar factor de frecuencia", "error");
+                    }
                   }}
                   onDeleteFactor={async (id) => {
                     const { DatabaseService } =
@@ -2137,6 +2158,16 @@ export default function App() {
                     setFactoresFrecuencia((prev) =>
                       prev.filter((x) => x.IdFactor !== id),
                     );
+                  }}
+                  onReorderCargos={(newCargos) => {
+                     setCargos(newCargos);
+                     const orderMap = newCargos.reduce((acc: any, c: any, i: number) => { acc[c.IdCargo] = i; return acc; }, {});
+                     localStorage.setItem('cargos_order', JSON.stringify(orderMap));
+                  }}
+                  onReorderFactores={(newFactores) => {
+                     setFactoresFrecuencia(newFactores);
+                     const orderMap = newFactores.reduce((acc: any, f: any, i: number) => { acc[f.IdFactor] = i; return acc; }, {});
+                     localStorage.setItem('factores_order', JSON.stringify(orderMap));
                   }}
                   currentUser={effectiveUser!}
                   onUpdate={handleUpdateCarga}

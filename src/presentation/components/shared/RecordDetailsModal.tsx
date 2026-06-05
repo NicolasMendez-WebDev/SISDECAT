@@ -453,11 +453,15 @@ export const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
       </motion.div>
 
       {showCommentPrompt && (
-        <div className="absolute inset-0 bg-slate-900/40 z-[300] flex items-center justify-center p-4 backdrop-blur-sm rounded-2xl">
+        <div 
+          className="absolute inset-0 bg-slate-900/60 z-[600] flex items-center justify-center p-4 backdrop-blur-sm"
+          onClick={(e) => e.stopPropagation()}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden relative"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
