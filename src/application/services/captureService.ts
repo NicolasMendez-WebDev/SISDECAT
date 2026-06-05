@@ -79,7 +79,11 @@ export const captureService = {
          tiempoMax: row.Tmax_Horas,
          autor: row.CreatedBy || row.created_by,
          createdAt: row.CreatedAt || row.created_at,
-         auditLog: row.AuditLog || [],
+         auditLog: (() => {
+           try {
+             return JSON.parse(localStorage.getItem(`audit_${row.IdCarga}`) || '[]');
+           } catch(e) { return []; }
+         })(),
          _etpCalculated: row.ETP || calculateETP({
            volumenQ: row.Volumen,
            frecuencia: factor?.Nombre || row.IdFactorFrecuencia,
@@ -264,9 +268,11 @@ export const captureService = {
     if (updates.descripcionActividad !== undefined) {
         payloadToUpdate.Descripcion = updates.descripcionActividad;
     }
-    
-    if (updates.auditLog !== undefined) {
-        payloadToUpdate.AuditLog = updates.auditLog;
+
+    if (updates.auditLog) {
+        try {
+            localStorage.setItem(`audit_${id}`, JSON.stringify(updates.auditLog));
+        } catch(e) {}
     }
 
     const { data, error } = await supabase

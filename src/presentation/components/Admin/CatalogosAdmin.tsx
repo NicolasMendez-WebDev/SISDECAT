@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Vigencia } from '../../../domain/models/types';
-import { Pencil, Save, PlusCircle, Trash2, X, ArrowUp, ArrowDown } from 'lucide-react';
+import { Pencil, Save, PlusCircle, Trash2, X, GripVertical } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface CatalogosAdminProps {
@@ -26,6 +26,8 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
 
   const [editingCargo, setEditingCargo] = useState<any>(null);
   const [editingFactor, setEditingFactor] = useState<any>(null);
+  const [draggedCargoIndex, setDraggedCargoIndex] = useState<number | null>(null);
+  const [draggedFactorIndex, setDraggedFactorIndex] = useState<number | null>(null);
 
   const handleSaveCargo = async () => {
     if (onSaveCargo && editingCargo?.Denominacion) {
@@ -53,44 +55,69 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
     setEditingFactor(newF);
   };
 
-  const moveCargo = (index: number, direction: 'up' | 'down') => {
-    if (!onReorderCargos) return;
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= currentCargos.length) return;
-    
-    // We only swap within the filtered currentCargos context
-    const cargoA = currentCargos[index];
-    const cargoB = currentCargos[newIndex];
-    
-    // We update the master cargos array by moving these two elements
-    let masterCopy = [...cargos];
-    const indexA = masterCopy.findIndex(c => c.IdCargo === cargoA.IdCargo);
-    const indexB = masterCopy.findIndex(c => c.IdCargo === cargoB.IdCargo);
-    
-    if (indexA > -1 && indexB > -1) {
-       masterCopy[indexA] = cargoB;
-       masterCopy[indexB] = cargoA;
-       onReorderCargos(masterCopy);
-    }
+  const handleDragStartCargo = (index: number) => {
+    setDraggedCargoIndex(index);
   };
 
-  const moveFactor = (index: number, direction: 'up' | 'down') => {
-    if (!onReorderFactores) return;
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= currentFactores.length) return;
+  const handleDragOverCargo = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    e.preventDefault();
+    if (draggedCargoIndex === null || draggedCargoIndex === index || !onReorderCargos) return;
     
-    const factorA = currentFactores[index];
-    const factorB = currentFactores[newIndex];
+    let masterCopy = [...cargos];
+    const itemToMove = currentCargos[draggedCargoIndex];
+    const itemAtTarget = currentCargos[index];
     
-    let masterCopy = [...factores];
-    const indexA = masterCopy.findIndex(f => f.IdFactor === factorA.IdFactor);
-    const indexB = masterCopy.findIndex(f => f.IdFactor === factorB.IdFactor);
+    // Create new array with item moved
+    const newCurrent = [...currentCargos];
+    newCurrent.splice(draggedCargoIndex, 1);
+    newCurrent.splice(index, 0, itemToMove);
     
-    if (indexA > -1 && indexB > -1) {
-       masterCopy[indexA] = factorB;
-       masterCopy[indexB] = factorA;
-       onReorderFactores(masterCopy);
-    }
+    // Update the master map using the new relative order of the filtered subset
+    newCurrent.forEach((cItem, i) => {
+       const mIndex = masterCopy.findIndex(c => c.IdCargo === cItem.IdCargo);
+       if (mIndex > -1) {
+          masterCopy.push(masterCopy.splice(mIndex, 1)[0]); // This modifies the absolute ordering, but it's simpler to just map the original values if we sort locally.
+       }
+    });
+
+    // An easier approach for updating order overall is to just replace the local ones in their original bounds
+    let reorderedMaster = [...cargos];
+    const minIndex = Math.min(reorderedMaster.findIndex(c => c.IdCargo === currentCargos[0].IdCargo) ?? 0, 0); // Need to place them back into the array
+    
+    const idsToReplace = currentCargos.map(c => c.IdCargo);
+    // filter them out
+    let newMasterList = cargos.filter(c => !idsToReplace.includes(c.IdCargo));
+    // append them at the end (or just call reorder which saves to localStorage).
+    
+    // Actually the easiest way is to pass the new subset, but our `cargos` is all cargos.
+    // If we only sort via localStorage, `onReorderCargos` will save the order using exactly the new order passed + existing orders. We can just pass the array.
+    setCurrentCargosSort(newCurrent, index);  
+  };
+  
+  const setCurrentCargosSort = (newCurrent: any[], newIndex: number) => {
+     if(!onReorderCargos) return;
+     let nextMaster = cargos.map(c => c);
+     // Update the positions of these specific items
+     // We can just set their mapping order and save to local storage
+     onReorderCargos([...newCurrent, ...nextMaster.filter(c => !newCurrent.some(nc => nc.IdCargo === c.IdCargo))]);
+     setDraggedCargoIndex(newIndex);
+  };
+
+  const handleDragStartFactor = (index: number) => {
+    setDraggedFactorIndex(index);
+  };
+
+  const handleDragOverFactor = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    e.preventDefault();
+    if (draggedFactorIndex === null || draggedFactorIndex === index || !onReorderFactores) return;
+    
+    const newCurrent = [...currentFactores];
+    const itemToMove = newCurrent.splice(draggedFactorIndex, 1)[0];
+    newCurrent.splice(index, 0, itemToMove);
+
+     let nextMaster = factores.map(c => c);
+     onReorderFactores([...newCurrent, ...nextMaster.filter(c => !newCurrent.some(nc => nc.IdFactor === c.IdFactor))]);
+     setDraggedFactorIndex(index);
   };
 
   return (
@@ -131,18 +158,20 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                     {currentCargos.length === 0 ? (
                       <tr><td colSpan={2} className="py-4 text-center text-slate-500">No hay cargos registrados.</td></tr>
                     ) : currentCargos.map((c, idx) => (
-                      <tr key={c.IdCargo} className="hover:bg-slate-50/50">
-                        <td className="py-2 px-4">
+                      <tr 
+                        key={c.IdCargo} 
+                        className={`hover:bg-slate-50/50 ${draggedCargoIndex === idx ? 'opacity-50' : ''}`}
+                        draggable
+                        onDragStart={() => handleDragStartCargo(idx)}
+                        onDragOver={(e) => handleDragOverCargo(e, idx)}
+                        onDragEnd={() => setDraggedCargoIndex(null)}
+                      >
+                        <td className="py-2 px-4 flex items-center gap-2">
+                          <button className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 p-1"><GripVertical size={14}/></button>
                           <span className="font-medium text-slate-700">{c.Denominacion}</span>
                         </td>
                         <td className="py-2 px-4 text-right whitespace-nowrap">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity">
-                             {idx > 0 && (
-                               <button onClick={() => moveCargo(idx, 'up')} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors" title="Mover Arriba"><ArrowUp size={14}/></button>
-                             )}
-                             {idx < currentCargos.length - 1 && (
-                               <button onClick={() => moveCargo(idx, 'down')} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors" title="Mover Abajo"><ArrowDown size={14}/></button>
-                             )}
                              <button onClick={() => setEditingCargo(c)} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
                              {onDeleteCargo && (
                                <button onClick={() => onDeleteCargo(c.IdCargo)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
@@ -177,8 +206,16 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                     {currentFactores.length === 0 ? (
                       <tr><td colSpan={3} className="py-4 text-center text-slate-500">No hay frecuencias.</td></tr>
                     ) : currentFactores.map((f, idx) => (
-                      <tr key={f.IdFactor} className="hover:bg-slate-50/50">
-                        <td className="py-2 px-4">
+                      <tr 
+                        key={f.IdFactor} 
+                        className={`hover:bg-slate-50/50 ${draggedFactorIndex === idx ? 'opacity-50' : ''}`}
+                        draggable
+                        onDragStart={() => handleDragStartFactor(idx)}
+                        onDragOver={(e) => handleDragOverFactor(e, idx)}
+                        onDragEnd={() => setDraggedFactorIndex(null)}
+                      >
+                        <td className="py-2 px-4 flex items-center gap-2">
+                          <button className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 p-1"><GripVertical size={14}/></button>
                           <span className="font-medium text-slate-700 capitalize">{f.Nombre}</span>
                         </td>
                         <td className="py-2 px-4 text-slate-600">
@@ -186,12 +223,6 @@ export const CatalogosAdmin: React.FC<CatalogosAdminProps> = ({
                         </td>
                         <td className="py-2 px-4 text-right whitespace-nowrap">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity">
-                             {idx > 0 && (
-                               <button onClick={() => moveFactor(idx, 'up')} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors" title="Mover Arriba"><ArrowUp size={14}/></button>
-                             )}
-                             {idx < currentFactores.length - 1 && (
-                               <button onClick={() => moveFactor(idx, 'down')} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors" title="Mover Abajo"><ArrowDown size={14}/></button>
-                             )}
                              {f.EsSistema && <span className="text-[9px] text-slate-400 bg-slate-100 rounded px-1.5 py-0.5 mr-1">Sistema</span>}
                              <button onClick={() => setEditingFactor(f)} className="text-slate-400 hover:text-institutional-blue p-1 rounded hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
                              {onDeleteFactor && (
