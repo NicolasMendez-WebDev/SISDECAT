@@ -49,7 +49,6 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   const [activeTab, setActiveTab] = useState<'registros' | 'vigencias' | 'usuarios' | 'catalogos'>('vigencias');
   const [selectedCarga, setSelectedCarga] = useState<any | null>(null);
   const [cargaEditMode, setCargaEditMode] = useState(false);
-  const [selectedVigenciaForRoles, setSelectedVigenciaForRoles] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Vigencia Form State
@@ -249,11 +248,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                   </div>
 
                   <div className="flex justify-between mt-auto">
-                    <button onClick={() => setSelectedVigenciaForRoles(v.IdVigencia)} className="text-sm font-bold text-institutional-blue hover:text-institutional-blue/80 px-2 py-1 flex items-center gap-2">
-                       <KeyRound size={14}/> Roles y Permisos
-                    </button>
-                    <button onClick={() => handleEditVigencia(v)} className="text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors">
-                       <Edit2 size={14}/> Editar
+                    <button onClick={() => handleEditVigencia(v)} className="text-sm font-bold w-full justify-center text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors">
+                       <Edit2 size={14}/> Editar Vigencia
                     </button>
                   </div>
                 </div>
@@ -599,50 +595,6 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
                     Sí, Desactivar
                   </button>
                 </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Roles & Permissions Modal by Vigencia */}
-      <AnimatePresence>
-        {selectedVigenciaForRoles && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-4xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col"
-            >
-              <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <KeyRound className="text-institutional-blue" />
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-800"> Roles y Permisos en la Vigencia</h3>
-                    <p className="text-sm text-slate-500">Asigna qué permisos tiene cada usuario específicamente para esta vigencia.</p>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedVigenciaForRoles(null)} className="p-2 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-lg">
-                  <Trash2 size={16} className="opacity-0 hidden" /> {/* spacer */}
-                  ✕
-                </button>
-              </div>
-              
-              <div className="p-6 overflow-y-auto flex-1">
-                 <UsuariosTable
-                    usuarios={usuarios}
-                    vigenciasUsuarios={vigenciasUsuarios}
-                    dependencias={dependencias}
-                    selectedVigenciaId={selectedVigenciaForRoles}
-                    editMode={true}
-                    onUpdateVigenciaUsuario={onUpdateVigenciaUsuario}
-                 />
               </div>
             </motion.div>
           </motion.div>

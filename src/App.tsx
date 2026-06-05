@@ -319,6 +319,7 @@ export default function App() {
                      ? rawEmail.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
                      : `Usuario ${id.substring(0, 5)}`,
                    rol: x.RolFuncional || "Funcionario",
+                   dependenciaId: x.IdNodoOrg || undefined
                  });
                  emailToCanonicalId.set(email, id);
                } else {
@@ -2283,19 +2284,19 @@ export default function App() {
                               IdUsuarioDep: vu.idVigenciaUsuario,
                               IdVigencia: vu.idVigencia,
                               EntraIdObjectId: vu.idUsuario,
-                              IdNodoOrg: vu.idDependencia,
+                              IdNodoOrg: user.dependenciaId !== undefined ? user.dependenciaId : vu.idDependencia,
                               RolFuncional: user.rol, // The new global role
                               Activo: true,
                               UPN: user.email
                             })
                          ));
-                         setVigenciasUsuarios(prev => prev.map(vu => vu.idUsuario === user.id ? { ...vu, rol: user.rol } : vu));
+                         setVigenciasUsuarios(prev => prev.map(vu => vu.idUsuario === user.id ? { ...vu, rol: user.rol, idDependencia: user.dependenciaId !== undefined ? user.dependenciaId : vu.idDependencia } : vu));
                       } else if (currentVigenciaView) {
                          // No relations, but we need to save the role to DB. We insert a dummy record in the active vigencia with no dependency.
                          const newRel = await DatabaseService.saveUsuarioDependencia({
                            IdVigencia: currentVigenciaView.IdVigencia,
                            EntraIdObjectId: user.id,
-                           IdNodoOrg: null,
+                           IdNodoOrg: user.dependenciaId || null,
                            RolFuncional: user.rol,
                            Activo: true,
                            UPN: user.email
@@ -2306,7 +2307,7 @@ export default function App() {
                              idVigenciaUsuario: newRel.IdUsuarioDep,
                              idVigencia: currentVigenciaView.IdVigencia,
                              idUsuario: user.id,
-                             idDependencia: null,
+                             idDependencia: user.dependenciaId || null,
                              rol: user.rol
                            }]);
                          }

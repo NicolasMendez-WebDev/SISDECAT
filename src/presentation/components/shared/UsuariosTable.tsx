@@ -203,7 +203,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
               <th className="p-4 resizable-th w-auto"><SortHeader title="Nombre del Usuario" field="nombre" /></th>
               <th className="p-4 resizable-th w-auto"><SortHeader title="Correo Institucional" field="email" /></th>
               {showRolesAndDeps && <th className="p-4 resizable-th w-auto"><SortHeader title={!selectedVigenciaId ? 'Rol en el Sistema' : 'Rol en Vigencia'} field="currentRol" /></th>}
-              {showRolesAndDeps && selectedVigenciaId && <th className="p-4 resizable-th w-auto"><SortHeader title="Dependencia (Vigencia Activa)" field="currentDepName" /></th>}
+              {showRolesAndDeps && <th className="p-4 resizable-th w-auto"><SortHeader title={!selectedVigenciaId ? 'Organismo (Global)' : 'Dependencia (Vigencia)'} field="currentDepName" /></th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 min-h-[300px]">
@@ -251,30 +251,31 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                     </span>
                   )}
                 </td>
-                {selectedVigenciaId && (
                 <td className="p-4">
                   {editMode ? (
                     <select
                       value={u.currentDepId}
                       onChange={(e) => {
-                         if (u.vu && onUpdateVigenciaUsuario) {
-                           onUpdateVigenciaUsuario({ ...u.vu, idDependencia: e.target.value });
+                         const newDep = e.target.value;
+                         if (selectedVigenciaId && u.vu && onUpdateVigenciaUsuario) {
+                           onUpdateVigenciaUsuario({ ...u.vu, idDependencia: newDep });
+                         } else if (!selectedVigenciaId && onUpdateGlobalUsuario) {
+                           onUpdateGlobalUsuario({ ...u, dependenciaId: newDep } as UserType);
                          }
                       }}
                       className={`w-full min-w-[150px] bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs font-medium text-slate-700 hover:border-institutional-blue transition-colors focus:outline-none`}
                     >
-                      <option value="">-- Global --</option>
+                      <option value="">-- Sin organismo --</option>
                       {dependencias.map(d => (
                         <option key={d.id} value={d.id}>{d.nombre}</option>
                       ))}
                     </select>
                   ) : (
                     <span className="text-xs text-slate-600 truncate block max-w-[200px]" title={u.currentDepName}>
-                      {(!u.currentDepId || u.currentDepId === '') ? '-- Global --' : u.currentDepName}
+                      {(!u.currentDepId || u.currentDepId === '') ? '-- Sin organismo --' : u.currentDepName}
                     </span>
                   )}
                 </td>
-                )}
                   </>
                 )}
               </tr>
