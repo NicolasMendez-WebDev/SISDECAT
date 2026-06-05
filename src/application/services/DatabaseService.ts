@@ -265,11 +265,22 @@ export const DatabaseService = {
         Denominacion: cargo.Denominacion || cargo.denominacion,
         Activo: cargo.Activo !== undefined ? cargo.Activo : true
       };
-      if (cargo.IdCargo && String(cargo.IdCargo).indexOf('-') === -1) {
-        payload.IdCargo = cargo.IdCargo;
+      
+      let res;
+      if (cargo.IdCargo && String(cargo.IdCargo).indexOf('-') === -1 && cargo.IdCargo > 0) {
+        // Update existing
+        res = await supabase.schema('Org').from('Cargos')
+          .update(payload)
+          .eq('IdCargo', cargo.IdCargo)
+          .select();
+      } else {
+        // Insert new
+        res = await supabase.schema('Org').from('Cargos')
+          .insert([payload])
+          .select();
       }
       
-      const { data, error } = await supabase.schema('Org').from('Cargos').upsert(payload, payload.IdCargo ? { onConflict: 'IdCargo' } : undefined).select();
+      const { data, error } = res;
       if (error) throw error;
       return data?.[0] || cargo;
     } catch (e: any) {
@@ -298,10 +309,20 @@ export const DatabaseService = {
         FactorMensual: factor.FactorMensual || factor.factorMensual || 1,
         EsSistema: factor.EsSistema !== undefined ? factor.EsSistema : false
       };
-      if (factor.IdFactor && String(factor.IdFactor).indexOf('-') === -1) {
-        payload.IdFactor = factor.IdFactor;
+      
+      let res;
+      if (factor.IdFactor && String(factor.IdFactor).indexOf('-') === -1 && factor.IdFactor > 0) {
+        res = await supabase.schema('Conf').from('FactoresFrecuencia')
+          .update(payload)
+          .eq('IdFactor', factor.IdFactor)
+          .select();
+      } else {
+        res = await supabase.schema('Conf').from('FactoresFrecuencia')
+          .insert([payload])
+          .select();
       }
-      const { data, error } = await supabase.schema('Conf').from('FactoresFrecuencia').upsert(payload, payload.IdFactor ? { onConflict: 'IdFactor' } : undefined).select();
+      
+      const { data, error } = res;
       if (error) throw error;
       return data?.[0] || factor;
     } catch (e: any) {

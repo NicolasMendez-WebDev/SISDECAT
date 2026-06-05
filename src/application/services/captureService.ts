@@ -228,13 +228,13 @@ export const captureService = {
     if (updates.frecuencia) {
         const targetFreq = updates.frecuencia;
         const targetVig = updates.vigenciaId || updates.IdVigencia;
-        const { data: dbFactores, error: efq } = await supabase.schema('Sys').from('FactoresFrecuencia').select('*').eq('IdVigencia', targetVig);
+        const { data: dbFactores, error: efq } = await supabase.schema('Conf').from('FactoresFrecuencia').select('*').eq('IdVigencia', targetVig);
         if (!efq && dbFactores && dbFactores.length > 0) {
             const factorMatch = dbFactores.find(f => f.Nombre.toLowerCase() === targetFreq.toLowerCase());
             if (factorMatch) {
               realIdFactor = factorMatch.IdFactor;
             } else {
-              const { data: insFact, error: eF } = await supabase.schema('Sys').from('FactoresFrecuencia')
+              const { data: insFact, error: eF } = await supabase.schema('Conf').from('FactoresFrecuencia')
                 .insert({
                   IdVigencia: targetVig,
                   Nombre: targetFreq,
@@ -272,7 +272,13 @@ export const captureService = {
       .select();
 
     if (error) throw error;
-    if (data && data.length > 0) return data[0];
+    if (data && data.length > 0) {
+       return {
+          ...updates,
+          id: data[0].IdCarga,
+          _dbRow: data[0]
+       };
+    }
     throw new Error("No se pudo actualizar la carga.");
   },
 
