@@ -2232,51 +2232,84 @@ export default function App() {
                   usuarios={usuarios}
                   vigenciasUsuarios={vigenciasUsuarios}
                   onUpdateVigenciaUsuario={async (vu) => {
+                    const isGlobalAdmin = vu.rol === "Administrador" || vu.rol === "AdminFuncional";
+                    let effectiveDepId = vu.idDependencia;
+                    
+                    if (isGlobalAdmin) {
+                      effectiveDepId = ''; 
+                    } else if (!effectiveDepId) {
+                      showToast(`El rol "${vu.rol}" requiere tener asignado un Organismo válido.`, "error");
+                      return; 
+                    }
+                    
+                    const safeVu = { ...vu, idDependencia: effectiveDepId };
+
                     const exists = vigenciasUsuarios.find(
-                      (x) => x.idUsuario === vu.idUsuario && String(x.idVigencia) === String(vu.idVigencia),
+                      (x) => x.idUsuario === safeVu.idUsuario && String(x.idVigencia) === String(safeVu.idVigencia),
                     );
                     
                     const optimisticallyUpdated = exists 
-                      ? vigenciasUsuarios.map(x => (x.idUsuario === vu.idUsuario && String(x.idVigencia) === String(vu.idVigencia)) ? vu : x)
-                      : [...vigenciasUsuarios, vu];
+                      ? vigenciasUsuarios.map(x => (x.idUsuario === safeVu.idUsuario && String(x.idVigencia) === String(safeVu.idVigencia)) ? safeVu : x)
+                      : [...vigenciasUsuarios, safeVu];
                       
                     setVigenciasUsuarios(optimisticallyUpdated);
 
                     try {
                       const { DatabaseService } = await import("./application/services/DatabaseService");
                       const result = await DatabaseService.saveUsuarioDependencia({
-                        IdUsuarioDep: exists ? exists.idVigenciaUsuario : vu.idVigenciaUsuario,
-                        IdVigencia: vu.idVigencia,
-                        EntraIdObjectId: vu.idUsuario,
-                        IdNodoOrg: vu.idDependencia,
-                        RolFuncional: vu.rol,
+                        IdUsuarioDep: exists ? exists.idVigenciaUsuario : safeVu.idVigenciaUsuario,
+                        IdVigencia: safeVu.idVigencia,
+                        EntraIdObjectId: safeVu.idUsuario,
+                        IdNodoOrg: safeVu.idDependencia,
+                        RolFuncional: safeVu.rol,
                         Activo: true,
-                        UPN: usuarios.find(u => u.id === vu.idUsuario)?.email
+                        UPN: usuarios.find(u => u.id === safeVu.idUsuario)?.email
                       });
                       
                       // Refresh front-end with the actual IDs from the DB
                       if (result && result.IdUsuarioDep) {
                         setVigenciasUsuarios(prev => prev.map(x => 
-                           (x.idUsuario === vu.idUsuario && String(x.idVigencia) === String(vu.idVigencia))
-                           ? { ...vu, idVigenciaUsuario: result.IdUsuarioDep }
+                           (x.idUsuario === safeVu.idUsuario && String(x.idVigencia) === String(safeVu.idVigencia))
+                           ? { ...safeVu, idVigenciaUsuario: result.IdUsuarioDep }
                            : x
                         ));
                       }
                       
                       showToast("Asignación de usuario guardada", "success");
-                    } catch (e) {
-                      showToast("Error de red al guardar asignación", "error");
+                    } catch (e: any) {
+                      const isCheck = e?.message?.includes("violate");
+                      if (isCheck) {
+                         showToast("Combinación inválida de rol y organismo según las reglas del sistema.", "error");
+                      } else {
+                         showToast("Error de red al guardar asignación", "error");
+                      }
                     }
                   }}
                   onUpdateUsuario={async (user) => {
+                    const safeRol = user.rol || "Funcionario";
+                    const isGlobalAdmin = safeRol === "Administrador" || safeRol === "AdminFuncional";
+                    
+                    // PREVENT db check constraint failures:
+                    // 1. Funcionario/Analista MUST have an organism selected
+                    // 2. Administrador/AdminFuncional MUST NOT have an organism
+                    let effectiveDepId = user.dependenciaId;
+                    
+                    if (isGlobalAdmin) {
+                      effectiveDepId = ''; // force null basically
+                    } else {
+                      if (!effectiveDepId) {
+                        showToast(`El rol "${safeRol}" requiere tener asignado un Organismo válido. Por favor asigne uno y vuelva a intentar.`, "error");
+                        return; // exit early without saving!
+                      }
+                    }
+
                     // Update state optimistically
                     setUsuarios(
-                      usuarios.map((u) => (u.id === user.id ? user : u))
+                      usuarios.map((u) => (u.id === user.id ? { ...user, dependenciaId: effectiveDepId } : u))
                     );
 
                     // Sync global role to all of their vigencias
                     const userRelations = vigenciasUsuarios.filter(vu => vu.idUsuario === user.id);
-                    const safeRol = user.rol || "Funcionario";
                     try {
                       const { DatabaseService } = await import("./application/services/DatabaseService");
                       if (userRelations.length > 0) {
@@ -2285,19 +2318,19 @@ export default function App() {
                               IdUsuarioDep: vu.idVigenciaUsuario,
                               IdVigencia: vu.idVigencia,
                               EntraIdObjectId: vu.idUsuario,
-                              IdNodoOrg: user.dependenciaId !== undefined ? user.dependenciaId : vu.idDependencia,
+                              IdNodoOrg: effectiveDepId !== undefined ? effectiveDepId : vu.idDependencia,
                               RolFuncional: safeRol, // The new global role
                               Activo: true,
                               UPN: user.email
                             })
                          ));
-                         setVigenciasUsuarios(prev => prev.map(vu => vu.idUsuario === user.id ? { ...vu, rol: safeRol, idDependencia: user.dependenciaId !== undefined ? user.dependenciaId : vu.idDependencia } : vu));
+                         setVigenciasUsuarios(prev => prev.map(vu => vu.idUsuario === user.id ? { ...vu, rol: safeRol, idDependencia: effectiveDepId !== undefined ? effectiveDepId : vu.idDependencia } : vu));
                       } else if (currentVigenciaView) {
                          // No relations, but we need to save the role to DB. We insert a dummy record in the active vigencia with no dependency.
                          const newRel = await DatabaseService.saveUsuarioDependencia({
                            IdVigencia: currentVigenciaView.IdVigencia,
                            EntraIdObjectId: user.id,
-                           IdNodoOrg: user.dependenciaId || null,
+                           IdNodoOrg: effectiveDepId || null,
                            RolFuncional: safeRol,
                            Activo: true,
                            UPN: user.email
@@ -2308,32 +2341,45 @@ export default function App() {
                              idVigenciaUsuario: newRel.IdUsuarioDep,
                              idVigencia: currentVigenciaView.IdVigencia,
                              idUsuario: user.id,
-                             idDependencia: user.dependenciaId || null,
+                             idDependencia: effectiveDepId || null,
                              rol: safeRol
                            }]);
                          }
                       } else {
                          // Cannot persist role if no vigencia exists and no fallback schema exists.
-                         showToast("No se puede persistir el rol sin una vigencia en el sistema", "error");
+                         showToast("No se puede persistir el rol sin una vigencia activa", "error");
                          return;
                       }
-                      showToast("Rol global del usuario actualizado", "success");
+                      showToast("Usuario actualizado en la plataforma", "success");
                     } catch (e) {
                       console.error("Failed to sync global role", e);
-                      showToast("Error parcial al actualizar en servidor", "error");
+                      showToast("Error al guardar cambios de rol o dependencia", "error");
+                      // Optionally, trigger a refresh here if we wanted to revert optimistic UI
                     }
                   }}
                   onAddUsuario={async (user) => {
+                    const safeRol = user.rol || "Funcionario";
+                    const isGlobalAdmin = safeRol === "Administrador" || safeRol === "AdminFuncional";
+                    let effectiveDepId = user.dependenciaId;
+                    
+                    if (isGlobalAdmin) {
+                      effectiveDepId = ''; 
+                    } else if (!effectiveDepId) {
+                      showToast(`El rol "${safeRol}" requiere tener asignado un Organismo válido.`, "error");
+                      return; 
+                    }
+
                     if (!usuarios.some((u) => u.email.toLowerCase() === user.email.toLowerCase())) {
-                       setUsuarios([user, ...usuarios]);
+                       const userToAdd = { ...user, dependenciaId: effectiveDepId, rol: safeRol };
+                       setUsuarios([userToAdd, ...usuarios]);
                        try {
                          const { DatabaseService } = await import("./application/services/DatabaseService");
                          if (currentVigenciaView) {
                              const newRel = await DatabaseService.saveUsuarioDependencia({
                                IdVigencia: currentVigenciaView.IdVigencia,
                                EntraIdObjectId: user.id,
-                               IdNodoOrg: user.dependenciaId || null,
-                               RolFuncional: user.rol || "Funcionario",
+                               IdNodoOrg: effectiveDepId || null,
+                               RolFuncional: safeRol,
                                Activo: true,
                                UPN: user.email
                              });
@@ -2343,17 +2389,22 @@ export default function App() {
                                  idVigenciaUsuario: newRel.IdUsuarioDep,
                                  idVigencia: currentVigenciaView.IdVigencia,
                                  idUsuario: user.id,
-                                 idDependencia: null,
-                                 rol: user.rol
+                                 idDependencia: effectiveDepId || null,
+                                 rol: safeRol
                                }]);
                              }
                          }
-                         showToast("Usuario creado", "success");
-                       } catch (e) {
-                         showToast("Usuario creado, pero hubo un error al persistirlo", "warning");
+                         showToast("Usuario creado en el sistema", "success");
+                       } catch (e: any) {
+                         const isCheck = e?.message?.includes("violate");
+                         if (isCheck) {
+                           showToast("El usuario fue creado, pero la combinación de rol y organismo es inválida según reglas del sistema.", "error");     
+                         } else {
+                           showToast("Usuario creado, pero hubo un error de red al persistirlo.", "warning");
+                         }
                        }
                     } else {
-                       showToast("El usuario ya existe en otra fuente", "error");
+                       showToast("El usuario ya existe en otra fuente o en el sistema", "error");
                     }
                   }}
                   onRestoreMockData={async () => {

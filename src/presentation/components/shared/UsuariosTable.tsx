@@ -228,11 +228,12 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                       value={u.currentRol}
                       onChange={(e) => {
                         const newRol = e.target.value as any;
+                        const needsClearDep = newRol === 'Administrador' || newRol === 'AdminFuncional';
                         if (selectedVigenciaId && u.vu && onUpdateVigenciaUsuario) {
-                          onUpdateVigenciaUsuario({ ...u.vu, rol: newRol });
+                          onUpdateVigenciaUsuario({ ...u.vu, rol: newRol, idDependencia: needsClearDep ? '' : u.vu.idDependencia });
                         } else if (!selectedVigenciaId && onUpdateGlobalUsuario) {
                           // Updating the global role of the user (all their vigencias)
-                          onUpdateGlobalUsuario({ ...u, rol: newRol, currentRol: newRol } as UserType);
+                          onUpdateGlobalUsuario({ ...u, rol: newRol, currentRol: newRol, dependenciaId: needsClearDep ? '' : u.currentDepId } as UserType);
                         }
                       }}
                       className="w-full min-w-[150px] bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs font-medium text-slate-700 hover:border-institutional-blue transition-colors focus:outline-none"
@@ -255,6 +256,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                   {editMode ? (
                     <select
                       value={u.currentDepId}
+                      disabled={u.currentRol === 'Administrador' || u.currentRol === 'AdminFuncional'}
                       onChange={(e) => {
                          const newDep = e.target.value;
                          if (selectedVigenciaId && u.vu && onUpdateVigenciaUsuario) {
@@ -263,7 +265,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                            onUpdateGlobalUsuario({ ...u, rol: u.currentRol, dependenciaId: newDep } as UserType);
                          }
                       }}
-                      className={`w-full min-w-[150px] bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs font-medium text-slate-700 hover:border-institutional-blue transition-colors focus:outline-none`}
+                      className={`w-full min-w-[150px] bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs font-medium ${u.currentRol === 'Administrador' || u.currentRol === 'AdminFuncional' ? 'text-slate-400 bg-slate-50 cursor-not-allowed cursor-not-allowed opacity-60' : 'text-slate-700 hover:border-institutional-blue transition-colors focus:outline-none'}`}
                     >
                       <option value="">-- Sin organismo --</option>
                       {organismos.map(d => (
