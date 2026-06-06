@@ -7,7 +7,7 @@ import {
   procedimientos,
   actividades,
 } from "./data/mockData";
-import { Module, User } from "./domain/models/types";
+import { Module, User, VigenciaUsuario } from "./domain/models/types";
 import { Sidebar } from "./presentation/components/Layout/Sidebar";
 import { Header } from "./presentation/components/Layout/Header";
 import { ReportesModule } from "./presentation/pages/ReportesModule";
@@ -2237,9 +2237,6 @@ export default function App() {
                     
                     if (isGlobalAdmin) {
                       effectiveDepId = ''; 
-                    } else if (!effectiveDepId) {
-                      showToast(`El rol "${vu.rol}" requiere tener asignado un Organismo válido.`, "error");
-                      return; 
                     }
                     
                     const safeVu = { ...vu, idDependencia: effectiveDepId };
@@ -2289,18 +2286,10 @@ export default function App() {
                     const safeRol = user.rol || "Funcionario";
                     const isGlobalAdmin = safeRol === "Administrador" || safeRol === "AdminFuncional";
                     
-                    // PREVENT db check constraint failures:
-                    // 1. Funcionario/Analista MUST have an organism selected
-                    // 2. Administrador/AdminFuncional MUST NOT have an organism
                     let effectiveDepId = user.dependenciaId;
                     
                     if (isGlobalAdmin) {
                       effectiveDepId = ''; // force null basically
-                    } else {
-                      if (!effectiveDepId) {
-                        showToast(`El rol "${safeRol}" requiere tener asignado un Organismo válido. Por favor asigne uno y vuelva a intentar.`, "error");
-                        return; // exit early without saving!
-                      }
                     }
 
                     // Update state optimistically
@@ -2364,9 +2353,6 @@ export default function App() {
                     
                     if (isGlobalAdmin) {
                       effectiveDepId = ''; 
-                    } else if (!effectiveDepId) {
-                      showToast(`El rol "${safeRol}" requiere tener asignado un Organismo válido.`, "error");
-                      return; 
                     }
 
                     if (!usuarios.some((u) => u.email.toLowerCase() === user.email.toLowerCase())) {
@@ -2400,7 +2386,7 @@ export default function App() {
                          if (isCheck) {
                            showToast("El usuario fue creado, pero la combinación de rol y organismo es inválida según reglas del sistema.", "error");     
                          } else {
-                           showToast("Usuario creado, pero hubo un error de red al persistirlo.", "warning");
+                           showToast("Usuario creado, pero hubo un error de red al persistirlo.", "error");
                          }
                        }
                     } else {
