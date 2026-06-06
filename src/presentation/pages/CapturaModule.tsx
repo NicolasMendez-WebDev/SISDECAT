@@ -67,8 +67,8 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
   isLoadingRecords
 }) => {
   const initialFormState = {
-    organismoId: "",
-    dependenciaId: "",
+    organismoId: currentUser?.organismoId || "",
+    dependenciaId: currentUser?.dependenciaId || "",
     procesoId: "",
     procedimientoId: "",
     actividadId: "",
@@ -83,6 +83,15 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
   };
 
   const [formData, setFormData] = useState(initialFormState);
+  
+  // Enforce defaults on reset
+  const resetForm = () => {
+    setFormData({
+      ...initialFormState,
+      organismoId: currentUser?.organismoId || "",
+      dependenciaId: currentUser?.dependenciaId || ""
+    });
+  };
   const [showSuccess, setShowSuccess] = useState(false);
   const [selectedRecordDetails, setSelectedRecordDetails] = useState<
     any | null
@@ -95,6 +104,7 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
     setFormData({
       ...initialFormState,
       organismoId: id,
+      dependenciaId: "",
     });
   };
 
@@ -454,6 +464,7 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
           filteredProcesos={filteredProcesos}
           filteredProcedimientos={filteredProcedimientos}
           filteredActividades={filteredActividades}
+          isFuncionario={currentUser?.rol === 'Funcionario'}
         />
 
         <div className={`grid grid-cols-1 gap-6 ${currentUser.rol !== 'Funcionario' ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>

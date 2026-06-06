@@ -134,6 +134,7 @@ export interface User {
   email: string;
   // Estos campos se mantienen temporalmente por compatibilidad con UI
   rol?: UserRole;
+  organismoId?: string;
   dependenciaId?: string;
 }
 
@@ -141,6 +142,7 @@ export interface VigenciaUsuario {
   idVigenciaUsuario: string;
   idVigencia: string;
   idUsuario: string;
+  idOrganismo?: string;
   idDependencia?: string; // Si el usuario está restringido a capturar/ver una dependencia
   rol: UserRole;
 }

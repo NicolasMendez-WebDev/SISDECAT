@@ -20,6 +20,7 @@ interface HierarchySelectionProps {
   filteredProcesos: Proceso[];
   filteredProcedimientos: Procedimiento[];
   filteredActividades: Actividad[];
+  isFuncionario?: boolean;
 }
 
 export const HierarchySelection: React.FC<HierarchySelectionProps> = ({
@@ -34,6 +35,7 @@ export const HierarchySelection: React.FC<HierarchySelectionProps> = ({
   filteredProcesos,
   filteredProcedimientos,
   filteredActividades,
+  isFuncionario,
 }) => {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -58,9 +60,10 @@ export const HierarchySelection: React.FC<HierarchySelectionProps> = ({
             Organismo
           </label>
           <select
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue outline-none transition-all"
+            className={`w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue outline-none transition-all ${isFuncionario ? "opacity-75 cursor-not-allowed bg-slate-50" : ""}`}
             value={formData.organismoId}
             onChange={(e) => handleOrganismoChange(e.target.value)}
+            disabled={isFuncionario}
           >
             <option value="">Seleccione Organismo</option>
             {organismos.map((org) => (
@@ -75,10 +78,10 @@ export const HierarchySelection: React.FC<HierarchySelectionProps> = ({
             Dependencia
           </label>
           <select
-            className={`w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue outline-none transition-all ${!formData.organismoId ? "opacity-50 cursor-not-allowed bg-slate-50" : ""}`}
+            className={`w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue outline-none transition-all ${!formData.organismoId || isFuncionario ? "opacity-75 cursor-not-allowed bg-slate-50" : ""}`}
             value={formData.dependenciaId}
             onChange={(e) => handleDependenciaChange(e.target.value)}
-            disabled={!formData.organismoId}
+            disabled={!formData.organismoId || isFuncionario}
           >
             <option value="">Seleccione Dependencia</option>
             {filteredDependencias.map((dep) => (

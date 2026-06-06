@@ -21,6 +21,7 @@ import { ConfiguracionModule } from "./presentation/pages/ConfiguracionModule";
 import { CheckCircle2, AlertCircle, X } from "lucide-react";
 import { ConfirmModal } from "./presentation/components/ConfirmModal";
 
+import { SelectOrganismoModal } from "./presentation/components/Layout/SelectOrganismoModal";
 import { Login } from "./presentation/pages/LoginModule";
 
 export default function App() {
@@ -470,11 +471,15 @@ export default function App() {
 
   const currentVigenciaId = currentVigenciaView?.IdVigencia;
 
-  // Filter lists based on the currently viewed Vigencia
-  const currentOrgData = orgData.filter(
+  const currentUserVigenciaContext = vigenciasUsuarios.find(
+    (vu) =>
+      vu.idUsuario === currentUser?.id && String(vu.idVigencia) === String(currentVigenciaId),
+  );
+
+  let currentOrgData = orgData.filter(
     (x) => x.vigenciaId === currentVigenciaId && x.activo !== false,
   );
-  const currentDepData = depData.filter(
+  let currentDepData = depData.filter(
     (x) => x.vigenciaId === currentVigenciaId && x.activo !== false,
   );
   const currentProcData = procData.filter(
@@ -486,6 +491,7 @@ export default function App() {
   const currentActData = actData.filter(
     (x) => x.vigenciaId === currentVigenciaId && x.activo !== false,
   );
+
   // Default legacy mock cargas to the current vigencia if they don't have one
   const currentCargas = cargasTrabajo
     .map((c) => {
@@ -583,20 +589,48 @@ export default function App() {
     return Array.from(computedMap.values());
   }, [currentRelaciones, currentPcdData, currentProcData, currentActData]);
 
-  // Calculate specific user role for current vigencia
-  const currentUserVigenciaContext = vigenciasUsuarios.find(
-    (vu) =>
-      vu.idUsuario === currentUser?.id && String(vu.idVigencia) === String(currentVigenciaId),
-  );
+  const rawDependenciaId = currentUserVigenciaContext?.idDependencia || currentUser?.dependenciaId;
+  let computedOrganismoId = currentUser?.organismoId || currentUserVigenciaContext?.idOrganismo;
+  
+  if (rawDependenciaId && !computedOrganismoId) {
+    // Traverse relations to find the Organismo ancestor
+    let currTarget = rawDependenciaId;
+    let fallbackLevels = 10;
+    while(fallbackLevels > 0) {
+       const directParentDep = currentDepData.find(d => d.id === currTarget);
+       if (directParentDep && directParentDep.parentId) {
+         currTarget = directParentDep.parentId;
+       } else {
+         const rel = uiRelaciones.find(r => r.childId === currTarget && (r.type === 'Dependencia' || r.type === 'Organismo-Dependencia'));
+         if (rel) {
+            currTarget = rel.parentId;
+         } else {
+            if (currentOrgData.some(o => o.id === currTarget)) {
+               computedOrganismoId = currTarget;
+            }
+            break;  
+         }
+       }
+       if (currentOrgData.some(o => o.id === currTarget)) {
+          computedOrganismoId = currTarget;
+          break;
+       }
+       fallbackLevels--;
+    }
+  }
+
   const effectiveUser = currentUser
     ? {
         ...currentUser,
         rol: usuarios.find(u => u.email.toLowerCase() === currentUser.email.toLowerCase())?.rol || currentUser.rol,
-        dependenciaId:
-          currentUserVigenciaContext?.idDependencia ||
-          currentUser.dependenciaId,
+        dependenciaId: rawDependenciaId,
+        organismoId: computedOrganismoId
       }
     : null;
+
+  if (effectiveUser?.rol === "Funcionario" && effectiveUser.organismoId) {
+    currentOrgData = currentOrgData.filter(o => o.id === effectiveUser.organismoId);
+  }
 
   const availableVigencias = (
     currentUser?.rol === "Funcionario"
@@ -605,6 +639,45 @@ export default function App() {
         )
       : vigencias
   ).filter((v) => v.Activo !== false);
+
+  const mustSelectOrganismo = !!(
+    effectiveUser &&
+    effectiveUser.rol === "Funcionario" &&
+    currentVigenciaView?.Estado === "Activo" &&
+    currentUserVigenciaContext &&
+    !currentUserVigenciaContext.idDependencia
+  );
+
+  const handleSelectOrganismo = async (orgId: string, depId: string) => {
+    if (!currentUser || !currentVigenciaView || !currentUserVigenciaContext) return;
+    
+    // Optimistic Update
+    setVigenciasUsuarios(prev => prev.map(vu => 
+       vu.idVigenciaUsuario === currentUserVigenciaContext.idVigenciaUsuario
+       ? { ...vu, idOrganismo: orgId, idDependencia: depId } 
+       : vu
+    ));
+    setUsuarios(prev => prev.map(u => 
+       u.id === currentUser.id ? { ...u, organismoId: orgId, dependenciaId: depId } : u
+    ));
+    
+    // DB Update
+    try {
+        const { DatabaseService } = await import("./application/services/DatabaseService");
+        await DatabaseService.saveUsuarioDependencia({
+            IdUsuarioDep: currentUserVigenciaContext.idVigenciaUsuario,
+            IdVigencia: currentVigenciaView.IdVigencia,
+            EntraIdObjectId: currentUser.id,
+            IdNodoOrg: depId,
+            RolFuncional: "Funcionario",
+            Activo: true,
+            UPN: currentUser.email
+        });
+        showToast("Organismo y dependencia asignados correctamente", "success");
+    } catch(e) {
+        showToast("Error guardando dependencia", "error");
+    }
+  };
 
   const handleCreateVigencia = async (
     v: any,
@@ -2021,6 +2094,14 @@ export default function App() {
         type={confirmConfig.type}
         onConfirm={confirmConfig.onConfirm}
         onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+      />
+
+      <SelectOrganismoModal
+        isOpen={mustSelectOrganismo}
+        onSave={handleSelectOrganismo}
+        organismos={currentOrgData}
+        dependencias={currentDepData}
+        relaciones={uiRelaciones}
       />
 
       <Sidebar
