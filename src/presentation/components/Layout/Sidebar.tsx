@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Module, User as UserType } from "../../../domain/models/types";
-import logoImg from '../../../assets/images/regenerated_image_1779288798044.png';
+import { Logo } from "../shared/Logo";
 
 interface SidebarProps {
   currentUser: UserType;
@@ -57,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div
           className={`flex items-center gap-3 overflow-hidden transition-opacity duration-200 ${isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100"}`}
         >
-          <img src={logoImg} alt="SISDECAT" className="w-[45px] h-[45px] object-contain shrink-0" />
+          <Logo className="w-10 h-10" />
           <span className="font-bold text-[#2cbb47] truncate text-xl whitespace-nowrap">
             SISDECAT
           </span>

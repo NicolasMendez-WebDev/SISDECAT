@@ -82,8 +82,8 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [], onViewElemen
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-40">
       <div className="flex items-center gap-4">
         <div className="hidden md:flex items-center gap-2 text-sm text-slate-500">
-          <img src={logoImg} alt="SISDECAT" className="w-10 h-10 object-contain shrink-0" />
-          <ChevronRight size={18} className="text-[#2cbb47]" />
+          <img src={logoImg} alt="SISDECAT" className="w-[114px] h-[66px] object-contain shrink-0" />
+          <ChevronRight size={18} className="text-[#777777]" />
           <span className="font-semibold text-[#2cbb47] text-[15px]">Sistema digital para la medición de cargas de trabajo.</span>
         </div>
       </div>
