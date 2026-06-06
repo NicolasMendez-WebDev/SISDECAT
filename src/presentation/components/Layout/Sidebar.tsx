@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Module, User as UserType } from "../../../domain/models/types";
+import { Logo } from "../shared/Logo";
 
 interface SidebarProps {
   currentUser: UserType;
@@ -56,10 +57,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div
           className={`flex items-center gap-3 overflow-hidden transition-opacity duration-200 ${isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100"}`}
         >
-          <div className="w-8 h-8 bg-institutional-blue rounded-lg flex items-center justify-center text-white font-bold shrink-0">
-            S
-          </div>
-          <span className="font-bold text-slate-700 truncate text-xs whitespace-nowrap">
+          <Logo className="w-10 h-10" />
+          <span className="font-bold text-[#2cbb47] truncate text-xl whitespace-nowrap">
             SISDECAT
           </span>
         </div>

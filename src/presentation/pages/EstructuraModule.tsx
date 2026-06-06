@@ -536,11 +536,22 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
           hasChildren = tempHasChildren;
         }
 
+        const getCodigoById = (id: string | null) => {
+          if (!id) return 'N/A';
+          return organismos.find(o => o.id === id)?.codigo ||
+                 dependencias.find(d => d.id === id)?.codigo ||
+                 procesos.find(p => p.id === id)?.codigo ||
+                 procedimientos.find(pcd => pcd.id === id)?.codigo ||
+                 actividades.find(a => a.id === id)?.codigo || id;
+        };
+
         rows.push({
           id: child.id,
+          codigo: child.codigo || child.id,
           nombre: child.nombre,
           type: child.type,
           parentId: parentId || 'N/A',
+          parentCodigo: getCodigoById(parentId),
           level,
           hasChildren,
           numElements,
@@ -834,10 +845,10 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               <table className="w-full text-left text-sm border-collapse min-w-[600px]">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
-                  <th className="px-4 py-3 border-r border-slate-200 w-24">ID</th>
+                  <th className="px-4 py-3 border-r border-slate-200 min-w-[200px]">ID</th>
                   <th className="px-4 py-3 border-r border-slate-200">Nombre / Jerarquía</th>
                   <th className="px-4 py-3 border-r border-slate-200 w-32">Tipo</th>
-                  <th className="px-4 py-3 border-r border-slate-200 w-24">ID Padre</th>
+                  <th className="px-4 py-3 border-r border-slate-200 min-w-[200px]">ID Padre</th>
                   <th className="px-4 py-3 w-fit whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
@@ -864,7 +875,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                       className={`hover:bg-institutional-blue/5 cursor-pointer transition-colors border-b border-slate-100 overflow-hidden ${selectedNode?.path === row.path ? 'bg-institutional-blue/5' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'} ${row.estado === 'Inactivo' ? 'opacity-60 bg-slate-50' : ''}`}
                       data-no-deselect="true"
                     >
-                      <td className="px-4 py-3 font-mono text-[10px] text-slate-500 border-r border-slate-100 w-24 max-w-[6rem] truncate" title={row.id}>{row.id}</td>
+                      <td className="px-4 py-3 font-mono text-[10px] text-slate-500 border-r border-slate-100 min-w-[200px] break-all" title={row.id}>{row.codigo}</td>
                       <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
                         <div className="flex items-center gap-2" style={{ paddingLeft: `${row.level * 20}px` }}>
                           {row.hasChildren ? (
@@ -911,7 +922,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                           {row.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-mono text-[10px] text-slate-400 border-r border-slate-100">{row.parentId}</td>
+                      <td className="px-4 py-3 font-mono text-[10px] text-slate-400 border-r border-slate-100 min-w-[200px] break-all" title={row.parentId}>{row.parentCodigo}</td>
                       <td className="px-4 py-3 w-fit whitespace-nowrap">
                         <div className="flex items-center gap-1 justify-end w-fit">
                           {!isReadOnly && vigenciaActiva && (
@@ -1087,7 +1098,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                       <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Información General</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <p className="text-[10px] text-slate-400 uppercase">ID Interno</p>
+                          <p className="text-[10px] text-slate-400 uppercase">ID Generado (Id largo)</p>
                           <p className="text-sm font-medium">{details.id}</p>
                         </div>
                         <div className="space-y-1">
