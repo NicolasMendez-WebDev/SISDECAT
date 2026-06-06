@@ -174,6 +174,9 @@ export default function App() {
                 rol: session.user.user_metadata?.rol || "Funcionario",
               };
               setCurrentUser(sessionUser);
+              if (sessionUser.rol === "Funcionario") {
+                setActiveModule("inicio");
+              }
             }
           }
 
@@ -365,6 +368,9 @@ export default function App() {
             if (mockSession) {
               const parsed = JSON.parse(mockSession);
               setCurrentUser(parsed);
+              if (parsed.rol === "Funcionario") {
+                setActiveModule("inicio");
+              }
               if (!uniqueUsers.find((x) => x.id === parsed.id)) {
                 uniqueUsers.push(parsed);
               }
