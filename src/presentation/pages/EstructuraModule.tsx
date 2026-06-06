@@ -590,6 +590,12 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
 
   const currentRecursiveTargetCount = selectedNode ? getRecursiveTargetCountFast(selectedNode.id, selectedNode.type) : 0;
 
+  const maxExpandedLevel = React.useMemo(() => {
+    return displayRows.length > 0 ? Math.max(...displayRows.map(r => r.level)) : 0;
+  }, [displayRows]);
+
+  const leftPanelWidth = `${50 + (Math.min(maxExpandedLevel, 4) / 4) * 10}%`;
+
   const handleOpenLinkModal = (directType?: string, directId?: string) => {
     const targetType = directType || selectedNode?.type;
     const targetId = directId || selectedNode?.id;
@@ -824,10 +830,13 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
       </div>
 
       <div 
-        className="flex-1 overflow-auto p-6 flex gap-6 relative"
+        className="flex-1 overflow-auto p-6 flex flex-col md:flex-row gap-6 relative"
         onClick={handleClearSelection}
       >
-        <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div 
+          className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col transition-all duration-300 shrink-0"
+          style={{ width: window.innerWidth > 768 ? leftPanelWidth : '100%' }}
+        >
           {!hasVigencia ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-slate-50/50">
               <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
@@ -968,7 +977,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                             </div>
                           )}
                           {/* Bóton Vincular en vista general */}
-                          {viewMode === 'general' && row.type === 'Dependencia' && (
+                          {viewMode === 'general' && row.type !== 'Organismo' && row.type !== 'Actividad' && (
                             <button 
                               onClick={(e) => { 
                                 e.stopPropagation(); 
@@ -976,7 +985,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                                 handleOpenLinkModal(row.type, row.id); 
                               }}
                               className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-all transition-all shrink-0"
-                              title="Vincular Procesos"
+                              title="Vincular Elemento"
                             >
                               <Link2 size={14} className="shrink-0" />
                             </button>
@@ -1004,8 +1013,8 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                               <Trash2 size={14} className="shrink-0" />
                             </button>
                           )}
-                          {/* Desvincular (Solo en vista General y NO para Organismos/Dependencias) */}
-                          {viewMode === 'general' && !['Organismo', 'Dependencia'].includes(row.type) && row.parentId !== 'N/A' && (
+                          {/* Desvincular (Solo en vista General y NO para Organismos) */}
+                          {viewMode === 'general' && row.type !== 'Organismo' && row.parentId !== 'N/A' && (
                             <button 
                               onClick={(e) => { 
                                 e.stopPropagation(); 
@@ -1057,7 +1066,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                       </button>
                       <button 
                         onClick={() => {
-                          if (viewMode === 'general' && selectedNode.parentId && selectedNode.parentId !== 'N/A' && ['Dependencia', 'Proceso', 'Procedimiento', 'Actividad'].includes(selectedNode.type)) {
+                          if (viewMode === 'general' && selectedNode.parentId && selectedNode.parentId !== 'N/A' && selectedNode.type !== 'Organismo') {
                             onUnlink(selectedNode.type, selectedNode.id, selectedNode.parentId, selectedNode.isLinked || false, selectedNode.path || '');
                             setSelectedNode(null);
                           } else {
@@ -1066,9 +1075,9 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                           }
                         }}
                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        title={viewMode === 'general' && selectedNode.parentId && selectedNode.parentId !== 'N/A' && ['Dependencia', 'Proceso', 'Procedimiento', 'Actividad'].includes(selectedNode.type) ? "Desvincular" : "Desactivar"}
+                        title={viewMode === 'general' && selectedNode.parentId && selectedNode.parentId !== 'N/A' && selectedNode.type !== 'Organismo' ? "Desvincular" : "Desactivar"}
                       >
-                        {viewMode === 'general' && selectedNode.parentId && selectedNode.parentId !== 'N/A' && ['Dependencia', 'Proceso', 'Procedimiento', 'Actividad'].includes(selectedNode.type) ? (
+                        {viewMode === 'general' && selectedNode.parentId && selectedNode.parentId !== 'N/A' && selectedNode.type !== 'Organismo' ? (
                           <Unlink size={18} />
                         ) : (
                           <Trash2 size={18} />
@@ -1087,9 +1096,9 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                 </div>
               </div>
               
-              <div className="flex-1 p-6 flex flex-col min-h-0">
-                <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0">
-                  <div className="flex flex-col space-y-6 min-h-0 flex-1">
+              <div className="flex-1 p-6 flex flex-col min-h-0 overflow-y-auto">
+                <div className="flex flex-col gap-8 min-h-0 w-full overflow-hidden">
+                  <div className="flex flex-col space-y-6 min-h-0 w-full overflow-hidden shrink-0">
                     <div className="space-y-4 shrink-0">
                       <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Información General</h4>
                       <div className="grid grid-cols-2 gap-4">
@@ -1320,7 +1329,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               </div>
             </motion.div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-center text-slate-400 p-8 lg:p-12 gap-8 lg:gap-16 h-full overflow-y-auto">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-slate-400 p-8 gap-8 h-full overflow-y-auto">
               <div className="flex flex-col items-center text-center max-w-md">
                 <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
                   {viewMode === 'general' ? (

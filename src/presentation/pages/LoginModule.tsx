@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { User as UserType } from "../../domain/models/types";
-import { Logo } from "../components/shared/Logo";
 import logoImg from "../../assets/images/regenerated_image_1779288798044.png";
 import { AuthService } from "../../application/services/AuthService";
 
@@ -436,7 +435,7 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
         <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 text-center text-xs text-slate-800 px-8 py-3">
           <div className="flex items-center gap-4">
             <div className="flex items-center text-institutional-blue">
-              <Logo className="w-24 h-24" />
+              <img src={logoImg} alt="SISDECAT" className="w-[100px] h-[100px] object-contain shrink-0" />
               <div className="flex flex-col ml-3 leading-none text-left tracking-tight">
                 <span className="text-xl font-bold">SISDECAT</span>
                 <span className="text-[10px] font-medium text-slate-500 mt-1 max-w-[130px]">
