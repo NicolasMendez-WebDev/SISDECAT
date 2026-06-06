@@ -84,6 +84,15 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
 
   const [formData, setFormData] = useState(initialFormState);
   
+  // Sync when currentUser receives its async updates
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      organismoId: currentUser?.organismoId || prev.organismoId,
+      dependenciaId: currentUser?.dependenciaId || prev.dependenciaId
+    }));
+  }, [currentUser?.organismoId, currentUser?.dependenciaId]);
+  
   // Enforce defaults on reset
   const resetForm = () => {
     setFormData({
@@ -118,18 +127,21 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
 
   // Recursive helper to find all descendant dependencias of an organism or dependencia
   const getAllDescendantDependencias = useCallback(
-    (parentId: string): string[] => {
+    (parentId: string, visited: Set<string> = new Set()): string[] => {
+      if (visited.has(parentId)) return [];
+      visited.add(parentId);
+      
       const direct = dependencias
         .filter((d) => d.parentId === parentId)
         .map((d) => d.id);
       const linked = relaciones
         .filter((r) => (r.type === "Dependencia" || r.type === "Organismo-Dependencia") && r.parentId === parentId)
         .map((r) => r.childId);
-      const combined = Array.from(new Set([...direct, ...linked]));
+      const combined = Array.from(new Set([...direct, ...linked])).filter(id => !visited.has(id));
 
       let all = [...combined];
       combined.forEach((id) => {
-        all = [...all, ...getAllDescendantDependencias(id)];
+        all = [...all, ...getAllDescendantDependencias(id, visited)];
       });
       return all;
     },

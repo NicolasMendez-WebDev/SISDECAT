@@ -25,18 +25,21 @@ export const SelectOrganismoModal: React.FC<SelectOrganismoModalProps> = ({
   );
 
   const getAllDescendantDependencias = React.useCallback(
-    (parentId: string): string[] => {
+    (parentId: string, visited: Set<string> = new Set()): string[] => {
+      if (visited.has(parentId)) return [];
+      visited.add(parentId);
+      
       const direct = dependencias
         .filter((d) => d.parentId === parentId)
         .map((d) => d.id);
       const linked = relaciones
         .filter((r) => (r.type === "Dependencia" || r.type === "Organismo-Dependencia") && r.parentId === parentId)
         .map((r) => r.childId);
-      const combined = Array.from(new Set([...direct, ...linked]));
+      const combined = Array.from(new Set([...direct, ...linked])).filter(id => !visited.has(id));
 
       let all = [...combined];
       combined.forEach((id) => {
-        all = [...all, ...getAllDescendantDependencias(id)];
+        all = [...all, ...getAllDescendantDependencias(id, visited)];
       });
       return all;
     },
