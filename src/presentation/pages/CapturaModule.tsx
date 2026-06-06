@@ -128,16 +128,17 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
   // Recursive helper to find all descendant dependencias of an organism or dependencia
   const getAllDescendantDependencias = useCallback(
     (parentId: string, visited: Set<string> = new Set()): string[] => {
-      if (visited.has(parentId)) return [];
-      visited.add(parentId);
+      const pIdLower = String(parentId).toLowerCase().trim();
+      if (visited.has(pIdLower)) return [];
+      visited.add(pIdLower);
       
       const direct = dependencias
-        .filter((d) => d.parentId === parentId)
+        .filter((d) => d.parentId && String(d.parentId).toLowerCase().trim() === pIdLower)
         .map((d) => d.id);
       const linked = relaciones
-        .filter((r) => (r.type === "Dependencia" || r.type === "Organismo-Dependencia") && r.parentId === parentId)
+        .filter((r) => (r.type === "Dependencia" || r.type === "Organismo-Dependencia") && String(r.parentId).toLowerCase().trim() === pIdLower)
         .map((r) => r.childId);
-      const combined = Array.from(new Set([...direct, ...linked])).filter(id => !visited.has(id));
+      const combined = Array.from(new Set([...direct, ...linked])).filter(id => !visited.has(String(id).toLowerCase().trim()));
 
       let all = [...combined];
       combined.forEach((id) => {
@@ -150,9 +151,9 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
 
   const filteredDependencias = useMemo(() => {
     const availableDependenciaIds = formData.organismoId
-      ? getAllDescendantDependencias(formData.organismoId)
+      ? getAllDescendantDependencias(formData.organismoId).map(id => String(id).toLowerCase().trim())
       : [];
-    return dependencias.filter((d) => availableDependenciaIds.includes(d.id));
+    return dependencias.filter((d) => availableDependenciaIds.includes(String(d.id).toLowerCase().trim()));
   }, [formData.organismoId, dependencias, getAllDescendantDependencias]);
 
   const filteredProcesos = useMemo(() => {

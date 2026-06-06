@@ -576,6 +576,13 @@ export default function App() {
         currentType = "Actividad";
       }
 
+      const dep = currentDepData.find(
+        (d) => String(d.id).toLowerCase().trim() === childIdStr,
+      );
+      if (dep) {
+        currentType = "Dependencia";
+      }
+
       const fallbackKey = `${parentIdStr}_${childIdStr}`;
       if (computedMap.has(fallbackKey)) {
         // Keep includedChildren for already-seeded items (when parent process already has an entry)
@@ -597,23 +604,24 @@ export default function App() {
     let currTarget = rawDependenciaId;
     let fallbackLevels = 10;
     while(fallbackLevels > 0) {
-       const directParentDep = currentDepData.find(d => d.id === currTarget);
+       const currLower = String(currTarget).toLowerCase().trim();
+       
+       const foundOrg = currentOrgData.find(o => String(o.id).toLowerCase().trim() === currLower);
+       if (foundOrg) {
+          computedOrganismoId = foundOrg.id;
+          break;
+       }
+
+       const directParentDep = currentDepData.find(d => String(d.id).toLowerCase().trim() === currLower);
        if (directParentDep && directParentDep.parentId) {
          currTarget = directParentDep.parentId;
        } else {
-         const rel = uiRelaciones.find(r => r.childId === currTarget && (r.type === 'Dependencia' || r.type === 'Organismo-Dependencia'));
+         const rel = uiRelaciones.find(r => String(r.childId).toLowerCase().trim() === currLower && (r.type === 'Dependencia' || r.type === 'Organismo-Dependencia'));
          if (rel) {
             currTarget = rel.parentId;
          } else {
-            if (currentOrgData.some(o => o.id === currTarget)) {
-               computedOrganismoId = currTarget;
-            }
             break;  
          }
-       }
-       if (currentOrgData.some(o => o.id === currTarget)) {
-          computedOrganismoId = currTarget;
-          break;
        }
        fallbackLevels--;
     }
