@@ -668,6 +668,7 @@ export default function App() {
     setUsuarios(prev => prev.map(u => 
        u.id === currentUser.id ? { ...u, organismoId: orgId, dependenciaId: depId } : u
     ));
+    setCurrentUser(prev => prev ? { ...prev, organismoId: orgId, dependenciaId: depId } : prev);
     
     // DB Update
     try {
@@ -2144,7 +2145,7 @@ export default function App() {
               {activeModule === "inicio" && <InicioModule />}
               {activeModule === "captura" && (
                 <CapturaModule
-                  currentUser={currentUser}
+                  currentUser={effectiveUser!}
                   organismos={currentOrgData}
                   dependencias={currentDepData}
                   procesos={currentProcData}
@@ -2164,8 +2165,8 @@ export default function App() {
                 <EstructuraModule
                   hasVigencia={!!currentVigenciaId}
                   isReadOnly={
-                    currentUser?.rol === "Funcionario" ||
-                    currentUser?.rol === "Analista"
+                    effectiveUser?.rol === "Funcionario" ||
+                    effectiveUser?.rol === "Analista"
                   }
                   organismos={currentOrgData}
                   dependencias={currentDepData}
@@ -2202,7 +2203,7 @@ export default function App() {
                   procedimientos={currentPcdData}
                   actividades={currentActData}
                   organismos={currentOrgData}
-                  currentUser={currentUser}
+                  currentUser={effectiveUser!}
                 />
               )}
               {activeModule === "reportes" && (
@@ -2213,7 +2214,7 @@ export default function App() {
                   procesos={currentProcData}
                   procedimientos={currentPcdData}
                   actividades={currentActData}
-                  currentUser={currentUser}
+                  currentUser={effectiveUser!}
                 />
               )}
               {activeModule === "admin" && (
