@@ -123,7 +123,7 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
         .filter((d) => d.parentId === parentId)
         .map((d) => d.id);
       const linked = relaciones
-        .filter((r) => r.type === "Dependencia" && r.parentId === parentId)
+        .filter((r) => (r.type === "Dependencia" || r.type === "Organismo-Dependencia") && r.parentId === parentId)
         .map((r) => r.childId);
       const combined = Array.from(new Set([...direct, ...linked]));
 
