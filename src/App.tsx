@@ -23,6 +23,7 @@ import { ConfirmModal } from "./presentation/components/ConfirmModal";
 
 import { SelectOrganismoModal } from "./presentation/components/Layout/SelectOrganismoModal";
 import { Login } from "./presentation/pages/LoginModule";
+import { ResetPasswordModule } from "./presentation/pages/ResetPasswordModule";
 
 export default function App() {
   const devUser: User = {
@@ -33,6 +34,7 @@ export default function App() {
     dependenciaId: "D1",
   };
   const [currentUser, setCurrentUser] = useState<User | null>(null); // Enable login mode
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
   const [activeModule, setActiveModule] = useState<Module>("dashboard");
   const [focusElement, setFocusElement] = useState<
     | { id: string; parentId?: string; action?: string; multipleIds?: string[] }
@@ -151,6 +153,29 @@ export default function App() {
   const [selectedVigenciaId, setSelectedVigenciaId] = useState<string | null>(
     null,
   );
+
+  React.useEffect(() => {
+    // Check if hash has password recovery
+    if (window.location.hash && window.location.hash.includes("type=recovery")) {
+      setIsRecoveringPassword(true);
+    } else if (window.location.hash && window.location.hash.includes("error=access_denied")) {
+      // Parse the error message
+      const params = new URLSearchParams(window.location.hash.replace('#', '?'));
+      const errorDesc = params.get('error_description')?.replace(/\+/g, ' ');
+      alert(`Error de Autenticación: ${errorDesc || 'El enlace es inválido o ha expirado.'}`);
+      window.location.hash = "";
+    }
+    
+    import("./lib/supabaseClient").then(({ supabase }) => {
+      if (supabase) {
+        supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            setIsRecoveringPassword(true);
+          }
+        });
+      }
+    });
+  }, []);
 
   React.useEffect(() => {
     const initializeData = async () => {
@@ -2060,6 +2085,22 @@ export default function App() {
           Sincronizando información del sistema...
         </p>
       </div>
+    );
+  }
+
+  if (isRecoveringPassword) {
+    return (
+      <ResetPasswordModule
+        onPasswordReset={() => {
+          setIsRecoveringPassword(false);
+          window.location.hash = "";
+        }}
+        onCancel={() => {
+          setIsRecoveringPassword(false);
+          window.location.hash = "";
+          handleLogout();
+        }}
+      />
     );
   }
 

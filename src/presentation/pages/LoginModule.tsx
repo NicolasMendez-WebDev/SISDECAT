@@ -86,8 +86,16 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
       return;
     }
 
+    // Verificar si el usuario existe antes de intentar recuperar
+    const emailToCheck = forgotEmail.trim().toLowerCase();
+    if (!usuarios.some((u) => u.email.toLowerCase() === emailToCheck)) {
+      setIsLoading(false);
+      setError("El correo ingresado no se encuentra registrado en el sistema. Verifique su cuenta o solicite ayuda al administrador.");
+      return;
+    }
+
     try {
-      await AuthService.resetPassword(forgotEmail);
+      await AuthService.resetPassword(emailToCheck);
       setSuccessMessage(
         "Se han enviado las instrucciones de recuperación a su correo electrónico.",
       );
