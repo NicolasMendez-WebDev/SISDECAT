@@ -75,7 +75,7 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
     }
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
@@ -86,8 +86,8 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
       return;
     }
 
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await AuthService.resetPassword(forgotEmail);
       setSuccessMessage(
         "Se han enviado las instrucciones de recuperación a su correo electrónico.",
       );
@@ -96,7 +96,11 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
         setSuccessMessage(null);
         setForgotEmail("");
       }, 4000);
-    }, 1500);
+    } catch (err: any) {
+      setError(err.message || "Error al solicitar recuperación");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

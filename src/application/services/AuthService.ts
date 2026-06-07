@@ -94,7 +94,7 @@ export const AuthService = {
         email,
         password
       });
-      if (error) throw new Error("Credenciales incorrectas (Supabase)");
+      if (error) throw new Error("Credenciales incorrectas. Por favor, verifique su usuario o contraseña.");
       if (!data.user) throw new Error("Error al consultar el usuario");
       
       return {
@@ -109,7 +109,7 @@ export const AuthService = {
       const match = users.find(u => u.email === email && atob(u.passwordHash) === password);
       
       if (!match) {
-        throw new Error("Usuario o contraseña incorrectos. Por favor, regístrese.");
+        throw new Error("Credenciales incorrectas. Por favor, verifique su usuario o contraseña.");
       }
       
       return {
@@ -136,6 +136,25 @@ export const AuthService = {
        users[userIdx].passwordHash = btoa(newPassword);
        saveLocalUsers(users);
        return true;
+    }
+  },
+
+  async resetPassword(email: string): Promise<boolean> {
+    if (supabase) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin, // You can customize the URL where the user is redirected
+      });
+      if (error) {
+        throw new Error("No se pudo enviar el correo de recuperación. Verifique la dirección.");
+      }
+      return true;
+    } else {
+      // Local mock: just verify if the user exists
+      const users = getLocalUsers();
+      if (!users.find(u => u.email === email)) {
+        throw new Error("El correo no se encuentra registrado.");
+      }
+      return true;
     }
   }
 };
