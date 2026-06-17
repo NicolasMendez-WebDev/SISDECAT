@@ -294,52 +294,16 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
   }, [filters.organismo, getDescendantDeps]);
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      {/* Top action bar: Active Vigencia Context */}
-      <div className="p-3 border-b border-slate-100 bg-slate-50 flex flex-row items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-1.5 bg-institutional-blue rounded-full" />
-          <span className="text-xs font-bold text-slate-700">Directorio General de Cuentas</span>
-          <span className="text-[10px] text-slate-400 font-semibold italic hidden sm:inline-block">
-            (Pestañas interactivas, columnas ajustables y filtros integrados)
-          </span>
-        </div>
-
-        {showRolesAndDeps && (
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Vigencia Selector */}
-            <div className="flex items-center gap-1.5 shrink-0 bg-white border border-slate-200 px-2 py-1.5 rounded-lg shadow-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Contexto Vigencia:</span>
-              <select
-                className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none cursor-pointer outline-none"
-                value={localVigenciaId || ''}
-                onChange={(e) => {
-                  setLocalVigenciaId(e.target.value || null);
-                  // Resetea organismo y dependencia al cambiar vigencia para mantener integridad
-                  setFilters(f => ({ ...f, organismo: '', dependencia: '' }));
-                }}
-              >
-                <option value="">Todas las vigencias</option>
-                {vigencias.map(v => (
-                  <option key={v.IdVigencia} value={v.IdVigencia}>
-                    {v.Nombre} ({v.Estado})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
-
+    <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
       {/* Table Container with scroll */}
       <div className="overflow-x-auto flex-1">
         <table className="w-full table-layout-fixed border-collapse text-left text-sm">
           <thead>
             {/* Main Header Headers with Resize Handles */}
-            <tr className="bg-slate-50/70 border-b border-slate-200">
+            <tr className="bg-slate-50/70 border-b border-slate-100">
               {/* Name column */}
               <th 
-                className="relative p-2 py-3 border-r border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider select-none shrink-0"
+                className="relative p-2 py-3 border-r border-slate-100 bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider select-none shrink-0"
                 style={{ width: colWidths.nombre, minWidth: colWidths.nombre, maxWidth: colWidths.nombre }}
               >
                 <SortHeader title="Nombre del Usuario" field="nombre" />
@@ -351,7 +315,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
 
               {/* Email column */}
               <th 
-                className="relative p-2 py-3 border-r border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider select-none shrink-0"
+                className="relative p-2 py-3 border-r border-slate-100 bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider select-none shrink-0"
                 style={{ width: colWidths.email, minWidth: colWidths.email, maxWidth: colWidths.email }}
               >
                 <SortHeader title="Correo Electrónico" field="email" />
@@ -365,10 +329,10 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                 <>
                   {/* Rol column */}
                   <th 
-                    className="relative p-2 py-3 border-r border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider select-none shrink-0"
+                    className="relative p-2 py-3 border-r border-slate-100 bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider select-none shrink-0"
                     style={{ width: colWidths.rol, minWidth: colWidths.rol, maxWidth: colWidths.rol }}
                   >
-                    <SortHeader title={!localVigenciaId ? 'Rol Global' : 'Rol en Vigencia'} field="currentRol" />
+                    <SortHeader title="Rol" field="currentRol" />
                     <div 
                       className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-institutional-blue/40 active:bg-institutional-blue transition-colors z-25"
                       onMouseDown={(e) => startResize(e, 'rol')}
@@ -377,10 +341,10 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
 
                   {/* Organismo column */}
                   <th 
-                    className="relative p-2 py-3 border-r border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider select-none shrink-0"
+                    className="relative p-2 py-3 border-r border-slate-100 bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider select-none shrink-0"
                     style={{ width: colWidths.organismo, minWidth: colWidths.organismo, maxWidth: colWidths.organismo }}
                   >
-                    <SortHeader title="Organismo Superior" field="currentOrgName" />
+                    <SortHeader title="Organismo" field="currentOrgName" />
                     <div 
                       className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-institutional-blue/40 active:bg-institutional-blue transition-colors z-25"
                       onMouseDown={(e) => startResize(e, 'organismo')}
@@ -403,14 +367,14 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
             </tr>
 
             {/* INTEGRATED COLUMN-WISE FILTERS ROW */}
-            <tr className="bg-slate-100/60 border-b border-slate-200">
+            <tr className="bg-slate-100/60 border-b border-slate-100">
               {/* Filter Nombre */}
-              <td className="p-1 border-r border-slate-200" style={{ width: colWidths.nombre }}>
+              <td className="p-1 border-r border-slate-100" style={{ width: colWidths.nombre }}>
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                   <input
                     type="text"
-                    className="w-full pl-6 pr-2 py-1 bg-white border border-slate-200 rounded-md text-xs placeholder-slate-400 focus:outline-none focus:border-institutional-blue text-slate-700 font-medium"
+                    className="w-full pl-6 pr-2 py-1 bg-white border border-slate-100 rounded-md text-xs placeholder-slate-400 focus:outline-none focus:border-institutional-blue text-slate-700 font-medium"
                     placeholder="Filtrar por nombre..."
                     value={filters.nombre}
                     onChange={(e) => setFilters(f => ({ ...f, nombre: e.target.value }))}
@@ -419,12 +383,12 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
               </td>
 
               {/* Filter Correo */}
-              <td className="p-1 border-r border-slate-200" style={{ width: colWidths.email }}>
+              <td className="p-1 border-r border-slate-100" style={{ width: colWidths.email }}>
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                   <input
                     type="text"
-                    className="w-full pl-6 pr-2 py-1 bg-white border border-slate-200 rounded-md text-xs placeholder-slate-400 focus:outline-none focus:border-institutional-blue text-slate-700 font-medium"
+                    className="w-full pl-6 pr-2 py-1 bg-white border border-slate-100 rounded-md text-xs placeholder-slate-400 focus:outline-none focus:border-institutional-blue text-slate-700 font-medium"
                     placeholder="Filtrar por correo..."
                     value={filters.email}
                     onChange={(e) => setFilters(f => ({ ...f, email: e.target.value }))}
@@ -435,9 +399,9 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
               {showRolesAndDeps && (
                 <>
                   {/* Filter Rol */}
-                  <td className="p-1 border-r border-slate-200" style={{ width: colWidths.rol }}>
+                  <td className="p-1 border-r border-slate-100" style={{ width: colWidths.rol }}>
                     <select
-                      className="w-full py-1 px-1.5 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-700 focus:outline-none focus:border-institutional-blue cursor-pointer outline-none"
+                      className="w-full py-1 px-1.5 bg-white border border-slate-100 rounded-md text-xs font-semibold text-slate-700 focus:outline-none focus:border-institutional-blue cursor-pointer outline-none"
                       value={filters.rol}
                       onChange={(e) => setFilters(f => ({ ...f, rol: e.target.value }))}
                     >
@@ -450,9 +414,9 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                   </td>
 
                   {/* Filter Organismo */}
-                  <td className="p-1 border-r border-slate-200" style={{ width: colWidths.organismo }}>
+                  <td className="p-1 border-r border-slate-100" style={{ width: colWidths.organismo }}>
                     <select
-                      className="w-full py-1 px-1.5 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-700 focus:outline-none focus:border-institutional-blue cursor-pointer outline-none truncate block"
+                      className="w-full py-1 px-1.5 bg-white border border-slate-100 rounded-md text-xs font-semibold text-slate-700 focus:outline-none focus:border-institutional-blue cursor-pointer outline-none truncate block"
                       value={filters.organismo}
                       onChange={(e) => {
                         const newOrg = e.target.value;
@@ -469,7 +433,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                   {/* Filter Dependencia recursively */}
                   <td className="p-1" style={{ width: colWidths.dependencia }}>
                     <select
-                      className="w-full py-1 px-1.5 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-700 focus:outline-none focus:border-institutional-blue cursor-pointer outline-none truncate block"
+                      className="w-full py-1 px-1.5 bg-white border border-slate-100 rounded-md text-xs font-semibold text-slate-700 focus:outline-none focus:border-institutional-blue cursor-pointer outline-none truncate block"
                       value={filters.dependencia}
                       onChange={(e) => setFilters(f => ({ ...f, dependencia: e.target.value }))}
                     >
@@ -486,7 +450,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-150 min-h-[300px]">
+          <tbody className="divide-y divide-slate-100 min-h-[300px]">
             {paginatedUsers.map(u => (
               <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
                 {/* User Name Cell */}
