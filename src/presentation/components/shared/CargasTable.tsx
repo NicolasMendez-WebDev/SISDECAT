@@ -260,17 +260,20 @@ export const CargasTable: React.FC<CargasTableProps> = ({
               <tr key={carga.id} className="hover:bg-slate-50/80 transition-colors">
                 <td className="p-4 text-xs text-slate-500 whitespace-nowrap">{carga.dateStr}</td>
                 <td className="p-4">
-                  <span className="text-xs text-slate-700 whitespace-normal block" title={carga.depName}>{carga.depName}</span>
+                  <span className="text-xs text-slate-700 block max-w-[150px] lg:max-w-[220px] truncate" title={carga.depName}>{carga.depName}</span>
                 </td>
                 <td className="p-4">
-                  <span className="text-xs text-slate-700 whitespace-normal block" title={carga.prodName}>{carga.prodName}</span>
+                  <span className="text-xs text-slate-700 block max-w-[150px] lg:max-w-[220px] truncate" title={carga.prodName}>{carga.prodName}</span>
                 </td>
                 <td className="p-4">
-                  <div className="text-xs text-slate-700 whitespace-normal block font-medium" title={carga.actName}>
+                  <div className="text-xs text-slate-700 block font-medium max-w-[180px] lg:max-w-[280px] truncate" title={carga.actName}>
                     {carga.actName}
                   </div>
                   {carga.actividadId === "actividad_no_documentada" && carga.descDoc && (
-                    <div className="text-[10px] text-amber-600 font-bold block mt-0.5 leading-tight uppercase">
+                    <div 
+                      className="text-[10px] text-amber-600 font-bold block mt-0.5 leading-tight uppercase max-w-[160px] lg:max-w-[240px] truncate" 
+                      title={carga.descDoc}
+                    >
                       Nombre: {carga.descDoc}
                     </div>
                   )}
@@ -278,7 +281,10 @@ export const CargasTable: React.FC<CargasTableProps> = ({
                 </td>
                 {!isFuncionario && (
                   <td className="p-4">
-                    <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-bold tracking-wider">
+                    <span 
+                      className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-bold tracking-wider max-w-[120px] lg:max-w-[180px] truncate inline-block align-middle"
+                      title={carga.autorName}
+                    >
                       {carga.autorName}
                     </span>
                   </td>

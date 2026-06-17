@@ -373,7 +373,13 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
   const tn = parseFloat(formData.tiempoNormal) || 0;
   const tM = parseFloat(formData.tiempoMax) || 0;
 
-  const mathError = tn > 0 && (tn < tm || tn > tM);
+  const hasMin = formData.tiempoMin !== "";
+  const hasNormal = formData.tiempoNormal !== "";
+  const hasMax = formData.tiempoMax !== "";
+
+  const mathError = (hasMin && hasNormal && !hasMax && tn < tm) ||
+                    (hasMin && hasNormal && hasMax && (tn < tm || tn > tM || tM < tm));
+
   const flatTimeWarning = tm > 0 && tn > 0 && tM > 0 && tm === tn && tn === tM;
 
   const timeFactor =
@@ -783,8 +789,10 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
               {mathError && (
                 <div className="flex items-center gap-2 text-red-500 text-[10px] font-bold bg-red-50 p-2 rounded-lg border border-red-100">
                   <AlertCircle size={14} />
-                  COHERENCIA: El tiempo Normal debe estar entre el Mínimo y el
-                  Máximo
+                  {formData.tiempoMax === ""
+                    ? "COHERENCIA: El tiempo Normal (Tn) no puede ser menor que el Mínimo (Tm)"
+                    : "COHERENCIA: El tiempo Normal debe estar entre el Mínimo y el Máximo (Tm \u2264 Tn \u2264 TM)"
+                  }
                 </div>
               )}
 

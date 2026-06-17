@@ -155,7 +155,10 @@ export const TimeCapture: React.FC<TimeCaptureProps> = ({
               <span>Restricción de Integridad (Error)</span>
             </div>
             <span className="text-red-500 text-[10px] pl-6">
-              Asegúrese que: Tm ≤ Tn ≤ TM (El tiempo mínimo no puede ser mayor al normal o máximo).
+              {formData.tiempoMax === ""
+                ? "Asegúrese que: Tm ≤ Tn (El tiempo normal no puede ser menor al mínimo)."
+                : "Asegúrese que: Tm ≤ Tn ≤ TM (El tiempo mínimo no puede ser mayor al normal o máximo)."
+              }
             </span>
           </div>
         )}
