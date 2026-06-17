@@ -178,7 +178,7 @@ export const CargasTable: React.FC<CargasTableProps> = ({
       <table className="w-full table-auto text-left text-sm whitespace-nowrap">
         <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold tracking-wider">
           <tr>
-            <th className="p-4 align-top w-[8%] min-w-[90px]">
+            <th className="p-4 align-top w-auto resizable-th">
               <SortHeader title="Fecha" field="dateValue" />
               <select
                 className="w-full px-2 py-1 text-xs border border-slate-200 rounded text-slate-700 font-normal focus:outline-none focus:border-institutional-blue max-w-[110px]"
@@ -189,10 +189,10 @@ export const CargasTable: React.FC<CargasTableProps> = ({
                 {uniqueFechas.map(f => <option key={f as string} value={f as string}>{f as string}</option>)}
               </select>
             </th>
-            <th className="p-4 align-top w-[21%] max-w-0">
+            <th className="p-4 align-top w-auto resizable-th">
               <SortHeader title="Dependencia" field="depName" />
               <select
-                className="w-full px-2 py-1 text-xs border border-slate-200 rounded text-slate-700 font-normal focus:outline-none focus:border-institutional-blue truncate max-w-full"
+                className="w-full px-2 py-1 text-xs border border-slate-200 rounded text-slate-700 font-normal focus:outline-none focus:border-institutional-blue truncate max-w-[150px] xl:max-w-[200px]"
                 value={filters.dependencia}
                 onChange={e => setFilters(f => ({ ...f, dependencia: e.target.value }))}
               >
@@ -200,10 +200,10 @@ export const CargasTable: React.FC<CargasTableProps> = ({
                 {uniqueDependencias.map(d => <option key={d as string} value={d as string}>{d as string}</option>)}
               </select>
             </th>
-            <th className="p-4 align-top w-[21%] max-w-0">
+            <th className="p-4 align-top w-auto resizable-th">
               <SortHeader title="Procedimiento" field="prodName" />
               <select
-                className="w-full px-2 py-1 text-xs border border-slate-200 rounded text-slate-700 font-normal focus:outline-none focus:border-institutional-blue truncate max-w-full"
+                className="w-full px-2 py-1 text-xs border border-slate-200 rounded text-slate-700 font-normal focus:outline-none focus:border-institutional-blue truncate max-w-[150px] xl:max-w-[200px]"
                 value={filters.procedimiento}
                 onChange={e => setFilters(f => ({ ...f, procedimiento: e.target.value }))}
               >
@@ -211,10 +211,10 @@ export const CargasTable: React.FC<CargasTableProps> = ({
                 {uniqueProcedimientos.map(p => <option key={p as string} value={p as string}>{p as string}</option>)}
               </select>
             </th>
-            <th className="p-4 align-top w-[24%] max-w-0">
+            <th className="p-4 align-top w-auto resizable-th">
               <SortHeader title="Actividad" field="actName" />
               <select
-                className="w-full px-2 py-1 text-xs border border-slate-200 rounded text-slate-700 font-normal focus:outline-none focus:border-institutional-blue truncate max-w-full"
+                className="w-full px-2 py-1 text-xs border border-slate-200 rounded text-slate-700 font-normal focus:outline-none focus:border-institutional-blue truncate max-w-[180px] xl:max-w-[240px]"
                 value={filters.actividad}
                 onChange={e => setFilters(f => ({ ...f, actividad: e.target.value }))}
               >
@@ -223,10 +223,10 @@ export const CargasTable: React.FC<CargasTableProps> = ({
               </select>
             </th>
             {!isFuncionario && (
-              <th className="p-4 align-top w-[12%] max-w-0">
+              <th className="p-4 align-top w-auto resizable-th">
                 <SortHeader title="Autor" field="autorName" />
                 <select
-                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded text-slate-700 font-normal focus:outline-none focus:border-institutional-blue truncate max-w-full"
+                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded text-slate-700 font-normal focus:outline-none focus:border-institutional-blue truncate max-w-[120px] xl:max-w-[160px]"
                   value={filters.autor}
                   onChange={e => setFilters(f => ({ ...f, autor: e.target.value }))}
                 >
@@ -235,14 +235,14 @@ export const CargasTable: React.FC<CargasTableProps> = ({
                 </select>
               </th>
             )}
-            <th className="p-4 text-right align-top w-[7%]">
+            <th className="p-4 text-right align-top w-auto resizable-th">
               <SortHeader title="Volumen" field="volumenQ" />
               <div className="text-xs font-bold text-institutional-blue mt-1 border border-institutional-blue/20 bg-institutional-blue/5 rounded px-2 py-1 inline-block whitespace-nowrap">
                 {totals.volumenQ.toLocaleString()}
               </div>
             </th>
             {!isFuncionario && (
-              <th className="p-4 text-right align-top w-[7%]">
+              <th className="p-4 text-right align-top w-auto resizable-th">
                 <SortHeader title="ETP" field="etp" />
                 <div className="text-xs font-bold text-institutional-blue mt-1 border border-institutional-blue/20 bg-institutional-blue/5 rounded px-2 py-1 inline-block whitespace-nowrap">
                   {totals.etp.toFixed(2)}
@@ -259,13 +259,13 @@ export const CargasTable: React.FC<CargasTableProps> = ({
             return (
               <tr key={carga.id} className="hover:bg-slate-50/80 transition-colors">
                 <td className="p-4 text-xs text-slate-500 whitespace-nowrap">{carga.dateStr}</td>
-                <td className="p-4 w-[21%] max-w-0">
+                <td className="p-4 max-w-0">
                   <span className="text-xs text-slate-700 block whitespace-normal break-words" title={carga.depName}>{carga.depName}</span>
                 </td>
-                <td className="p-4 w-[21%] max-w-0">
+                <td className="p-4 max-w-0">
                   <span className="text-xs text-slate-700 block whitespace-normal break-words" title={carga.prodName}>{carga.prodName}</span>
                 </td>
-                <td className="p-4 w-[24%] max-w-0">
+                <td className="p-4 max-w-0">
                   <div className="text-xs text-slate-700 block font-medium whitespace-normal break-words" title={carga.actName}>
                     {carga.actName}
                   </div>
@@ -280,9 +280,9 @@ export const CargasTable: React.FC<CargasTableProps> = ({
                   <div className="text-[10px] text-slate-400 font-mono mt-0.5">{carga.id.substring(0, 8)}</div>
                 </td>
                 {!isFuncionario && (
-                  <td className="p-4 w-[12%] max-w-0">
+                  <td className="p-4 max-w-0">
                     <span 
-                      className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-bold tracking-wider truncate block align-middle"
+                      className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-bold tracking-wider block align-middle whitespace-normal break-words"
                       title={carga.autorName}
                     >
                       {carga.autorName}
