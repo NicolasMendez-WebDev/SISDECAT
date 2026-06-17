@@ -330,61 +330,68 @@ export default function App() {
 
           const fetchedUsuariosDep = await DatabaseService.getUsuariosOrganismos();
 
-          // Build simple user stubs based on Sec.UsuariosOrganismos because auth.users is inaccessible
-          const tmpUsersMap = new Map<string, User>();
-          // Map to keep track of the canonical ID we assigned for each email to correct any duplicate IDs
-          const emailToCanonicalId = new Map<string, string>();
-          
-          // Group by EntraIdObjectId to deduplicate multiple entries for the same user (across different vigencias)
-          const rowsByUserId = new Map<string, any[]>();
+          // Group by email username prefix to consolidate split user entries (e.g., asdecat, sisdecat or distinct domain registrations)
+          const rowsByPrefix = new Map<string, any[]>();
           fetchedUsuariosDep.forEach((x) => {
-             const id = x.EntraIdObjectId;
-             if (!rowsByUserId.has(id)) {
-                rowsByUserId.set(id, []);
+             const rawEmail = x.UPN || `${x.EntraIdObjectId}@sisdecat.gov.co`;
+             const prefix = rawEmail.split('@')[0].toLowerCase().trim();
+             if (prefix) {
+                if (!rowsByPrefix.has(prefix)) {
+                   rowsByPrefix.set(prefix, []);
+                }
+                rowsByPrefix.get(prefix)!.push(x);
              }
-             rowsByUserId.get(id)!.push(x);
           });
 
-          rowsByUserId.forEach((rows, id) => {
-             // Find if any row has a valid UPN (non-empty, contains '@')
-             const rowWithUPN = rows.find(r => r.UPN && r.UPN.includes('@'));
-             const rawEmail = rowWithUPN ? rowWithUPN.UPN : `${id}@sisdecat.gov.co`;
-             const emailKey = rawEmail.toLowerCase();
+          const uniqueUsers: User[] = [];
+          const originalIdToCanonicalId = new Map<string, string>();
+
+          rowsByPrefix.forEach((rows, prefix) => {
+             // Find a row that has a valid institutional UPN (not containing 'asdecat' or 'sisdecat' domain if possible, as per user's mandate)
+             const bestRow = rows.find(r => r.UPN && r.UPN.includes('@') && 
+                                           !r.UPN.toLowerCase().includes('asdecat.gov.co') && 
+                                           !r.UPN.toLowerCase().includes('sisdecat.gov.co'));
+             const fallbackRow = rows.find(r => r.UPN && r.UPN.includes('@'));
+             const chosenRow = bestRow || fallbackRow || rows[0];
+
+             const canonicalId = chosenRow.EntraIdObjectId;
              
-             // Collect any valid roles from rows
+             // Map all original EntraIdObjectIds to this single canonicalId for robust visual grouping
+             rows.forEach(r => {
+                originalIdToCanonicalId.set(r.EntraIdObjectId, canonicalId);
+             });
+
+             const rawEmail = chosenRow.UPN || `${canonicalId}@sisdecat.gov.co`;
+             
+             // Pick the strongest role functional among rows
              const roles = rows.map(r => r.RolFuncional || 'Funcionario');
              const canonicalRol = roles.includes('AdminFuncional') ? 'AdminFuncional' :
                                   roles.includes('Administrador') ? 'Administrador' :
                                   roles.includes('Analista') ? 'Analista' : 'Funcionario';
-                                  
-             // Find first available dependency
+
+             // Find first non-empty dependency node mapping
              const rowWithDep = rows.find(r => r.IdNodoOrg);
              const canonicalDepId = rowWithDep ? rowWithDep.IdNodoOrg : undefined;
-             
-             const rawName = rowWithUPN 
+
+             const rawName = chosenRow.UPN 
                ? rawEmail.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
-               : `Usuario ${id.substring(0, 5)}`;
-               
-             const userObj: User = {
-               id: id,
+               : `Usuario ${canonicalId.substring(0, 5)}`;
+
+             uniqueUsers.push({
+               id: canonicalId,
                email: rawEmail,
                nombre: rawName,
                rol: canonicalRol as any,
                dependenciaId: canonicalDepId
-             };
-             
-             tmpUsersMap.set(emailKey, userObj);
-             emailToCanonicalId.set(emailKey, id);
+             });
           });
-          const uniqueUsers = Array.from(tmpUsersMap.values());
-          
-          // Deduplicate vigenciasUsuarios prioritizing the most recent/actual rol if there are duplicates
+
+          // Deduplicate vigenciasUsuarios prioritizing the canonical user mapping
           const seenVigenciaUsuario = new Set<string>();
           const dedupedVigenciasUsuarios: VigenciaUsuario[] = [];
-          
+
           fetchedUsuariosDep.forEach((x) => {
-             const rawEmail = x.UPN || `${x.EntraIdObjectId}@sisdecat.gov.co`;
-             const canonicalId = emailToCanonicalId.get(rawEmail.toLowerCase()) || x.EntraIdObjectId;
+             const canonicalId = originalIdToCanonicalId.get(x.EntraIdObjectId) || x.EntraIdObjectId;
              
              const key = `${canonicalId}-${x.IdVigencia}`;
              if (!seenVigenciaUsuario.has(key)) {
@@ -398,25 +405,28 @@ export default function App() {
                 });
              }
           });
-          
+
           setVigenciasUsuarios(dedupedVigenciasUsuarios);
 
           let currentUserToAdd = null;
           if (sessionUser) {
-            if (!uniqueUsers.find((x) => x.id === sessionUser.id)) {
-              currentUserToAdd = sessionUser;
-              uniqueUsers.push(sessionUser);
+            const canonicalSessionId = originalIdToCanonicalId.get(sessionUser.id) || sessionUser.id;
+            const updatedSession = { ...sessionUser, id: canonicalSessionId };
+            if (!uniqueUsers.find((x) => x.id === canonicalSessionId)) {
+              uniqueUsers.push(updatedSession);
             }
           } else {
             const mockSession = localStorage.getItem("mockSession");
             if (mockSession) {
               const parsed = JSON.parse(mockSession);
-              setCurrentUser(parsed);
-              if (parsed.rol === "Funcionario") {
+              const canonicalParsedId = originalIdToCanonicalId.get(parsed.id) || parsed.id;
+              const updatedSession = { ...parsed, id: canonicalParsedId };
+              setCurrentUser(updatedSession);
+              if (updatedSession.rol === "Funcionario") {
                 setActiveModule("inicio");
               }
-              if (!uniqueUsers.find((x) => x.id === parsed.id)) {
-                uniqueUsers.push(parsed);
+              if (!uniqueUsers.find((x) => x.id === canonicalParsedId)) {
+                uniqueUsers.push(updatedSession);
               }
             }
           }
@@ -475,8 +485,11 @@ export default function App() {
                     // Backup: if no registered user matched, make a stub ONLY if the email/ID is entirely unique
                     let id = c.userId || (author.includes("@") ? author : author.toLowerCase().replace(/ /g, "."));
                     let email = author.includes("@") ? author : `${id}@sisdecat.gov.co`;
+                    const incomingPrefix = email.split('@')[0].toLowerCase().trim();
                     
-                    if (!updated.find((u) => u.id === id || u.email.toLowerCase() === email.toLowerCase())) {
+                    const prefixDuplicate = updated.find(u => u.email.split('@')[0].toLowerCase().trim() === incomingPrefix);
+                    
+                    if (!prefixDuplicate && !updated.find((u) => u.id === id || u.email.toLowerCase() === email.toLowerCase())) {
                       updated.push({
                         id: id,
                         email: email,
