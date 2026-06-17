@@ -185,26 +185,24 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType, re
                 </button>
               </div>
 
-              {/* Recordarme Checkbox */}
-              <div className="flex items-center gap-2 px-1 py-1">
-                <input
-                  id="rememberMe"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 text-institutional-blue focus:ring-institutional-blue/20 border-slate-200 rounded cursor-pointer accent-institutional-blue"
-                  disabled={isLoading}
-                />
-                <label 
-                  htmlFor="rememberMe" 
-                  className="text-xs text-slate-500 font-medium select-none cursor-pointer hover:text-slate-700 transition-colors"
-                >
-                  Recordarme
-                </label>
-              </div>
-
-              {/* Links */}
+              {/* Recordarme and forgot password inline */}
               <div className="flex justify-between items-center px-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="rememberMe"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 text-institutional-blue focus:ring-institutional-blue/20 border-slate-200 rounded cursor-pointer accent-institutional-blue"
+                    disabled={isLoading}
+                  />
+                  <label 
+                    htmlFor="rememberMe" 
+                    className="text-xs text-slate-500 font-medium select-none cursor-pointer hover:text-slate-700 transition-colors"
+                  >
+                    Recordarme
+                  </label>
+                </div>
                 <button
                   type="button"
                   onClick={() => setViewState("forgot")}
@@ -212,10 +210,15 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType, re
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
+              </div>
+
+              {/* Register link centered below */}
+              <div className="flex justify-center pt-1 text-xs text-slate-500">
+                <span>¿No tienes cuenta?&nbsp;</span>
                 <button
                   type="button"
                   onClick={() => setViewState("register")}
-                  className="text-xs text-institutional-blue underline hover:text-institutional-blue/80 transition-colors font-medium"
+                  className="text-institutional-blue underline hover:text-institutional-blue/80 transition-colors font-bold"
                 >
                   Regístrate
                 </button>
