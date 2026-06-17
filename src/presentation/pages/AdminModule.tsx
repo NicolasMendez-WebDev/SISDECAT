@@ -46,6 +46,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   vigencias, onVigenciaUpdate, onVigenciaCreate, usuarios = [], onUpdateUsuario, onAddUsuario, currentUser,
   vigenciasUsuarios = [], onUpdateVigenciaUsuario, onRestoreMockData, vigenciaActiva = true, showToast, isLoadingRecords
 }) => {
+  // Find the active/current vigencia to display and edit organisms/roles in that active context
+  const activeVigencia = vigencias.find(v => v.Estado === 'Activo') || vigencias.find(v => v.Estado === 'Borrador') || vigencias[0];
+  const activeVigenciaId = activeVigencia?.IdVigencia || null;
+
   const [activeTab, setActiveTab] = useState<'registros' | 'vigencias' | 'usuarios' | 'catalogos'>('vigencias');
   const [selectedCarga, setSelectedCarga] = useState<any | null>(null);
   const [cargaEditMode, setCargaEditMode] = useState(false);
@@ -326,9 +330,10 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               usuarios={usuarios}
               vigenciasUsuarios={vigenciasUsuarios}
               organismos={organismos}
-              selectedVigenciaId={null} // Null triggers global mode
+              selectedVigenciaId={activeVigenciaId}
               editMode={true}
               showRolesAndDeps={true}
+              onUpdateVigenciaUsuario={onUpdateVigenciaUsuario}
               onUpdateGlobalUsuario={onUpdateUsuario}
             />
           </motion.div>

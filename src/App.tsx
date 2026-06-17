@@ -335,31 +335,46 @@ export default function App() {
           // Map to keep track of the canonical ID we assigned for each email to correct any duplicate IDs
           const emailToCanonicalId = new Map<string, string>();
           
+          // Group by EntraIdObjectId to deduplicate multiple entries for the same user (across different vigencias)
+          const rowsByUserId = new Map<string, any[]>();
           fetchedUsuariosDep.forEach((x) => {
              const id = x.EntraIdObjectId;
-             const rawEmail = x.UPN || `${id}@sisdecat.gov.co`;
-             const email = rawEmail.toLowerCase();
+             if (!rowsByUserId.has(id)) {
+                rowsByUserId.set(id, []);
+             }
+             rowsByUserId.get(id)!.push(x);
+          });
+
+          rowsByUserId.forEach((rows, id) => {
+             // Find if any row has a valid UPN (non-empty, contains '@')
+             const rowWithUPN = rows.find(r => r.UPN && r.UPN.includes('@'));
+             const rawEmail = rowWithUPN ? rowWithUPN.UPN : `${id}@sisdecat.gov.co`;
+             const emailKey = rawEmail.toLowerCase();
              
-               if (!tmpUsersMap.has(email)) {
-                 tmpUsersMap.set(email, {
-                   id: id,
-                   email: rawEmail,
-                   nombre: rawEmail
-                     ? rawEmail.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
-                     : `Usuario ${id.substring(0, 5)}`,
-                   rol: x.RolFuncional || "Funcionario",
-                   dependenciaId: x.IdNodoOrg || undefined
-                 });
-                 emailToCanonicalId.set(email, id);
-               } else {
-                 // If the existing entry doesn't have a dependency, but this one does, update it!
-                 const existing = tmpUsersMap.get(email);
-                 if (existing) {
-                   if (!existing.dependenciaId && x.IdNodoOrg) {
-                     existing.dependenciaId = x.IdNodoOrg;
-                   }
-                 }
-               }
+             // Collect any valid roles from rows
+             const roles = rows.map(r => r.RolFuncional || 'Funcionario');
+             const canonicalRol = roles.includes('AdminFuncional') ? 'AdminFuncional' :
+                                  roles.includes('Administrador') ? 'Administrador' :
+                                  roles.includes('Analista') ? 'Analista' : 'Funcionario';
+                                  
+             // Find first available dependency
+             const rowWithDep = rows.find(r => r.IdNodoOrg);
+             const canonicalDepId = rowWithDep ? rowWithDep.IdNodoOrg : undefined;
+             
+             const rawName = rowWithUPN 
+               ? rawEmail.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
+               : `Usuario ${id.substring(0, 5)}`;
+               
+             const userObj: User = {
+               id: id,
+               email: rawEmail,
+               nombre: rawName,
+               rol: canonicalRol as any,
+               dependenciaId: canonicalDepId
+             };
+             
+             tmpUsersMap.set(emailKey, userObj);
+             emailToCanonicalId.set(emailKey, id);
           });
           const uniqueUsers = Array.from(tmpUsersMap.values());
           
