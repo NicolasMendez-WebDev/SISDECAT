@@ -57,6 +57,14 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
             idDependencia: currentDepId
           };
         }
+      } else {
+        // If we are in global view (selectedVigenciaId is null), locate the first assigned dependency from their assigned vigencias
+        const userVigencias = vigenciasUsuarios.filter(x => x.idUsuario === u.id);
+        const assignedVu = userVigencias.find(x => x.idDependencia && x.idDependencia !== "");
+        if (assignedVu) {
+          currentDepId = assignedVu.idDependencia;
+          currentRol = assignedVu.rol;
+        }
       }
 
       const currentDepName = organismos.find(d => d.id === currentDepId)?.nombre || 'Sin Organismo';

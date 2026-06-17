@@ -352,9 +352,13 @@ export default function App() {
                  });
                  emailToCanonicalId.set(email, id);
                } else {
-                 // Check if there are any conflicting roles. In a unified role system, they should all be identical.
-                 // We simply maintain the role they have. If there are duplicates, we keep the role mapped.
-                 // No more automatic rank elevation that damages global role.
+                 // If the existing entry doesn't have a dependency, but this one does, update it!
+                 const existing = tmpUsersMap.get(email);
+                 if (existing) {
+                   if (!existing.dependenciaId && x.IdNodoOrg) {
+                     existing.dependenciaId = x.IdNodoOrg;
+                   }
+                 }
                }
           });
           const uniqueUsers = Array.from(tmpUsersMap.values());
@@ -413,22 +417,58 @@ export default function App() {
             const existingCargas = await captureService.getCargas();
             setCargasTrabajo(existingCargas || []);
 
-            // Extract users from CargasTrabajo
+            // Extract users from CargasTrabajo, merging author details with registered accounts to prevent ugly duplicated @sisdecat.gov.co stubs
             if (existingCargas && existingCargas.length > 0) {
               setUsuarios((prev) => {
                 const updated = [...prev];
+                const cleanStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]/g, "");
+                
                 existingCargas.forEach((c) => {
                   const author = c.autor || "Usuario Desconocido";
-                  let id = c.userId || (author.includes("@") ? author : author.toLowerCase().replace(/ /g, "."));
-                  let email = author.includes("@") ? author : `${id}@sisdecat.gov.co`;
+                  if (author === "Usuario Desconocido" || author === "Sistema") return;
                   
-                  if (!updated.find((u) => u.id === id || u.email.toLowerCase() === email.toLowerCase())) {
-                    updated.push({
-                      id: id,
-                      email: email,
-                      nombre: author.includes("@") ? author.split("@")[0].replace(/[._]/g, " ") : author,
-                      rol: "Funcionario",
-                    });
+                  // Let's check if we can match this author to an existing registered user in updated
+                  let foundUser = updated.find(u => {
+                    const emailPrefix = u.email.split('@')[0];
+                    const cleanEmail = cleanStr(emailPrefix);
+                    const cleanNameStr = author.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z ]/g, "");
+                    const nameWords = cleanNameStr.split(/\s+/).filter(w => w.length > 0);
+                    
+                    if (nameWords.length === 0) return false;
+                    
+                    // Direct sub-match
+                    const compactName = cleanNameStr.replace(/\s+/g, "");
+                    if (cleanEmail.includes(compactName) || compactName.includes(cleanEmail)) {
+                      return true;
+                    }
+                    
+                    const firstInitial = nameWords[0][0];
+                    if (cleanEmail[0] === firstInitial) {
+                      // e.g. ksotelog starts with k and contains sotelo
+                      const containsSufficientWord = nameWords.some(word => word.length >= 4 && cleanEmail.includes(word));
+                      if (containsSufficientWord) return true;
+                    }
+                    return false;
+                  });
+                  
+                  if (foundUser) {
+                    // Overwrite the generic derived name (e.g., 'Ccordobar') with the full display name entered by the user ('Cristhian Alexander Cordoba Renteria')
+                    if (foundUser.nombre.toLowerCase() === foundUser.email.split('@')[0].toLowerCase() || foundUser.nombre.length < author.length) {
+                      foundUser.nombre = author;
+                    }
+                  } else {
+                    // Backup: if no registered user matched, make a stub ONLY if the email/ID is entirely unique
+                    let id = c.userId || (author.includes("@") ? author : author.toLowerCase().replace(/ /g, "."));
+                    let email = author.includes("@") ? author : `${id}@sisdecat.gov.co`;
+                    
+                    if (!updated.find((u) => u.id === id || u.email.toLowerCase() === email.toLowerCase())) {
+                      updated.push({
+                        id: id,
+                        email: email,
+                        nombre: author.includes("@") ? author.split("@")[0].replace(/[._]/g, " ") : author,
+                        rol: "Funcionario",
+                      });
+                    }
                   }
                 });
                 return updated;
