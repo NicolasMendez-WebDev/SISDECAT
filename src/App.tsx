@@ -416,7 +416,7 @@ export default function App() {
               uniqueUsers.push(updatedSession);
             }
           } else {
-            const mockSession = localStorage.getItem("mockSession");
+            const mockSession = localStorage.getItem("mockSession") || sessionStorage.getItem("mockSession");
             if (mockSession) {
               const parsed = JSON.parse(mockSession);
               const canonicalParsedId = originalIdToCanonicalId.get(parsed.id) || parsed.id;
@@ -2079,10 +2079,16 @@ export default function App() {
     return () => window.removeEventListener("navigate-module", handleNavigate);
   }, []);
 
-  const handleLogin = (user: User) => {
+  const handleLogin = (user: User, remember: boolean = false) => {
     setCurrentUser(user);
     if (!import.meta.env.VITE_SUPABASE_URL) {
-      localStorage.setItem("mockSession", JSON.stringify(user));
+      if (remember) {
+        localStorage.setItem("mockSession", JSON.stringify(user));
+        sessionStorage.removeItem("mockSession");
+      } else {
+        sessionStorage.setItem("mockSession", JSON.stringify(user));
+        localStorage.removeItem("mockSession");
+      }
     }
     setSelectedVigenciaId(null);
     if (!usuarios.find((u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase())) {
@@ -2139,6 +2145,7 @@ export default function App() {
   const handleLogout = async () => {
     setCurrentUser(null);
     localStorage.removeItem("mockSession");
+    sessionStorage.removeItem("mockSession");
     const { supabase } = await import("./lib/supabaseClient");
     if (supabase) {
       await supabase.auth.signOut();

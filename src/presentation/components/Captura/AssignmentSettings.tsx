@@ -100,7 +100,7 @@ export const AssignmentSettings: React.FC<AssignmentSettingsProps> = ({
         </div>
         <div className="space-y-1.5">
           <label className="text-[11px] font-semibold text-slate-500 uppercase">
-            Frecuencia
+            Cantidad de veces
           </label>
           <select
             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue outline-none transition-all"

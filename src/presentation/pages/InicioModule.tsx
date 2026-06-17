@@ -70,16 +70,18 @@ export const InicioModule: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-institutional-blue/5 border border-institutional-blue/20 rounded-xl p-6 flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left shadow-sm"
+        className="bg-institutional-blue/5 border border-institutional-blue/20 rounded-xl p-6 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left shadow-sm justify-between"
       >
-        <PlayCircle className="w-10 h-10 text-institutional-blue shrink-0" />
-        <div className="flex-1">
-          <h4 className="font-bold text-slate-800 text-lg">¿Listo para comenzar?</h4>
-          <p className="text-slate-600 mt-1 mb-4 text-sm max-w-2xl">
-            Te recomendamos comenzar visualizando la estructura de tu área funcional y posteriormente dirigirte al módulo de captura de cargas.
-          </p>
+        <div className="flex flex-col sm:flex-row items-center gap-4 flex-1">
+          <PlayCircle className="w-10 h-10 text-institutional-blue shrink-0" />
+          <div className="flex-1">
+            <h4 className="font-bold text-slate-800 text-lg">¿Listo para comenzar?</h4>
+            <p className="text-slate-600 mt-1 text-sm max-w-2xl">
+              Te recomendamos comenzar visualizando la estructura de tu área funcional y posteriormente dirigirte al módulo de captura de cargas.
+            </p>
+          </div>
         </div>
-        <div className="shrink-0">
+        <div className="shrink-0 mt-2 sm:mt-0">
           <button 
             onClick={() => {
               window.dispatchEvent(new CustomEvent('navigate-module', { detail: 'estructura' }));

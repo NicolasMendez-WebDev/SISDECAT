@@ -15,7 +15,7 @@ import { Logo } from "../components/shared/Logo";
 import logoImg from "../../assets/images/regenerated_image_1779288798044.png";
 import { AuthService } from "../../application/services/AuthService";
 
-export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) => void, usuarios?: UserType[] }) {
+export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType, remember?: boolean) => void, usuarios?: UserType[] }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [viewState, setViewState] = useState<"login" | "forgot" | "register">("login");
@@ -24,6 +24,7 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
   const [regName, setRegName] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
       if (!pwdInput) throw new Error("Ingrese su contraseña");
 
       const loggedUser = await AuthService.login(emailInput, pwdInput, usuarios);
-      onLogin(loggedUser);
+      onLogin(loggedUser, rememberMe);
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión");
     } finally {
@@ -67,7 +68,7 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
       const newUser = await AuthService.register(emailInput, pwdInput, nameInput);
       setSuccessMessage("Registro exitoso. Iniciando sesión...");
       setTimeout(() => {
-        onLogin(newUser);
+        onLogin(newUser, true);
       }, 1500);
     } catch (err: any) {
       setError(err.message || "Error al registrarse");
@@ -182,6 +183,24 @@ export function Login({ onLogin, usuarios = [] }: { onLogin: (user: UserType) =>
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
+              </div>
+
+              {/* Recordarme Checkbox */}
+              <div className="flex items-center gap-2 px-1 py-1">
+                <input
+                  id="rememberMe"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-institutional-blue focus:ring-institutional-blue/20 border-slate-200 rounded cursor-pointer accent-institutional-blue"
+                  disabled={isLoading}
+                />
+                <label 
+                  htmlFor="rememberMe" 
+                  className="text-xs text-slate-500 font-medium select-none cursor-pointer hover:text-slate-700 transition-colors"
+                >
+                  Recordarme
+                </label>
               </div>
 
               {/* Links */}

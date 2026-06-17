@@ -552,7 +552,7 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
                 <div className="space-y-1.5">
                   <div className="group relative inline-flex items-center gap-1 cursor-help w-full">
                     <label className="text-[11px] font-semibold text-slate-500 uppercase border-b border-dashed border-slate-300">
-                      Frecuencia
+                      Cantidad de veces
                     </label>
                     <HelpCircle size={10} className="text-slate-400" />
                     <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] opacity-0 transition-opacity group-hover:opacity-100 bg-slate-800 text-white text-xs rounded-lg py-2 px-3 shadow-xl z-[100] font-normal normal-case text-center">
@@ -597,8 +597,8 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
                     </label>
                     <HelpCircle size={10} className="text-slate-400" />
                     <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] opacity-0 transition-opacity group-hover:opacity-100 bg-slate-800 text-white text-xs rounded-lg py-2 px-3 shadow-xl z-[100] font-normal normal-case text-center">
-                      Cantidad de veces que se realiza la actividad en la
-                      frecuencia seleccionada.
+                      Cantidad de veces que se realiza la actividad en el
+                      periodo seleccionado.
                       <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-t-slate-800 border-x-[6px] border-x-transparent"></div>
                     </div>
                   </div>

@@ -811,6 +811,16 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               </div>
             </>
           )}
+          <button 
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('navigate-module', { detail: 'captura' }));
+            }}
+            className="bg-institutional-blue hover:bg-institutional-blue/90 text-white font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-2 transition-all shadow-md shadow-institutional-blue/10 shrink-0 select-none"
+          >
+            <span>Ir a la captura de cargas</span>
+            <ChevronRight size={14} />
+          </button>
         </div>
       </div>
 
