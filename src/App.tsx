@@ -294,7 +294,36 @@ export default function App() {
             };
           });
 
-          // Simply trust the original stored Nivel which has already been parsed casing-tolerantly as originalNivel
+          // Self-healing of levels based on parent-child topology
+          const nodeMap = new Map<string, any>();
+          parsedProcDb.forEach((node) => nodeMap.set(String(node.id).toLowerCase(), node));
+
+          const resolvedLevels = new Map<string, number>();
+          const getCorrectedLevel = (nodeId: string): number => {
+            const nodeIdStr = String(nodeId).toLowerCase();
+            if (resolvedLevels.has(nodeIdStr)) return resolvedLevels.get(nodeIdStr)!;
+
+            const n = nodeMap.get(nodeIdStr);
+            if (!n) return 2; // Fallback
+
+            if (!n.padreId || n.padreId === n.id) {
+              let lvl = n.originalNivel;
+              // If level is 1 (legacy Tipo de Proceso), let it remain 1, else force valid 2-4
+              if (lvl <= 0 || lvl > 4) lvl = 2;
+              resolvedLevels.set(nodeIdStr, lvl);
+              return lvl;
+            }
+
+            const parentLevel = getCorrectedLevel(n.padreId);
+            let resolvedLvl = parentLevel + 1;
+            if (resolvedLvl > 4) resolvedLvl = 4;
+            resolvedLevels.set(nodeIdStr, resolvedLvl);
+            return resolvedLvl;
+          };
+
+          parsedProcDb.forEach((node) => {
+            node.resolvedNivel = getCorrectedLevel(node.id);
+          });
 
           // Map to correct React UI states
           const fetchedProcs = parsedProcDb
@@ -960,7 +989,8 @@ export default function App() {
         ...x,
         vigenciaId: v.IdVigencia,
         id: getNewId(x.id, "proc")!,
-        dependenciaId: getNewId(x.dependenciaId, "dep")!,
+        procesoId: x.procesoId ? getNewId(x.procesoId, "proc") : undefined,
+        dependenciaId: getNewId(x.dependenciaId, "dep") || null,
       }));
       const newPcdData = sourcePcdData.map((x) => ({
         ...x,
@@ -1145,11 +1175,11 @@ export default function App() {
       if (type === "Dependencia")
         newDeps = depData.map((d) => (d.id === id ? { ...d, ...data } : d));
       if (type === "Proceso")
-        newProcs = procData.map((p) => (p.id === id ? { ...p, ...data } : p));
+        newProcs = procData.map((p) => (p.id === id ? { ...p, ...data, procesoId: data.parentId !== undefined ? data.parentId : p.procesoId } : p));
       if (type === "Procedimiento")
-        newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data } : pc));
+        newPcds = pcdData.map((pc) => (pc.id === id ? { ...pc, ...data, procesoId: data.parentId !== undefined ? data.parentId : pc.procesoId } : pc));
       if (type === "Actividad")
-        newActs = actData.map((a) => (a.id === id ? { ...a, ...data } : a));
+        newActs = actData.map((a) => (a.id === id ? { ...a, ...data, procedimientoId: data.parentId !== undefined ? data.parentId : a.procedimientoId } : a));
     } else {
       const newId = crypto.randomUUID();
       modifiedId = newId;
@@ -1448,10 +1478,10 @@ export default function App() {
             k.toLowerCase().includes("dependencia"),
         ) || allHeaders[1];
       const padreKey =
-        allHeaders.find((k) => k.toLowerCase().includes("padre")) ||
+        allHeaders.find((k: string) => k.toLowerCase().includes("padre")) ||
         allHeaders[2];
       const nivelKey =
-        allHeaders.find((k) => k.toLowerCase().includes("nivel")) ||
+        allHeaders.find((k: string) => k.toLowerCase().includes("nivel") || k.toLowerCase().includes("level")) ||
         allHeaders[3];
 
       const newProcs: any[] = [];
@@ -1486,6 +1516,37 @@ export default function App() {
         }
       });
 
+      // Pre-calculate parent relationships from the imported sheet
+      const parentCodes = new Map<string, string>();
+      datos.forEach((row) => {
+        const codigo = String(row[codeKey as string] ?? "").trim();
+        const padreRaw = row[padreKey as string];
+        const padre = padreRaw ? String(padreRaw).trim() : "";
+        if (codigo && padre && padre !== codigo) {
+          parentCodes.set(codigo, padre);
+        }
+      });
+
+      // Resolves depth level based on topology (self-healing missing Nivel columns)
+      const levelMap = new Map<string, number>();
+      const getCodeLevel = (codigoStr: string): number => {
+        const codeClean = codigoStr.toLowerCase().trim();
+        if (levelMap.has(codeClean)) return levelMap.get(codeClean)!;
+
+        // Find the raw code key from capitalization
+        const parentCode = parentCodes.get(codigoStr);
+        if (!parentCode || parentCode === codigoStr) {
+          // No parent code -> it is a root Process (level 2)
+          levelMap.set(codeClean, 2);
+          return 2;
+        }
+
+        const parentLevel = getCodeLevel(parentCode);
+        const resolvedLevel = parentLevel + 1;
+        levelMap.set(codeClean, resolvedLevel);
+        return resolvedLevel;
+      };
+
       // Primera pasada: identificar Tipos de Proceso (Nivel 1)
       datos.forEach((row) => {
         const codigo = String(row[codeKey as string] ?? "").trim();
@@ -1502,7 +1563,7 @@ export default function App() {
         const nombre = String(row[nameKey as string] ?? "").trim();
         const padreRaw = row[padreKey as string];
         const padre = padreRaw ? String(padreRaw).trim() : "";
-        const nivel = String(row[nivelKey as string] ?? "").trim();
+        const nivel = row[nivelKey as string] !== undefined ? String(row[nivelKey as string]).trim() : "";
 
         if (!codigo || !nombre) return;
 
@@ -1518,16 +1579,32 @@ export default function App() {
         }
 
         const nivelLower = nivel.toLowerCase();
+        let finalLvl: number | null = null;
 
-        // If it's explicitly 2 or explicitly 'proceso' or has no parent (making it root in the new structure)
-        if (
-          !padre ||
-          codigo === padre ||
-          nivel === "1" ||
-          nivel === "2" ||
-          nivelLower.includes("proceso") ||
-          nivelLower === "0"
-        ) {
+        // Try direct manual matching first
+        if (nivelLower === "1" || nivelLower === "0" || nivelLower.includes("macro")) {
+          finalLvl = 1;
+        } else if (nivelLower === "2" || nivelLower.includes("proceso")) {
+          finalLvl = 2;
+        } else if (nivelLower === "3" || nivelLower.includes("procedimiento")) {
+          finalLvl = 3;
+        } else if (nivelLower === "4" || nivelLower.includes("actividad")) {
+          finalLvl = 4;
+        } else {
+          // Mapped digits
+          const parsedDigit = parseInt(nivel, 10);
+          if (!isNaN(parsedDigit) && parsedDigit >= 1 && parsedDigit <= 4) {
+            finalLvl = parsedDigit;
+          }
+        }
+
+        // If Nivel was missing, empty or failed to parse, use self-healing topology!
+        if (finalLvl === null) {
+          finalLvl = getCodeLevel(codigo);
+        }
+
+        // Categorize based on final computed level
+        if (finalLvl <= 2) {
           newProcs.push({
             id: nodeUuid,
             codigo: codigo,
@@ -1535,11 +1612,11 @@ export default function App() {
             procesoId: parentUuid || undefined,
             descripcion: "Importado",
             activo: true,
-            nivel: 2, // Force level 2 for Proceso to match UI logic
+            nivel: 2, // Always level 2 for Proceso
             tipo: "Misional",
             vigenciaId: currentVigenciaView?.IdVigencia,
           });
-        } else if (nivel === "3" || nivelLower.includes("procedimiento")) {
+        } else if (finalLvl === 3) {
           newPcds.push({
             id: nodeUuid,
             codigo: codigo,
@@ -1763,10 +1840,10 @@ export default function App() {
 
         let trueParentId = parentIdRaw;
         const foundOrg = orgData.find(
-          (o) => o.codigo === parentIdRaw || o.id === parentIdRaw,
+          (o) => o.vigenciaId === targetVigenciaId && (o.codigo === parentIdRaw || o.id === parentIdRaw),
         );
         const foundDep = depData.find(
-          (d) => d.codigo === parentIdRaw || d.id === parentIdRaw,
+          (d) => d.vigenciaId === targetVigenciaId && (d.codigo === parentIdRaw || d.id === parentIdRaw),
         );
         if (foundOrg) trueParentId = foundOrg.id;
         else if (foundDep) trueParentId = foundDep.id;
