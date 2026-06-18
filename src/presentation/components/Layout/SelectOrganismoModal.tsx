@@ -28,7 +28,7 @@ export const SelectOrganismoModal: React.FC<SelectOrganismoModalProps> = ({
         .filter((d) => d.parentId && String(d.parentId).toLowerCase().trim() === pIdLower)
         .map((d) => d.id);
       const linked = relaciones
-        .filter((r) => (r.type === "Dependencia" || r.type === "Organismo-Dependencia") && String(r.parentId).toLowerCase().trim() === pIdLower && r.activo !== false)
+        .filter((r) => (r.type === "Dependencia" || r.type === "Organismo-Dependencia") && String(r.parentId).toLowerCase().trim() === pIdLower)
         .map((r) => r.childId);
       const combined = Array.from(new Set([...direct, ...linked])).filter(id => !visited.has(String(id).toLowerCase().trim()));
 

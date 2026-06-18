@@ -39,7 +39,12 @@ interface CapturaModuleProps {
   cargos?: any[];
   factores?: any[];
   vigenciaActiva?: boolean;
-  relaciones: any[];
+  relaciones: {
+    type: string;
+    childId: string;
+    parentId: string;
+    includedChildren?: string[];
+  }[];
   onSave: (data: any) => void;
   onDelete?: (id: string) => void;
   isLoadingRecords?: boolean;
@@ -152,148 +157,80 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
   }, [formData.organismoId, dependencias, getAllDescendantDependencias]);
 
   const filteredProcesos = useMemo(() => {
-    if (!formData.dependenciaId) return [];
-    const dId = formData.dependenciaId;
-    
-    const activeRels = relaciones.filter(r => 
-      String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-      r.activo !== false
+    let result = procesos.filter(
+      (p) =>
+        p.dependenciaId === formData.dependenciaId ||
+        p.dependenciaId === formData.organismoId ||
+        relaciones.some(
+          (r) =>
+            r.type === "Proceso" &&
+            r.childId === p.id &&
+            (r.parentId === formData.dependenciaId || r.parentId === formData.organismoId),
+        ),
     );
-    const excludedChildIds = new Set(
-      relaciones.filter(r => 
-        String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-        r.activo === false
-      ).map(r => String(r.childId).toLowerCase())
-    );
-    const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
-
-    const isActividadActive = (actId: string) => {
-      const actIdStr = String(actId).toLowerCase();
-      if (excludedChildIds.has(actIdStr)) return false;
-      return activeChildIds.has(actIdStr);
-    };
-
-    const isProcedimientoActive = (pcdId: string) => {
-      const pcdIdStr = String(pcdId).toLowerCase();
-      if (excludedChildIds.has(pcdIdStr)) return false;
-      if (activeChildIds.has(pcdIdStr)) return true;
-      const childActs = actividades.filter(a => a.procedimientoId === pcdId);
-      return childActs.some(a => isActividadActive(a.id));
-    };
-
-    const isProcesoActive = (procId: string) => {
-      const procIdStr = String(procId).toLowerCase();
-      if (excludedChildIds.has(procIdStr)) return false;
-      if (activeChildIds.has(procIdStr)) return true;
-      const childPcds = procedimientos.filter(pcd => pcd.procesoId === procId);
-      return childPcds.some(pcd => isProcedimientoActive(pcd.id));
-    };
-
-    return procesos.filter(p => {
-      if (excludedChildIds.has(String(p.id).toLowerCase())) return false;
-      return p.dependenciaId === dId || isProcesoActive(p.id);
-    });
-  }, [formData.dependenciaId, procesos, relaciones, procedimientos, actividades]);
+    return result;
+  }, [formData.dependenciaId, formData.organismoId, procesos, relaciones]);
 
   const filteredProcedimientos = useMemo(() => {
-    if (!formData.procesoId || !formData.dependenciaId) return [];
-    const dId = formData.dependenciaId;
-    const procId = formData.procesoId;
-
-    const activeRels = relaciones.filter(r => 
-      String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-      r.activo !== false
+    let result = procedimientos.filter(
+      (pc) =>
+        (formData.procesoId && pc.procesoId === formData.procesoId) ||
+        (formData.procesoId && relaciones.some(
+          (r) =>
+            r.type === "Procedimiento" &&
+            r.childId === pc.id &&
+            r.parentId === formData.procesoId,
+        )) ||
+        (!formData.procesoId && formData.dependenciaId && relaciones.some(
+          (r) =>
+            r.type === "Procedimiento" &&
+            r.childId === pc.id &&
+            r.parentId === formData.dependenciaId,
+        )) ||
+        (!formData.procesoId && formData.organismoId && relaciones.some(
+          (r) =>
+            r.type === "Procedimiento" &&
+            r.childId === pc.id &&
+            r.parentId === formData.organismoId,
+        ))
     );
-    const excludedChildIds = new Set(
-      relaciones.filter(r => 
-        String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-        r.activo === false
-      ).map(r => String(r.childId).toLowerCase())
-    );
-    const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
-
-    const getResolvedChildType = (childId: string): string | null => {
-      const childIdStr = String(childId).toLowerCase().trim();
-      if (dependencias.some(d => String(d.id).toLowerCase().trim() === childIdStr)) return 'Dependencia';
-      if (procesos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Proceso';
-      if (procedimientos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Procedimiento';
-      if (actividades.some(a => String(a.id).toLowerCase().trim() === childIdStr)) return 'Actividad';
-      return null;
-    };
-
-    const isActividadActive = (actId: string) => {
-      const actIdStr = String(actId).toLowerCase();
-      if (excludedChildIds.has(actIdStr)) return false;
-      return activeChildIds.has(actIdStr);
-    };
-
-    const isProcedimientoActive = (pcdId: string) => {
-      const pcdIdStr = String(pcdId).toLowerCase();
-      if (excludedChildIds.has(pcdIdStr)) return false;
-      if (activeChildIds.has(pcdIdStr)) return true;
-      const childActs = actividades.filter(a => a.procedimientoId === pcdId);
-      return childActs.some(a => isActividadActive(a.id));
-    };
-
-    const hasFinerRelationsUnderProc = activeRels.some(r => {
-      const rType = getResolvedChildType(r.childId);
-      return (
-        (rType === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === procId)) ||
-        (rType === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === procId)))
+    const procRelation = formData.procesoId
+      ? relaciones.find(
+          (r) =>
+            r.type === "Proceso" &&
+            r.childId === formData.procesoId &&
+            (r.parentId === formData.dependenciaId || r.parentId === formData.organismoId),
+        )
+      : undefined;
+    if (procRelation && procRelation.includedChildren && procRelation.includedChildren.length > 0) {
+      result = result.filter((pc) =>
+        procRelation.includedChildren!.includes(pc.id),
       );
-    });
-
-    let candidates = procedimientos.filter(pcd => pcd.procesoId === procId);
-    if (hasFinerRelationsUnderProc) {
-      candidates = candidates.filter(pcd => isProcedimientoActive(pcd.id));
-    } else {
-      candidates = candidates.filter(pcd => !excludedChildIds.has(String(pcd.id).toLowerCase()));
     }
-    return candidates;
-  }, [formData.procesoId, formData.dependenciaId, procedimientos, relaciones, actividades, dependencias, procesos]);
+    return result;
+  }, [formData.procesoId, formData.dependenciaId, formData.organismoId, procedimientos, relaciones]);
 
   const filteredActividades = useMemo(() => {
-    if (!formData.procedimientoId || !formData.dependenciaId) return [];
-    const dId = formData.dependenciaId;
-    const pcdId = formData.procedimientoId;
-
-    const activeRels = relaciones.filter(r => 
-      String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-      r.activo !== false
+    let result = actividades.filter(
+      (a) =>
+        a.procedimientoId === formData.procedimientoId ||
+        relaciones.some(
+          (r) =>
+            r.type === "Actividad" &&
+            r.childId === a.id &&
+            r.parentId === formData.procedimientoId,
+        ),
     );
-    const excludedChildIds = new Set(
-      relaciones.filter(r => 
-        String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-        r.activo === false
-      ).map(r => String(r.childId).toLowerCase())
+    const pcdRelation = relaciones.find(
+      (r) =>
+        r.type === "Procedimiento" &&
+        r.childId === formData.procedimientoId &&
+        r.parentId === formData.procesoId,
     );
-    const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
-
-    const getResolvedChildType = (childId: string): string | null => {
-      const childIdStr = String(childId).toLowerCase().trim();
-      if (dependencias.some(d => String(d.id).toLowerCase().trim() === childIdStr)) return 'Dependencia';
-      if (procesos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Proceso';
-      if (procedimientos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Procedimiento';
-      if (actividades.some(a => String(a.id).toLowerCase().trim() === childIdStr)) return 'Actividad';
-      return null;
-    };
-
-    const isActividadActive = (actId: string) => {
-      const actIdStr = String(actId).toLowerCase();
-      if (excludedChildIds.has(actIdStr)) return false;
-      return activeChildIds.has(actIdStr);
-    };
-
-    const hasFinerRelationsUnderPcd = activeRels.some(r => {
-      const rType = getResolvedChildType(r.childId);
-      return rType === 'Actividad' && actividades.some(act => act.id === r.childId && act.procedimientoId === pcdId);
-    });
-
-    let candidates = actividades.filter(act => act.procedimientoId === pcdId);
-    if (hasFinerRelationsUnderPcd) {
-      candidates = candidates.filter(act => isActividadActive(act.id));
-    } else {
-      candidates = candidates.filter(act => !excludedChildIds.has(String(act.id).toLowerCase()));
+    if (pcdRelation && pcdRelation.includedChildren && pcdRelation.includedChildren.length > 0) {
+      result = result.filter((a) =>
+        pcdRelation.includedChildren!.includes(a.id),
+      );
     }
 
     // Filter activities for Funcionario role (one-time recording per activity)
@@ -301,20 +238,16 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
       const userCompletedActivityIds = cargas
         .filter((c) => c.userId === currentUser.id)
         .map((c) => c.actividadId);
-      candidates = candidates.filter((a) => !userCompletedActivityIds.includes(a.id));
+      result = result.filter((a) => !userCompletedActivityIds.includes(a.id));
     }
-
-    return candidates;
+    return result;
   }, [
     formData.procedimientoId,
-    formData.dependenciaId,
+    formData.procesoId,
     actividades,
     relaciones,
     currentUser,
     cargas,
-    dependencias,
-    procesos,
-    procedimientos,
   ]);
 
   // Memoized Lookup Maps to avoid O(N^2) searches inside map loops

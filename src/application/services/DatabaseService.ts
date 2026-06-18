@@ -71,14 +71,15 @@ export const DatabaseService = {
       throw new Error(e.message || "Error al cargar estructura jerárquica");
     }
   },
-    saveEstructuraOrg: async (nodos: any[]) => {
+  
+  saveEstructuraOrg: async (nodos: any[]) => {
     if (!supabase || !nodos || nodos.length === 0) return nodos;
     try {
       const format = nodos.map(n => ({
         IdNodoOrg: n.IdNodoOrg || n.id,
         IdVigencia: n.IdVigencia || n.vigenciaId,
         IdPadre: n.IdPadre || n.parentId || null,
-        Nivel: n.Nivel || n.nivel || n.level || (n.parentId ? 2 : 1),
+        Nivel: n.Nivel || n.level || (n.parentId ? 2 : 1),
         CodigoInterno: n.CodigoInterno || (n.codigo && typeof n.codigo === 'string' && n.codigo.trim() !== '' ? n.codigo.trim() : null) || (String(n.IdNodoOrg || n.id || "")).substring(0,8) || 'S/N',
         Nombre: n.Nombre || n.nombre || 'Nodo',
         Activo: n.Activo !== undefined ? n.Activo : (n.activo !== undefined ? n.activo : true)
@@ -89,7 +90,7 @@ export const DatabaseService = {
       if (resp.error) throw resp.error;
     } catch (e: any) {
       console.error("Error saving org", e);
-      throw new Error(e.message || "Error al guardar estructura de procesos");
+      throw new Error(e.message || "Error al guardar estructura jerárquica");
     }
     return nodos;
   },
@@ -126,7 +127,7 @@ export const DatabaseService = {
         IdVigencia: n.IdVigencia || n.vigenciaId,
         IdPadre: n.IdPadre || n.padreId || n.procesoId || n.procedimientoId || null,
         IdTipoProceso: n.IdTipoProceso || null,
-        Nivel: n.Nivel || n.nivel || n.level || 1,
+        Nivel: n.Nivel || n.nivel || 1,
         CodigoInterno: n.CodigoInterno || (n.codigo && typeof n.codigo === 'string' && n.codigo.trim() !== '' ? n.codigo.trim() : null) || (String(n.IdNodoProceso || n.id || "")).substring(0,8) || 'S/N',
         Nombre: n.Nombre || n.nombre || 'Proceso',
         Producto: n.Producto || n.producto || null,

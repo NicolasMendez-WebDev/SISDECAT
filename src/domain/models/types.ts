@@ -122,9 +122,8 @@ export interface Relacion {
   id: string;
   parentId: string;
   childId: string;
-  type: 'Dependencia' | 'Proceso' | 'Procedimiento' | 'Actividad' | 'Organismo-Dependencia' | string;
-  includedChildren?: any;
-  activo?: boolean;
+  type: 'Dependencia' | 'Proceso' | 'Procedimiento' | 'Actividad';
+  includedChildren?: boolean;
 }
 
 export type UserRole = 'Funcionario' | 'Analista' | 'Administrador' | 'AdminFuncional';

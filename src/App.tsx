@@ -261,7 +261,6 @@ export default function App() {
                 (m as any).observacion_relacion ||
                 m.type ||
                 "Proceso",
-              activo: m.Activo !== undefined ? m.Activo : true,
             }))
             .filter((r) => r.parentId && r.childId);
 
@@ -270,128 +269,58 @@ export default function App() {
           setRelaciones(mappedRels);
 
           const procDb = await DatabaseService.getEstructuraProc();
-          
-          // Self-healing & Casing-tolerant normalization of rows from DB
-          const parsedProcDb = procDb.map((x: any) => {
-            const id = x.IdNodoProceso || x.id_nodo_proceso || x.id;
-            const vigenciaId = x.IdVigencia || x.id_vigencia || x.vigenciaId;
-            const padreId = x.IdPadre || x.id_padre || x.padreId || null;
-            const cleanPadreId = (padreId && String(padreId).toLowerCase().trim() !== 'n/a' && String(padreId).trim() !== '') ? padreId : null;
-            const originalNivel = x.Nivel !== undefined ? Number(x.Nivel) : (x.nivel !== undefined ? Number(x.nivel) : (x.level !== undefined ? Number(x.level) : 2));
-            const codigo = x.CodigoInterno || x.codigo_interno || x.codigo || '';
-            const nombre = x.Nombre || x.nombre || '';
-            const producto = x.Producto || x.producto || null;
-            const activo = x.Activo !== undefined ? x.Activo : (x.activo !== undefined ? x.activo : true);
-            
-            return {
-              id,
-              vigenciaId,
-              padreId: cleanPadreId,
-              originalNivel,
-              codigo,
-              nombre,
-              producto,
-              activo,
-              resolvedNivel: originalNivel
-            };
-          });
-
-          // Build map for topological traversal
-          const nodesById = new Map<string, any>();
-          parsedProcDb.forEach((n) => {
-            nodesById.set(String(n.id).toLowerCase().trim(), n);
-          });
-
-          const depthCache = new Map<string, number>();
-          const getDepth = (nodeId: string, visited = new Set<string>()): number => {
-            const cleanId = String(nodeId).toLowerCase().trim();
-            if (depthCache.get(cleanId) !== undefined) return depthCache.get(cleanId)!;
-            if (visited.has(cleanId)) return 2; // break loop
-            
-            const node = nodesById.get(cleanId);
-            if (!node || !node.padreId) {
-              const baseVal = node ? node.originalNivel : 2;
-              const finalVal = baseVal <= 2 ? baseVal : 2;
-              depthCache.set(cleanId, finalVal);
-              return finalVal;
-            }
-            
-            visited.add(cleanId);
-            const parentDepth = getDepth(node.padreId, visited);
-            visited.delete(cleanId);
-            
-            let finalVal = 2;
-            if (parentDepth === 1) finalVal = 2;
-            else if (parentDepth === 2) finalVal = 3;
-            else if (parentDepth === 3) finalVal = 4;
-            else finalVal = 4;
-            
-            depthCache.set(cleanId, finalVal);
-            return finalVal;
-          };
-
-          // Assign resolved levels to all nodes on load
-          parsedProcDb.forEach((n) => {
-            n.resolvedNivel = getDepth(n.id);
-          });
-
-          // Map to correct React UI states
-          const fetchedProcs = parsedProcDb
-            .filter((x) => x.resolvedNivel <= 2)
+          // UI expects Proceso in procData, Procedimiento in pcdData, Actividad in actData (Nivel 1 are just categories)
+          const fetchedProcs = procDb
+            .filter((x) => x.Nivel <= 2)
             .map((x) => {
-              const parentNivel1 = parsedProcDb.find(
-                (p) => String(p.id).toLowerCase() === String(x.padreId).toLowerCase() && p.resolvedNivel === 1,
+              const parentNivel1 = procDb.find(
+                (p) => p.IdNodoProceso === x.IdPadre && p.Nivel === 1,
               );
               return {
-                id: x.id,
-                vigenciaId: x.vigenciaId,
-                codigo: x.codigo,
-                nombre: x.nombre,
+                id: x.IdNodoProceso,
+                vigenciaId: x.IdVigencia,
+                codigo: x.CodigoInterno,
+                nombre: x.Nombre,
                 dependenciaId:
                   mappedRels.find(
-                    (r) => String(r.childId) === String(x.id),
+                    (r) => String(r.childId) === String(x.IdNodoProceso),
                   )?.parentId || null,
-                procesoId: x.padreId,
-                level: x.resolvedNivel,
-                nivel: x.resolvedNivel,
-                activo: x.activo,
-                estado: x.activo ? "Activo" : "Inactivo",
-                tipo: parentNivel1 ? parentNivel1.nombre : "Misional",
+                procesoId: x.IdPadre, // Mapping IdPadre as procesoId for level 1/2 if exists
+                level: x.Nivel,
+                activo: x.Activo,
+                estado: x.Activo ? "Activo" : "Inactivo",
+                tipo: parentNivel1 ? parentNivel1.Nombre : "Misional",
                 descripcion: parentNivel1
-                  ? `Tipo de proceso: ${parentNivel1.nombre}`
-                  : x.resolvedNivel === 1
+                  ? `Tipo de proceso: ${parentNivel1.Nombre}`
+                  : x.Nivel === 1
                     ? "Macoproceso/Tipo"
                     : "Misional",
               };
             });
-
-          const fetchedPcds = parsedProcDb
-            .filter((x) => x.resolvedNivel === 3)
+          const fetchedPcds = procDb
+            .filter((x) => x.Nivel === 3)
             .map((x) => ({
-              id: x.id,
-              vigenciaId: x.vigenciaId,
-              codigo: x.codigo,
-              nombre: x.nombre,
-              procesoId: x.padreId,
-              producto: x.producto,
+              id: x.IdNodoProceso,
+              vigenciaId: x.IdVigencia,
+              codigo: x.CodigoInterno,
+              nombre: x.Nombre,
+              procesoId: x.IdPadre,
+              producto: x.Producto,
               level: 3,
-              nivel: 3,
-              activo: x.activo,
-              estado: x.activo ? "Activo" : "Inactivo",
+              activo: x.Activo,
+              estado: x.Activo ? "Activo" : "Inactivo",
             }));
-
-          const fetchedActs = parsedProcDb
-            .filter((x) => x.resolvedNivel >= 4)
+          const fetchedActs = procDb
+            .filter((x) => x.Nivel >= 4)
             .map((x) => ({
-              id: x.id,
-              vigenciaId: x.vigenciaId,
-              codigo: x.codigo,
-              nombre: x.nombre,
-              procedimientoId: x.padreId,
+              id: x.IdNodoProceso,
+              vigenciaId: x.IdVigencia,
+              codigo: x.CodigoInterno,
+              nombre: x.Nombre,
+              procedimientoId: x.IdPadre,
               level: 4,
-              nivel: 4,
-              activo: x.activo,
-              estado: x.activo ? "Activo" : "Inactivo",
+              activo: x.Activo,
+              estado: x.Activo ? "Activo" : "Inactivo",
             }));
 
           setRelaciones(mappedRels);
@@ -1987,42 +1916,8 @@ export default function App() {
         );
       }
     } else {
-      // Find ancestral dependency from the path to save persistent exclusion
-      const pathParts = path.split('/');
-      let depId = null;
-      for (let i = pathParts.length - 1; i >= 0; i--) {
-        const partid = pathParts[i];
-        if (depData.some((d) => d.id === partid)) {
-          depId = partid;
-          break;
-        }
-      }
-
-      if (depId) {
-        const newExclusion = {
-          type: childType,
-          childId: childId,
-          parentId: depId,
-          vigenciaId: currentVigenciaView?.IdVigencia,
-          activo: false,
-        };
-        const updatedRels = [...relaciones, newExclusion];
-        setRelaciones(updatedRels);
-
-        // Sync exclusions in background
-        if (currentVigenciaView?.IdVigencia) {
-          import("./application/services/DatabaseService").then(
-            ({ DatabaseService }) => {
-              DatabaseService.saveMapaRelaciones([newExclusion]).catch((e) => {
-                console.error("Error al sincronizar exclusión", e);
-              });
-            },
-          );
-        }
-      } else {
-        // If no dependency found in path, fallback to memory hide
-        setHiddenPaths((prev) => [...prev, path]);
-      }
+      // If it's a base relationship, we just hide it from the UI for this specific contextual path
+      setHiddenPaths((prev) => [...prev, path]);
     }
 
     // Find name for toast
