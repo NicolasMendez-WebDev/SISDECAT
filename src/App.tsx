@@ -261,6 +261,7 @@ export default function App() {
                 (m as any).observacion_relacion ||
                 m.type ||
                 "Proceso",
+              activo: m.Activo !== undefined ? m.Activo : true,
             }))
             .filter((r) => r.parentId && r.childId);
 
@@ -1916,8 +1917,42 @@ export default function App() {
         );
       }
     } else {
-      // If it's a base relationship, we just hide it from the UI for this specific contextual path
-      setHiddenPaths((prev) => [...prev, path]);
+      // Find ancestral dependency from the path to save persistent exclusion
+      const pathParts = path.split('/');
+      let depId = null;
+      for (let i = pathParts.length - 1; i >= 0; i--) {
+        const partid = pathParts[i];
+        if (depData.some((d) => d.id === partid)) {
+          depId = partid;
+          break;
+        }
+      }
+
+      if (depId) {
+        const newExclusion = {
+          type: childType,
+          childId: childId,
+          parentId: depId,
+          vigenciaId: currentVigenciaView?.IdVigencia,
+          activo: false,
+        };
+        const updatedRels = [...relaciones, newExclusion];
+        setRelaciones(updatedRels);
+
+        // Sync exclusions in background
+        if (currentVigenciaView?.IdVigencia) {
+          import("./application/services/DatabaseService").then(
+            ({ DatabaseService }) => {
+              DatabaseService.saveMapaRelaciones([newExclusion]).catch((e) => {
+                console.error("Error al sincronizar exclusión", e);
+              });
+            },
+          );
+        }
+      } else {
+        // If no dependency found in path, fallback to memory hide
+        setHiddenPaths((prev) => [...prev, path]);
+      }
     }
 
     // Find name for toast
