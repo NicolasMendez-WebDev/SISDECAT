@@ -416,21 +416,21 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
         if (parentType === null) {
           baseChildren = organismos.filter(o => !o.parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
         } else if (parentType === 'Organismo') {
-          const subOrgs = organismos.filter(o => o.parentId === parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
-          const deps = dependencias.filter(d => d.parentId === parentId).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          const subOrgs = organismos.filter(o => o.parentId && parentId && String(o.parentId).toLowerCase() === String(parentId).toLowerCase()).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          const deps = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase()).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
           baseChildren = [...deps, ...subOrgs];
         } else if (parentType === 'Dependencia') {
-          baseChildren = dependencias.filter(d => d.parentId === parentId).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          baseChildren = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase()).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
         }
       } else if (viewMode === 'procedimental') {
         if (parentType === null) {
           baseChildren = procesos.filter(p => !p.procesoId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
         } else if (parentType === 'Proceso') {
-          const subProcs = procesos.filter(p => p.procesoId === parentId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
-          const pcds = procedimientos.filter(pcd => pcd.procesoId === parentId).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
+          const subProcs = procesos.filter(p => p.procesoId && parentId && String(p.procesoId).toLowerCase() === String(parentId).toLowerCase()).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+          const pcds = procedimientos.filter(pcd => pcd.procesoId && parentId && String(pcd.procesoId).toLowerCase() === String(parentId).toLowerCase()).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
           baseChildren = [...subProcs, ...pcds];
         } else if (parentType === 'Procedimiento') {
-          baseChildren = actividades.filter(act => act.procedimientoId === parentId).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
+          baseChildren = actividades.filter(act => act.procedimientoId && parentId && String(act.procedimientoId).toLowerCase() === String(parentId).toLowerCase()).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
         }
       } else {
         // viewMode === 'general' (Dynamic top-down/bottom-up relationship resolution)

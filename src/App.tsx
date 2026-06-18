@@ -208,32 +208,32 @@ export default function App() {
           const { DatabaseService } =
             await import("./application/services/DatabaseService");
           const vDb = await DatabaseService.getVigencias();
-          setVigencias(vDb || []);
+          setVigencias(vDb || []);          const orgDb = await DatabaseService.getEstructuraOrg();
+          const parsedOrgDb = orgDb.map((x: any) => {
+            const id = x.IdNodoOrg || x.id_nodo_org || x.id_nodo_org || x.idnodoorg || x.id;
+            const vigenciaId = x.IdVigencia || x.id_vigencia || x.id_vigencia || x.idvigencia || x.vigenciaId;
+            const parentId = x.IdPadre || x.id_padre || x.id_padre || x.idpadre || x.parentId || null;
+            const cleanParentId = (parentId && String(parentId).toLowerCase().trim() !== 'n/a' && String(parentId).trim() !== '') ? parentId : null;
+            const level = x.Nivel !== undefined ? Number(x.Nivel) : (x.nivel !== undefined ? Number(x.nivel) : (x.level !== undefined ? Number(x.level) : 1));
+            const codigo = x.CodigoInterno || x.codigo_interno || x.codigo_interno || x.codigointerno || x.codigo || '';
+            const nombre = x.Nombre || x.nombre || '';
+            const activo = x.Activo !== undefined ? x.Activo : (x.activo !== undefined ? x.activo : true);
+            
+            return {
+              id,
+              vigenciaId,
+              parentId: cleanParentId,
+              level,
+              codigo,
+              nombre,
+              activo,
+              estado: activo ? "Activo" : "Inactivo"
+            };
+          });
 
-          const orgDb = await DatabaseService.getEstructuraOrg();
-          const fetchedOrgs = orgDb
-            .filter((x) => x.Nivel === 1)
-            .map((x) => ({
-              id: x.IdNodoOrg,
-              vigenciaId: x.IdVigencia,
-              codigo: x.CodigoInterno,
-              nombre: x.Nombre,
-              level: 1,
-              activo: x.Activo,
-              estado: x.Activo ? "Activo" : "Inactivo",
-            }));
-          const fetchedDeps = orgDb
-            .filter((x) => x.Nivel > 1)
-            .map((x) => ({
-              id: x.IdNodoOrg,
-              vigenciaId: x.IdVigencia,
-              codigo: x.CodigoInterno,
-              nombre: x.Nombre,
-              parentId: x.IdPadre,
-              level: x.Nivel,
-              activo: x.Activo,
-              estado: x.Activo ? "Activo" : "Inactivo",
-            }));
+          const fetchedOrgs = parsedOrgDb.filter((x) => x.level === 1);
+          const fetchedDeps = parsedOrgDb.filter((x) => x.level > 1);
+          
           setOrgData(fetchedOrgs);
           setDepData(fetchedDeps);
 
@@ -265,20 +265,18 @@ export default function App() {
             }))
             .filter((r) => r.parentId && r.childId);
 
-          // ... Continue the block completely by matching what it was doing, wait, I can just replace lines 155 to 191
-
           setRelaciones(mappedRels);
 
           const procDb = await DatabaseService.getEstructuraProc();
           
           // Self-healing & Casing-tolerant normalization of rows from DB
           const parsedProcDb = procDb.map((x: any) => {
-            const id = x.IdNodoProceso || x.id_nodo_proceso || x.id;
-            const vigenciaId = x.IdVigencia || x.id_vigencia || x.vigenciaId;
-            const padreId = x.IdPadre || x.id_padre || x.padreId || null;
+            const id = x.IdNodoProceso || x.id_nodo_proceso || x.id_nodo_proceso || x.idnodoproceso || x.id;
+            const vigenciaId = x.IdVigencia || x.id_vigencia || x.id_vigencia || x.idvigencia || x.vigenciaId;
+            const padreId = x.IdPadre || x.id_padre || x.id_padre || x.idpadre || x.padreId || null;
             const cleanPadreId = (padreId && String(padreId).toLowerCase().trim() !== 'n/a' && String(padreId).trim() !== '') ? padreId : null;
-            const originalNivel = x.Nivel !== undefined ? Number(x.Nivel) : (x.nivel !== undefined ? Number(x.nivel) : (x.level !== undefined ? Number(x.level) : 2));
-            const codigo = x.CodigoInterno || x.codigo_interno || x.codigo || '';
+            const originalNivel = x.Nivel !== undefined ? Number(x.Nivel) : (x.nivel !== undefined ? Number(x.nivel) : (x.original_nivel !== undefined ? Number(x.original_nivel) : (x.level !== undefined ? Number(x.level) : 2)));
+            const codigo = x.CodigoInterno || x.codigo_interno || x.codigo_interno || x.codigointerno || x.codigo || '';
             const nombre = x.Nombre || x.nombre || '';
             const producto = x.Producto || x.producto || null;
             const activo = x.Activo !== undefined ? x.Activo : (x.activo !== undefined ? x.activo : true);
@@ -1668,12 +1666,12 @@ export default function App() {
 
       // Normalize all DB processes
       const parsedProcDb = procDb.map((x: any) => {
-        const id = x.IdNodoProceso || x.id_nodo_proceso || x.id;
-        const vigenciaId = x.IdVigencia || x.id_vigencia || x.vigenciaId;
-        const padreId = x.IdPadre || x.id_padre || x.padreId || null;
+        const id = x.IdNodoProceso || x.id_nodo_proceso || x.id_nodo_proceso || x.idnodoproceso || x.id;
+        const vigenciaId = x.IdVigencia || x.id_vigencia || x.id_vigencia || x.idvigencia || x.vigenciaId;
+        const padreId = x.IdPadre || x.id_padre || x.id_padre || x.idpadre || x.padreId || null;
         const cleanPadreId = (padreId && String(padreId).toLowerCase().trim() !== 'n/a' && String(padreId).trim() !== '') ? padreId : null;
-        const originalNivel = x.Nivel !== undefined ? Number(x.Nivel) : (x.nivel !== undefined ? Number(x.nivel) : (x.level !== undefined ? Number(x.level) : 2));
-        const codigo = x.CodigoInterno || x.codigo_interno || x.codigo || '';
+        const originalNivel = x.Nivel !== undefined ? Number(x.Nivel) : (x.nivel !== undefined ? Number(x.nivel) : (x.original_nivel !== undefined ? Number(x.original_nivel) : (x.level !== undefined ? Number(x.level) : 2)));
+        const codigo = x.CodigoInterno || x.codigo_interno || x.codigo_interno || x.codigointerno || x.codigo || '';
         const nombre = x.Nombre || x.nombre || '';
         const producto = x.Producto || x.producto || null;
         const activo = x.Activo !== undefined ? x.Activo : (x.activo !== undefined ? x.activo : true);
