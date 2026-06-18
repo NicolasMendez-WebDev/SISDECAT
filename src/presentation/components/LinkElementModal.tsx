@@ -32,13 +32,13 @@ export const LinkElementModal: React.FC<LinkElementModalProps> = ({
 
   let itemsToLink: any[] = [];
   if (config.childType === 'Dependencia') {
-    itemsToLink = dependencias.filter(d => d.parentId !== config.parentId && !relaciones.some(r => r.type === 'Dependencia' && r.childId === d.id && r.parentId === config.parentId));
+    itemsToLink = dependencias.filter(d => d.parentId !== config.parentId && !relaciones.some(r => r.type === 'Dependencia' && r.childId === d.id && r.parentId === config.parentId && r.activo !== false));
   } else if (config.childType === 'Proceso') {
-    itemsToLink = procesos.filter(p => p.dependenciaId !== config.parentId && !relaciones.some(r => r.type === 'Proceso' && r.childId === p.id && r.parentId === config.parentId));
+    itemsToLink = procesos.filter(p => p.dependenciaId !== config.parentId && !relaciones.some(r => r.type === 'Proceso' && r.childId === p.id && r.parentId === config.parentId && r.activo !== false));
   } else if (config.childType === 'Procedimiento') {
-    itemsToLink = procedimientos.filter(p => p.procesoId !== config.parentId && !relaciones.some(r => r.type === 'Procedimiento' && r.childId === p.id && r.parentId === config.parentId));
+    itemsToLink = procedimientos.filter(p => p.procesoId !== config.parentId && !relaciones.some(r => r.type === 'Procedimiento' && r.childId === p.id && r.parentId === config.parentId && r.activo !== false));
   } else if (config.childType === 'Actividad') {
-    itemsToLink = actividades.filter(a => a.procedimientoId !== config.parentId && !relaciones.some(r => r.type === 'Actividad' && r.childId === a.id && r.parentId === config.parentId));
+    itemsToLink = actividades.filter(a => a.procedimientoId !== config.parentId && !relaciones.some(r => r.type === 'Actividad' && r.childId === a.id && r.parentId === config.parentId && r.activo !== false));
   }
 
 
