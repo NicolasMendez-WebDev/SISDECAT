@@ -1632,6 +1632,12 @@ export default function App() {
     try {
       setIsLoadingData(true);
 
+      const targetVigenciaId = currentVigenciaView?.IdVigencia;
+      if (!targetVigenciaId) {
+        showToast("Error: No hay una vigencia seleccionada.", "error");
+        return;
+      }
+
       let firstValidRow = {};
       for (const row of nuevasRelaciones) {
         if (Object.keys(row).length > 0) {
@@ -1656,6 +1662,94 @@ export default function App() {
             k.toLowerCase().includes("proceso") ||
             k.toLowerCase().includes("procedimiento"),
         ) || allHeaders[1];
+
+      const { DatabaseService } = await import("./application/services/DatabaseService");
+      const procDb = await DatabaseService.getEstructuraProc();
+
+      // Normalize all DB processes
+      const parsedProcDb = procDb.map((x: any) => {
+        const id = x.IdNodoProceso || x.id_nodo_proceso || x.id;
+        const vigenciaId = x.IdVigencia || x.id_vigencia || x.vigenciaId;
+        const padreId = x.IdPadre || x.id_padre || x.padreId || null;
+        const cleanPadreId = (padreId && String(padreId).toLowerCase().trim() !== 'n/a' && String(padreId).trim() !== '') ? padreId : null;
+        const originalNivel = x.Nivel !== undefined ? Number(x.Nivel) : (x.nivel !== undefined ? Number(x.nivel) : (x.level !== undefined ? Number(x.level) : 2));
+        const codigo = x.CodigoInterno || x.codigo_interno || x.codigo || '';
+        const nombre = x.Nombre || x.nombre || '';
+        const producto = x.Producto || x.producto || null;
+        const activo = x.Activo !== undefined ? x.Activo : (x.activo !== undefined ? x.activo : true);
+        
+        return {
+          id,
+          vigenciaId,
+          padreId: cleanPadreId,
+          originalNivel,
+          codigo,
+          nombre,
+          producto,
+          activo
+        };
+      });
+
+      const nodesToInsert: any[] = [];
+      const cachedCopies = new Map<string, string>(); // maps "targetVigenciaId-codigo" -> targetId
+
+      const ensureNodeInVigencia = (sourceNode: any): string => {
+        const cacheKey = `${targetVigenciaId}-${String(sourceNode.codigo).toLowerCase().trim()}`;
+        if (cachedCopies.has(cacheKey)) {
+          return cachedCopies.get(cacheKey)!;
+        }
+
+        // Check if already in parsedProcDb for the target vigencia
+        const existingNode = parsedProcDb.find(
+          (n) =>
+            n.vigenciaId === targetVigenciaId &&
+            String(n.codigo).toLowerCase().trim() === String(sourceNode.codigo).toLowerCase().trim()
+        );
+
+        if (existingNode) {
+          cachedCopies.set(cacheKey, existingNode.id);
+          return existingNode.id;
+        }
+
+        // Also check if we already scheduled it for insertion in this batch
+        const scheduledNode = nodesToInsert.find(
+          (n) =>
+            n.vigenciaId === targetVigenciaId &&
+            String(n.codigo).toLowerCase().trim() === String(sourceNode.codigo).toLowerCase().trim()
+        );
+
+        if (scheduledNode) {
+          cachedCopies.set(cacheKey, scheduledNode.id);
+          return scheduledNode.id;
+        }
+
+        // Parent resolution first
+        let targetParentId: string | null = null;
+        if (sourceNode.padreId) {
+          const sourceParent = parsedProcDb.find(
+            (n) => String(n.id).toLowerCase() === String(sourceNode.padreId).toLowerCase()
+          );
+          if (sourceParent) {
+            targetParentId = ensureNodeInVigencia(sourceParent);
+          }
+        }
+
+        const newTargetId = crypto.randomUUID();
+        const newNode = {
+          id: newTargetId,
+          vigenciaId: targetVigenciaId,
+          padreId: targetParentId,
+          nivel: sourceNode.originalNivel || 2,
+          codigo: sourceNode.codigo,
+          nombre: sourceNode.nombre,
+          producto: sourceNode.producto || null,
+          activo: sourceNode.activo !== undefined ? sourceNode.activo : true
+        };
+
+        nodesToInsert.push(newNode);
+        cachedCopies.set(cacheKey, newTargetId);
+        return newTargetId;
+      };
 
       const mappedRels: any[] = [];
 
@@ -1682,39 +1776,62 @@ export default function App() {
         let trueChildId = childIdRaw;
         let childType = "Proceso";
 
-        const foundProc = procData.find(
-          (p) => p.codigo === childIdRaw || p.id === childIdRaw,
-        );
-        const foundPcd = pcdData.find(
-          (p) => p.codigo === childIdRaw || p.id === childIdRaw,
-        );
-        const foundAct = actData.find(
-          (a) => a.codigo === childIdRaw || a.id === childIdRaw,
+        // Find child in the parsedProcDb
+        // 1. Direct match in target vigencia first
+        let foundNode = parsedProcDb.find(
+          (n) =>
+            n.vigenciaId === targetVigenciaId &&
+            (String(n.codigo).toLowerCase().trim() === childIdRaw.toLowerCase().trim() ||
+              String(n.id).toLowerCase().trim() === childIdRaw.toLowerCase().trim())
         );
 
-        if (foundProc) {
-          trueChildId = foundProc.id;
-          childType = "Proceso";
-        } else if (foundPcd) {
-          trueChildId = foundPcd.id;
-          childType = "Procedimiento";
-        } else if (foundAct) {
-          trueChildId = foundAct.id;
-          childType = "Actividad";
+        // 2. Look up in any other vigencia (the base catalog)
+        if (!foundNode) {
+          const baseNode = parsedProcDb.find(
+            (n) =>
+              String(n.codigo).toLowerCase().trim() === childIdRaw.toLowerCase().trim() ||
+              String(n.id).toLowerCase().trim() === childIdRaw.toLowerCase().trim()
+          );
+          if (baseNode) {
+            const newId = ensureNodeInVigencia(baseNode);
+            trueChildId = newId;
+            foundNode = {
+              id: newId,
+              vigenciaId: targetVigenciaId,
+              padreId: baseNode.padreId,
+              originalNivel: baseNode.originalNivel,
+              codigo: baseNode.codigo,
+              nombre: baseNode.nombre,
+              producto: baseNode.producto,
+              activo: baseNode.activo
+            };
+          }
+        } else {
+          trueChildId = foundNode.id;
+        }
+
+        if (foundNode) {
+          if (foundNode.originalNivel <= 2) {
+            childType = "Proceso";
+          } else if (foundNode.originalNivel === 3) {
+            childType = "Procedimiento";
+          } else if (foundNode.originalNivel >= 4) {
+            childType = "Actividad";
+          }
         } else {
           if (
             childIdRaw.startsWith("proc_") ||
-            trueChildId.toLowerCase().includes("proceso")
+            childIdRaw.toLowerCase().includes("proceso")
           )
             childType = "Proceso";
           else if (
             childIdRaw.startsWith("pcd_") ||
-            trueChildId.toLowerCase().includes("procedimiento")
+            childIdRaw.toLowerCase().includes("procedimiento")
           )
             childType = "Procedimiento";
           else if (
             childIdRaw.startsWith("act_") ||
-            trueChildId.toLowerCase().includes("actividad")
+            childIdRaw.toLowerCase().includes("actividad")
           )
             childType = "Actividad";
         }
@@ -1728,14 +1845,82 @@ export default function App() {
 
       const validRels = mappedRels.filter((r) => r.childId && r.parentId);
 
+      if (nodesToInsert.length > 0) {
+        try {
+          await DatabaseService.saveEstructuraProc(nodesToInsert);
+          
+          const newProcsConverted = nodesToInsert
+            .filter((n) => n.nivel <= 2)
+            .map((x) => ({
+              id: x.id,
+              vigenciaId: x.vigenciaId,
+              codigo: x.codigo,
+              nombre: x.nombre,
+              procesoId: x.padreId,
+              level: x.nivel,
+              nivel: x.nivel,
+              activo: x.activo,
+              estado: x.activo ? "Activo" : "Inactivo",
+              tipo: "Misional"
+            }));
+
+          const newPcdsConverted = nodesToInsert
+            .filter((n) => n.nivel === 3)
+            .map((x) => ({
+              id: x.id,
+              vigenciaId: x.vigenciaId,
+              codigo: x.codigo,
+              nombre: x.nombre,
+              procesoId: x.padreId,
+              producto: x.producto,
+              level: 3,
+              nivel: 3,
+              activo: x.activo,
+              estado: x.activo ? "Activo" : "Inactivo"
+            }));
+
+          const newActsConverted = nodesToInsert
+            .filter((n) => n.nivel >= 4)
+            .map((x) => ({
+              id: x.id,
+              vigenciaId: x.vigenciaId,
+              codigo: x.codigo,
+              nombre: x.nombre,
+              procedimientoId: x.padreId,
+              level: x.nivel,
+              nivel: x.nivel,
+              activo: x.activo,
+              estado: x.activo ? "Activo" : "Inactivo"
+            }));
+
+          setProcData((prev) => {
+            const map = new Map(prev.map((p) => [p.id, p]));
+            newProcsConverted.forEach((p) => map.set(p.id, p));
+            return Array.from(map.values());
+          });
+          setPcdData((prev) => {
+            const map = new Map(prev.map((p) => [p.id, p]));
+            newPcdsConverted.forEach((p) => map.set(p.id, p));
+            return Array.from(map.values());
+          });
+          setActData((prev) => {
+            const map = new Map(prev.map((p) => [p.id, p]));
+            newActsConverted.forEach((p) => map.set(p.id, p));
+            return Array.from(map.values());
+          });
+          
+          showToast(`Se auto-importaron ${nodesToInsert.length} elementos de procesos/procedimientos requeridos para esta relación.`, "success");
+        } catch (dbErr: any) {
+          console.error("Error auto-inserting process ancestors", dbErr);
+          showToast(`Error al auto-completar el catálogo de procesos: ${dbErr.message}`, "error");
+        }
+      }
+
       if (validRels.length > 0) {
         try {
-          const { DatabaseService } =
-            await import("./application/services/DatabaseService");
-
           // Map to correct format before updating state to get right Vigencia
           validRels.forEach((newRel) => {
-            newRel.vigenciaId = currentVigenciaView?.IdVigencia;
+            newRel.vigenciaId = targetVigenciaId;
           });
 
           await DatabaseService.saveMapaRelaciones(validRels);
