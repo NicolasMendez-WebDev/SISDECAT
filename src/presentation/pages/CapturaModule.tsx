@@ -982,100 +982,102 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
         </div>
 
         {/* Componente: Comportamiento del Nivel (Back to Sidebar) */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BarChart3 size={18} className="text-institutional-blue" />
-              <h2 className="font-bold text-slate-700 uppercase text-xs tracking-wider">
-                Comportamiento del Nivel
-              </h2>
+        {(currentUser.rol === "Administrador" || currentUser.rol === "AdminFuncional") && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart3 size={18} className="text-institutional-blue" />
+                <h2 className="font-bold text-slate-700 uppercase text-xs tracking-wider">
+                  Comportamiento del Nivel
+                </h2>
+              </div>
+            </div>
+            <div className="p-6 flex flex-col">
+              {!hasSelection ? (
+                <div className="flex flex-col items-center justify-center text-center text-slate-400 space-y-4 py-8">
+                  <Search size={32} className="opacity-20" />
+                  <p className="text-[11px] px-4">
+                    Seleccione un proceso para ver analíticas vinculadas.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-1">
+                        Actividades
+                      </p>
+                      <p className="text-xl font-black text-institutional-blue leading-none">
+                        {filteredActividades.length}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-1">
+                        ETP Total
+                      </p>
+                      <p className="text-xl font-black text-institutional-blue leading-none">
+                        {totalEtpForSelectedProcess.toFixed(1)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">
+                      Procedimientos
+                      <span className="h-px bg-slate-100 flex-1"></span>
+                    </p>
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                      {etpByProcedure.length > 0 ? (
+                        etpByProcedure.map((item, idx) => (
+                          <div key={item.name} className="space-y-1.5">
+                            <div className="flex justify-between text-[9px] font-bold">
+                              <span className="truncate max-w-[130px] text-slate-600 uppercase tracking-tighter">
+                                {item.name}
+                              </span>
+                              <span className="text-institutional-blue">
+                                {(
+                                  (item.etp / (totalEtpForSelectedProcess || 1)) *
+                                  100
+                                ).toFixed(0)}
+                                %
+                              </span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{
+                                  width: `${(item.etp / (totalEtpForSelectedProcess || 1)) * 100}%`,
+                                }}
+                                className={`h-full ${idx % 2 === 0 ? "bg-institutional-blue" : "bg-emerald-500"}`}
+                              />
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-[10px] text-slate-400 italic text-center py-4">
+                          Sin datos de carga.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-institutional-blue/5 rounded-xl border border-institutional-blue/10">
+                    <div className="flex items-center gap-2 text-institutional-blue mb-1">
+                      <HelpCircle size={14} />
+                      <span className="text-[10px] font-bold uppercase">
+                        Sugerencia
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-600 leading-tight">
+                      Distribución basada en el proceso{" "}
+                      <strong>{procesosMap.get(formData.procesoId)}</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <div className="p-6 flex flex-col">
-            {!hasSelection ? (
-              <div className="flex flex-col items-center justify-center text-center text-slate-400 space-y-4 py-8">
-                <Search size={32} className="opacity-20" />
-                <p className="text-[11px] px-4">
-                  Seleccione un proceso para ver analíticas vinculadas.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-1">
-                      Actividades
-                    </p>
-                    <p className="text-xl font-black text-institutional-blue leading-none">
-                      {filteredActividades.length}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-1">
-                      ETP Total
-                    </p>
-                    <p className="text-xl font-black text-institutional-blue leading-none">
-                      {totalEtpForSelectedProcess.toFixed(1)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">
-                    Procedimientos
-                    <span className="h-px bg-slate-100 flex-1"></span>
-                  </p>
-                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    {etpByProcedure.length > 0 ? (
-                      etpByProcedure.map((item, idx) => (
-                        <div key={item.name} className="space-y-1.5">
-                          <div className="flex justify-between text-[9px] font-bold">
-                            <span className="truncate max-w-[130px] text-slate-600 uppercase tracking-tighter">
-                              {item.name}
-                            </span>
-                            <span className="text-institutional-blue">
-                              {(
-                                (item.etp / (totalEtpForSelectedProcess || 1)) *
-                                100
-                              ).toFixed(0)}
-                              %
-                            </span>
-                          </div>
-                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{
-                                width: `${(item.etp / (totalEtpForSelectedProcess || 1)) * 100}%`,
-                              }}
-                              className={`h-full ${idx % 2 === 0 ? "bg-institutional-blue" : "bg-emerald-500"}`}
-                            />
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-[10px] text-slate-400 italic text-center py-4">
-                        Sin datos de carga.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="p-4 bg-institutional-blue/5 rounded-xl border border-institutional-blue/10">
-                  <div className="flex items-center gap-2 text-institutional-blue mb-1">
-                    <HelpCircle size={14} />
-                    <span className="text-[10px] font-bold uppercase">
-                      Sugerencia
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-600 leading-tight">
-                    Distribución basada en el proceso{" "}
-                    <strong>{procesosMap.get(formData.procesoId)}</strong>.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
 
         <AnimatePresence>
           {selectedRecordDetails && (

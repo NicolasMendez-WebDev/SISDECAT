@@ -194,14 +194,23 @@ export const ReportesModule: React.FC<ReportesModuleProps> = ({
             etp.total += val;
           });
 
-          // People needed using ceiling
+          // Custom Round: if the decimal part >= 0.3, round up to the next integer. Otherwise floor/negligible.
+          const customRound = (val: number): number => {
+            const integerPart = Math.floor(val);
+            const decimalPart = val - integerPart;
+            if (parseFloat(decimalPart.toFixed(4)) >= 0.3) {
+              return integerPart + 1;
+            }
+            return integerPart;
+          };
+
           const req = {
-            dir: Math.ceil(etp.dir),
-            ase: Math.ceil(etp.ase),
-            prof: Math.ceil(etp.prof),
-            tec: Math.ceil(etp.tec),
-            asis: Math.ceil(etp.asis),
-            total: Math.ceil(etp.total)
+            dir: customRound(etp.dir),
+            ase: customRound(etp.ase),
+            prof: customRound(etp.prof),
+            tec: customRound(etp.tec),
+            asis: customRound(etp.asis),
+            total: customRound(etp.total)
           };
 
           const row = sheet1.addRow([
