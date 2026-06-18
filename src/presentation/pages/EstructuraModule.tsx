@@ -400,6 +400,15 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
       return null;
     };
 
+    const getResolvedChildType = (childId: string): string | null => {
+      const childIdStr = String(childId).toLowerCase().trim();
+      if (dependencias.some(d => String(d.id).toLowerCase().trim() === childIdStr)) return 'Dependencia';
+      if (procesos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Proceso';
+      if (procedimientos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Procedimiento';
+      if (actividades.some(a => String(a.id).toLowerCase().trim() === childIdStr)) return 'Actividad';
+      return null;
+    };
+
     const addChildrenRecursive = (parentId: string | null, level: number, currentPath: string, parentType: string | null, allowedChildren?: string[]) => {
       let baseChildren: any[] = [];
 
@@ -509,10 +518,13 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               return childActs.some(a => isActividadActive(a.id));
             };
 
-            const hasFinerRelationsUnderProc = activeRels.some(r => 
-              (r.type === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === parentId)) ||
-              (r.type === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === parentId)))
-            );
+            const hasFinerRelationsUnderProc = activeRels.some(r => {
+              const rType = getResolvedChildType(r.childId);
+              return (
+                (rType === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === parentId)) ||
+                (rType === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === parentId)))
+              );
+            });
 
             let pcdsFiltered = procedimientos.filter(pcd => pcd.procesoId === parentId);
             if (hasFinerRelationsUnderProc) {
@@ -560,9 +572,10 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               return activeChildIds.has(actIdStr);
             };
 
-            const hasFinerRelationsUnderPcd = activeRels.some(r => 
-              r.type === 'Actividad' && actividades.some(act => act.id === r.childId && act.procedimientoId === parentId)
-            );
+            const hasFinerRelationsUnderPcd = activeRels.some(r => {
+              const rType = getResolvedChildType(r.childId);
+              return rType === 'Actividad' && actividades.some(act => act.id === r.childId && act.procedimientoId === parentId);
+            });
 
             let actsFiltered = actividades.filter(act => act.procedimientoId === parentId);
             if (hasFinerRelationsUnderPcd) {
@@ -637,77 +650,83 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
           if (child.type === 'Organismo') {
              hasChildren = organismos.some(o => o.parentId === child.id && o.estado !== 'Inactivo') || dependencias.some(d => d.parentId === child.id && d.estado !== 'Inactivo');
           } else if (child.type === 'Dependencia') {
-             const dId = child.id;
-             const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(dId).toLowerCase() && r.activo !== false);
-             const hasSubDeps = dependencias.some(d => d.parentId === dId && d.estado !== 'Inactivo');
-             if (hasSubDeps) {
-               hasChildren = true;
-             } else {
-               const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
-               const isActividadActiveLocal = (actId: string) => activeChildIds.has(String(actId).toLowerCase());
-               const isProcedimientoActiveLocal = (pcdId: string) => {
-                 if (activeChildIds.has(String(pcdId).toLowerCase())) return true;
-                 const childActs = actividades.filter(a => a.procedimientoId === pcdId);
-                 return childActs.some(a => isActividadActiveLocal(a.id));
-               };
-               const isProcesoActiveLocal = (procId: string) => {
-                 if (activeChildIds.has(String(procId).toLowerCase())) return true;
-                 const childPcds = procedimientos.filter(pcd => pcd.procesoId === procId);
-                 return childPcds.some(pcd => isProcedimientoActiveLocal(pcd.id));
-               };
-               hasChildren = procesos.some(p => isProcesoActiveLocal(p.id) && p.estado !== 'Inactivo') || procesos.some(p => p.dependenciaId === dId && p.estado !== 'Inactivo');
-             }
+              const dId = child.id;
+              const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(dId).toLowerCase() && r.activo !== false);
+              const hasSubDeps = dependencias.some(d => d.parentId === dId && d.estado !== 'Inactivo');
+              if (hasSubDeps) {
+                hasChildren = true;
+              } else {
+                const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+                const isActividadActiveLocal = (actId: string) => activeChildIds.has(String(actId).toLowerCase());
+                const isProcedimientoActiveLocal = (pcdId: string) => {
+                  if (activeChildIds.has(String(pcdId).toLowerCase())) return true;
+                  const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+                  return childActs.some(a => isActividadActiveLocal(a.id));
+                };
+                const isProcesoActiveLocal = (procId: string) => {
+                  if (activeChildIds.has(String(procId).toLowerCase())) return true;
+                  const childPcds = procedimientos.filter(pcd => pcd.procesoId === procId);
+                  return childPcds.some(pcd => isProcedimientoActiveLocal(pcd.id));
+                };
+                hasChildren = procesos.some(p => isProcesoActiveLocal(p.id) && p.estado !== 'Inactivo') || procesos.some(p => p.dependenciaId === dId && p.estado !== 'Inactivo');
+              }
           } else if (child.type === 'Proceso') {
-             if (depId) {
-               const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo !== false);
-               const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
-               
-               const isActividadActiveLocal = (actId: string) => {
-                 const actIdStr = String(actId).toLowerCase();
-                 if (excludedChildIds.has(actIdStr)) return false;
-                 return activeRels.some(r => String(r.childId).toLowerCase() === actIdStr);
-               };
-               const isProcedimientoActiveLocal = (pcdId: string) => {
-                 const pcdIdStr = String(pcdId).toLowerCase();
-                 if (excludedChildIds.has(pcdIdStr)) return false;
-                 if (activeRels.some(r => String(r.childId).toLowerCase() === pcdIdStr)) return true;
-                 const childActs = actividades.filter(a => a.procedimientoId === pcdId);
-                 return childActs.some(a => isActividadActiveLocal(a.id));
-               };
-               
-               const hasFiner = activeRels.some(r => 
-                 (r.type === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === child.id)) ||
-                 (r.type === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === child.id)))
-               );
-               
-               let pcdsFiltered = procedimientos.filter(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo');
-               if (hasFiner) {
-                 pcdsFiltered = pcdsFiltered.filter(pcd => isProcedimientoActiveLocal(pcd.id));
-               } else {
-                 pcdsFiltered = pcdsFiltered.filter(pcd => !excludedChildIds.has(String(pcd.id).toLowerCase()));
-               }
-               
-               const subProcs = procesos.filter(p => p.procesoId === child.id && p.estado !== 'Inactivo' && !excludedChildIds.has(String(p.id).toLowerCase()));
-               hasChildren = pcdsFiltered.length > 0 || subProcs.length > 0;
-             } else {
-               hasChildren = procesos.some(p => p.procesoId === child.id && p.estado !== 'Inactivo') || procedimientos.some(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo');
-             }
+              if (depId) {
+                const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo !== false);
+                const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
+                
+                const isActividadActiveLocal = (actId: string) => {
+                  const actIdStr = String(actId).toLowerCase();
+                  if (excludedChildIds.has(actIdStr)) return false;
+                  return activeRels.some(r => String(r.childId).toLowerCase() === actIdStr);
+                };
+                const isProcedimientoActiveLocal = (pcdId: string) => {
+                  const pcdIdStr = String(pcdId).toLowerCase();
+                  if (excludedChildIds.has(pcdIdStr)) return false;
+                  if (activeRels.some(r => String(r.childId).toLowerCase() === pcdIdStr)) return true;
+                  const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+                  return childActs.some(a => isActividadActiveLocal(a.id));
+                };
+                
+                const hasFiner = activeRels.some(r => {
+                  const rType = getResolvedChildType(r.childId);
+                  return (
+                    (rType === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === child.id)) ||
+                    (rType === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === child.id)))
+                  );
+                });
+                
+                let pcdsFiltered = procedimientos.filter(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo');
+                if (hasFiner) {
+                  pcdsFiltered = pcdsFiltered.filter(pcd => isProcedimientoActiveLocal(pcd.id));
+                } else {
+                  pcdsFiltered = pcdsFiltered.filter(pcd => !excludedChildIds.has(String(pcd.id).toLowerCase()));
+                }
+                
+                const subProcs = procesos.filter(p => p.procesoId === child.id && p.estado !== 'Inactivo' && !excludedChildIds.has(String(p.id).toLowerCase()));
+                hasChildren = pcdsFiltered.length > 0 || subProcs.length > 0;
+              } else {
+                hasChildren = procesos.some(p => p.procesoId === child.id && p.estado !== 'Inactivo') || procedimientos.some(pcd => pcd.procesoId === child.id && pcd.estado !== 'Inactivo');
+              }
           } else if (child.type === 'Procedimiento') {
-             if (depId) {
-               const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo !== false);
-               const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
-               
-               const hasFiner = activeRels.some(r => r.type === 'Actividad' && actividades.some(a => a.id === r.childId && a.procedimientoId === child.id));
-               let actsFiltered = actividades.filter(act => act.procedimientoId === child.id && act.estado !== 'Inactivo');
-               if (hasFiner) {
-                 actsFiltered = actsFiltered.filter(act => activeRels.some(r => String(r.childId).toLowerCase() === String(act.id).toLowerCase()) && !excludedChildIds.has(String(act.id).toLowerCase()));
-               } else {
-                 actsFiltered = actsFiltered.filter(act => !excludedChildIds.has(String(act.id).toLowerCase()));
-               }
-               hasChildren = actsFiltered.length > 0;
-             } else {
-               hasChildren = actividades.some(act => act.procedimientoId === child.id && act.estado !== 'Inactivo');
-             }
+              if (depId) {
+                const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo !== false);
+                const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
+                
+                const hasFiner = activeRels.some(r => {
+                  const rType = getResolvedChildType(r.childId);
+                  return rType === 'Actividad' && actividades.some(a => a.id === r.childId && a.procedimientoId === child.id);
+                });
+                let actsFiltered = actividades.filter(act => act.procedimientoId === child.id && act.estado !== 'Inactivo');
+                if (hasFiner) {
+                  actsFiltered = actsFiltered.filter(act => activeRels.some(r => String(r.childId).toLowerCase() === String(act.id).toLowerCase()) && !excludedChildIds.has(String(act.id).toLowerCase()));
+                } else {
+                  actsFiltered = actsFiltered.filter(act => !excludedChildIds.has(String(act.id).toLowerCase()));
+                }
+                hasChildren = actsFiltered.length > 0;
+              } else {
+                hasChildren = actividades.some(act => act.procedimientoId === child.id && act.estado !== 'Inactivo');
+              }
           }
           numElements = hasChildren ? 1 : 0; // standard indicator
         }
@@ -1308,7 +1327,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                     {selectedNode.type === 'Organismo' && (() => {
                       const associatedItems = [
                         ...organismos.filter(o => o.parentId === details.id),
-                        ...dependencias.filter(d => d.parentId === details.id || (viewMode === 'general' && relaciones.some(r => r.type === 'Dependencia' && r.childId === d.id && r.parentId === details.id)))
+                        ...dependencias.filter(d => d.parentId === details.id || (viewMode === 'general' && relaciones.some(r => r.childId === d.id && r.parentId === details.id)))
                       ];
                       return (
                       <div className="space-y-4 flex flex-col flex-1 min-h-0">
@@ -1353,7 +1372,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                     })()}
                     
                     {selectedNode.type === 'Dependencia' && (() => {
-                      const associatedProcs = procesos.filter(p => p.dependenciaId === details.id || (viewMode === 'general' && relaciones.some(r => r.type === 'Proceso' && r.childId === p.id && r.parentId === details.id)));
+                      const associatedProcs = procesos.filter(p => p.dependenciaId === details.id || (viewMode === 'general' && relaciones.some(r => r.childId === p.id && r.parentId === details.id)));
                       return (
                       <div className="space-y-4 flex flex-col flex-1 min-h-0">
                         <div className="flex items-center justify-between shrink-0">
@@ -1409,7 +1428,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                     })()}
 
                     {selectedNode.type === 'Proceso' && (() => {
-                      const associatedPcds = procedimientos.filter(pcd => pcd.procesoId === details.id || (viewMode === 'general' && relaciones.some(r => r.type === 'Procedimiento' && r.childId === pcd.id && r.parentId === details.id)));
+                      const associatedPcds = procedimientos.filter(pcd => pcd.procesoId === details.id || (viewMode === 'general' && relaciones.some(r => r.childId === pcd.id && r.parentId === details.id)));
                       return (
                       <div className="space-y-4 flex flex-col flex-1 min-h-0">
                         <div className="flex items-center justify-between shrink-0">
@@ -1452,7 +1471,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                     })()}
 
                     {selectedNode.type === 'Procedimiento' && (() => {
-                      const associatedActs = actividades.filter(a => a.procedimientoId === details.id || (viewMode === 'general' && relaciones.some(r => r.type === 'Actividad' && r.childId === a.id && r.parentId === details.id)));
+                      const associatedActs = actividades.filter(a => a.procedimientoId === details.id || (viewMode === 'general' && relaciones.some(r => r.childId === a.id && r.parentId === details.id)));
                       return (
                       <div className="space-y-4 flex flex-col flex-1 min-h-0">
                         <div className="flex items-center justify-between shrink-0">

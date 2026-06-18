@@ -212,6 +212,15 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
     );
     const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
 
+    const getResolvedChildType = (childId: string): string | null => {
+      const childIdStr = String(childId).toLowerCase().trim();
+      if (dependencias.some(d => String(d.id).toLowerCase().trim() === childIdStr)) return 'Dependencia';
+      if (procesos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Proceso';
+      if (procedimientos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Procedimiento';
+      if (actividades.some(a => String(a.id).toLowerCase().trim() === childIdStr)) return 'Actividad';
+      return null;
+    };
+
     const isActividadActive = (actId: string) => {
       const actIdStr = String(actId).toLowerCase();
       if (excludedChildIds.has(actIdStr)) return false;
@@ -226,10 +235,13 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
       return childActs.some(a => isActividadActive(a.id));
     };
 
-    const hasFinerRelationsUnderProc = activeRels.some(r => 
-      (r.type === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === procId)) ||
-      (r.type === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === procId)))
-    );
+    const hasFinerRelationsUnderProc = activeRels.some(r => {
+      const rType = getResolvedChildType(r.childId);
+      return (
+        (rType === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === procId)) ||
+        (rType === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === procId)))
+      );
+    });
 
     let candidates = procedimientos.filter(pcd => pcd.procesoId === procId);
     if (hasFinerRelationsUnderProc) {
@@ -238,7 +250,7 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
       candidates = candidates.filter(pcd => !excludedChildIds.has(String(pcd.id).toLowerCase()));
     }
     return candidates;
-  }, [formData.procesoId, formData.dependenciaId, procedimientos, relaciones, actividades]);
+  }, [formData.procesoId, formData.dependenciaId, procedimientos, relaciones, actividades, dependencias, procesos]);
 
   const filteredActividades = useMemo(() => {
     if (!formData.procedimientoId || !formData.dependenciaId) return [];
@@ -257,15 +269,25 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
     );
     const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
 
+    const getResolvedChildType = (childId: string): string | null => {
+      const childIdStr = String(childId).toLowerCase().trim();
+      if (dependencias.some(d => String(d.id).toLowerCase().trim() === childIdStr)) return 'Dependencia';
+      if (procesos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Proceso';
+      if (procedimientos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Procedimiento';
+      if (actividades.some(a => String(a.id).toLowerCase().trim() === childIdStr)) return 'Actividad';
+      return null;
+    };
+
     const isActividadActive = (actId: string) => {
       const actIdStr = String(actId).toLowerCase();
       if (excludedChildIds.has(actIdStr)) return false;
       return activeChildIds.has(actIdStr);
     };
 
-    const hasFinerRelationsUnderPcd = activeRels.some(r => 
-      r.type === 'Actividad' && actividades.some(act => act.id === r.childId && act.procedimientoId === pcdId)
-    );
+    const hasFinerRelationsUnderPcd = activeRels.some(r => {
+      const rType = getResolvedChildType(r.childId);
+      return rType === 'Actividad' && actividades.some(act => act.id === r.childId && act.procedimientoId === pcdId);
+    });
 
     let candidates = actividades.filter(act => act.procedimientoId === pcdId);
     if (hasFinerRelationsUnderPcd) {
@@ -290,6 +312,9 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
     relaciones,
     currentUser,
     cargas,
+    dependencias,
+    procesos,
+    procedimientos,
   ]);
 
   // Memoized Lookup Maps to avoid O(N^2) searches inside map loops
