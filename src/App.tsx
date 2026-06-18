@@ -308,8 +308,8 @@ export default function App() {
 
             if (!n.padreId || n.padreId === n.id) {
               let lvl = n.originalNivel;
-              // If level is 1 (legacy Tipo de Proceso), let it remain 1, else force valid 2-4
-              if (lvl <= 0 || lvl > 4) lvl = 2;
+              // Under current business rules, top level is always Proceso (level 2) - no more level 1 groups!
+              if (lvl <= 2 || lvl > 4) lvl = 2;
               resolvedLevels.set(nodeIdStr, lvl);
               return lvl;
             }

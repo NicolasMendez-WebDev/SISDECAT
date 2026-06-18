@@ -16,46 +16,115 @@ export const captureService = {
     const mapas = await DatabaseService.getMapaRelaciones();
     const cargos = await DatabaseService.getCargos();
     const factores = await DatabaseService.getFactoresFrecuencia();
-    const procTree = await DatabaseService.getEstructuraProc();
-    const orgTree = await DatabaseService.getEstructuraOrg();
+    const procTreeRaw = await DatabaseService.getEstructuraProc();
+    const orgTreeRaw = await DatabaseService.getEstructuraOrg();
+
+    // 1. Normalize procTree with casing tolerance and run self-healing levels
+    const procTree = (procTreeRaw || []).map((x: any) => {
+      const id = x.IdNodoProceso || x.id_nodo_proceso || x.idnodoproceso || x.id;
+      const padreId = x.IdPadre || x.id_padre || x.idpadre || x.padreId || null;
+      const cleanPadreId = (padreId && String(padreId).toLowerCase().trim() !== 'n/a' && String(padreId).trim() !== '') ? padreId : null;
+      const originalNivel = x.Nivel !== undefined ? Number(x.Nivel) : (x.nivel !== undefined ? Number(x.nivel) : (x.level !== undefined ? Number(x.level) : 2));
+      
+      return {
+        ...x,
+        IdNodoProceso: id,
+        IdPadre: cleanPadreId,
+        originalNivel,
+        Nivel: originalNivel
+      };
+    });
+
+    const nodeMap = new Map<string, any>();
+    procTree.forEach((node) => {
+      if (node.IdNodoProceso) {
+        nodeMap.set(String(node.IdNodoProceso).toLowerCase().trim(), node);
+      }
+    });
+
+    const resolvedLevels = new Map<string, number>();
+    const getCorrectedLevel = (nodeId: string): number => {
+      const nodeIdStr = String(nodeId).toLowerCase().trim();
+      if (resolvedLevels.has(nodeIdStr)) return resolvedLevels.get(nodeIdStr)!;
+
+      const n = nodeMap.get(nodeIdStr);
+      if (!n) return 2; // Fallback
+
+      if (!n.IdPadre || n.IdPadre === n.IdNodoProceso) {
+        let lvl = n.originalNivel;
+        // Under current business rules, top level is always Proceso (level 2) - no more level 1 groups!
+        if (lvl <= 2 || lvl > 4) lvl = 2;
+        resolvedLevels.set(nodeIdStr, lvl);
+        return lvl;
+      }
+
+      const parentLevel = getCorrectedLevel(n.IdPadre);
+      let resolvedLvl = parentLevel + 1;
+      if (resolvedLvl > 4) resolvedLvl = 4;
+      resolvedLevels.set(nodeIdStr, resolvedLvl);
+      return resolvedLvl;
+    };
+
+    procTree.forEach((node) => {
+      if (node.IdNodoProceso) {
+        node.Nivel = getCorrectedLevel(node.IdNodoProceso);
+      }
+    });
+
+    // 2. Normalize orgTree with casing tolerance
+    const orgTree = (orgTreeRaw || []).map((x: any) => {
+      const id = x.IdNodoOrg || x.id_nodo_org || x.idnodoorg || x.id;
+      const padreId = x.IdPadre || x.id_padre || x.idpadre || x.parentId || null;
+      const cleanPadreId = (padreId && String(padreId).toLowerCase().trim() !== 'n/a' && String(padreId).trim() !== '') ? padreId : null;
+      const nivel = x.Nivel !== undefined ? Number(x.Nivel) : (x.nivel !== undefined ? Number(x.nivel) : (x.level !== undefined ? Number(x.level) : (cleanPadreId ? 2 : 1)));
+      
+      return {
+        ...x,
+        IdNodoOrg: id,
+        IdPadre: cleanPadreId,
+        Nivel: nivel
+      };
+    });
 
     // Map backend rows to frontend expected format
     return (cargasData || []).filter(row => row.Activo !== false).map(row => {
-       const mapa = mapas?.find(m => m.IdMapa === row.IdMapa);
-       const cargo = cargos?.find(c => c.IdCargo === row.IdCargoEjecutor);
-       const factor = factores?.find(f => f.IdFactor === row.IdFactorFrecuencia);
+       const mapa = mapas?.find(m => (m.IdMapa || m.id) === row.IdMapa);
+       const cargo = cargos?.find(c => (c.IdCargo || c.id) === row.IdCargoEjecutor);
+       const factor = factores?.find(f => (f.IdFactor || f.id) === row.IdFactorFrecuencia);
 
-       const mappedNodoProceso = mapa?.IdNodoProceso;
+       const mappedNodoProceso = mapa?.IdNodoProceso || mapa?.id_nodo_proceso || mapa?.idnodoproceso || mapa?.id;
        
        const currDesc = row.Descripcion || row.descripcion;
        const isNoDoc = Boolean(currDesc);
        
        let actividadId = mappedNodoProceso || "actividad_no_documentada";
-       let actNode = procTree?.find(p => p.IdNodoProceso === actividadId);
-       let pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
-       let procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
+       let actNode = procTree?.find(p => String(p.IdNodoProceso).toLowerCase().trim() === String(actividadId).toLowerCase().trim());
+       let pcdNode = procTree?.find(p => String(p.IdNodoProceso).toLowerCase().trim() === String(actNode?.IdPadre).toLowerCase().trim());
+       let procNode = procTree?.find(p => String(p.IdNodoProceso).toLowerCase().trim() === String(pcdNode?.IdPadre).toLowerCase().trim());
 
        if (isNoDoc) {
            actividadId = "actividad_no_documentada";
-           let currProcNode = procTree?.find(p => p.IdNodoProceso === mappedNodoProceso);
-           if (currProcNode?.Nivel >= 4) {
+           let currProcNode = procTree?.find(p => String(p.IdNodoProceso).toLowerCase().trim() === String(mappedNodoProceso).toLowerCase().trim());
+           if (currProcNode && currProcNode.Nivel >= 4) {
                actNode = currProcNode;
-               pcdNode = procTree?.find(p => p.IdNodoProceso === actNode?.IdPadre);
-               procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
-           } else if (currProcNode?.Nivel === 3) {
+               pcdNode = procTree?.find(p => String(p.IdNodoProceso).toLowerCase().trim() === String(actNode?.IdPadre).toLowerCase().trim());
+               procNode = procTree?.find(p => String(p.IdNodoProceso).toLowerCase().trim() === String(pcdNode?.IdPadre).toLowerCase().trim());
+           } else if (currProcNode && currProcNode.Nivel === 3) {
                pcdNode = currProcNode;
-               procNode = procTree?.find(p => p.IdNodoProceso === pcdNode?.IdPadre);
-           } else if (currProcNode?.Nivel <= 2) {
+               procNode = procTree?.find(p => String(p.IdNodoProceso).toLowerCase().trim() === String(pcdNode?.IdPadre).toLowerCase().trim());
+               actNode = undefined;
+           } else if (currProcNode && currProcNode.Nivel <= 2) {
                pcdNode = undefined;
                procNode = currProcNode;
+               actNode = undefined;
            }
        }
 
-       const dependenciaId = mapa?.IdNodoOrg || row.IdMapa;
-       const depNode = orgTree?.find(o => o.IdNodoOrg === dependenciaId);
+       const dependenciaId = mapa?.IdNodoOrg || mapa?.id_nodo_org || mapa?.idnodoorg || mapa?.parentId || row.IdMapa;
+       const depNode = orgTree?.find(o => String(o.IdNodoOrg).toLowerCase().trim() === String(dependenciaId).toLowerCase().trim());
        let currentOrgNode = depNode;
        while (currentOrgNode && currentOrgNode.Nivel > 1 && currentOrgNode.IdPadre) {
-         const parent = orgTree?.find(o => o.IdNodoOrg === currentOrgNode?.IdPadre);
+         const parent = orgTree?.find(o => String(o.IdNodoOrg).toLowerCase().trim() === String(currentOrgNode?.IdPadre).toLowerCase().trim());
          if (!parent) break;
          currentOrgNode = parent;
        }
