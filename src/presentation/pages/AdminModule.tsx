@@ -316,13 +316,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           >
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-bold text-slate-800 tracking-tight text-slate-800">Directorio de Cuentas del Sistema</h2>
-                <p className="text-sm text-slate-500">
-                  Visualizando cuentas asignadas al Estudio de Cargas:{" "}
-                  <span className="font-extrabold text-institutional-blue underline decoration-2 decoration-institutional-blue/30 underline-offset-4">
-                    {vigencias.find((v) => v.IdVigencia === (selectedVigenciaId || activeVigenciaId))?.Nombre || "Cargando..."}
-                  </span>
-                </p>
+                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Directorio de Cuentas del Sistema</h2>
+                <p className="text-sm text-slate-500">Muestra el directorio de todas las cuentas registradas que han ingresado al sistema.</p>
               </div>
               <button 
                 disabled
