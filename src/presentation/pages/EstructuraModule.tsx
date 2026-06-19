@@ -39,6 +39,15 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
   userRol
 }) => {
   const [selectedNode, setSelectedNode] = useState<{ type: string, id: string, path?: string, parentId?: string, isLinked?: boolean } | null>(null);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [expandedNodes, setExpandedNodes] = useState<Record<string, Set<string>>>({
     general: new Set(),
     organizacional: new Set(),
@@ -1499,12 +1508,15 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
       </div>
 
       <div 
-        className="flex-1 overflow-auto p-6 flex flex-col md:flex-row gap-6 relative"
+        className={`flex-1 overflow-auto p-6 flex ${windowWidth >= 1200 ? 'flex-row' : 'flex-col'} gap-6 relative`}
         onClick={handleClearSelection}
       >
         <div 
           className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col transition-all duration-300 shrink-0"
-          style={{ width: window.innerWidth > 768 ? leftPanelWidth : '100%' }}
+          style={{ 
+            width: windowWidth >= 1200 ? leftPanelWidth : '100%',
+            height: windowWidth >= 1200 ? '100%' : '550px'
+          }}
         >
           {!hasVigencia ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-slate-50/50">
@@ -1709,7 +1721,13 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
           )}
         </div>
             
-        <div className="flex-1 flex flex-col gap-6">
+        <div 
+          className="flex-1 flex flex-col gap-6"
+          style={{
+            height: windowWidth >= 1200 ? '100%' : 'auto',
+            minHeight: windowWidth < 1200 ? '450px' : '0px'
+          }}
+        >
           {selectedNode && details ? (
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
@@ -1978,7 +1996,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                     })()}
                   </div>
                   
-                  <div className="space-y-6 flex flex-col w-full lg:w-1/3 shrink-0">
+                  <div className="space-y-6 flex flex-col w-full shrink-0">
                     <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Métricas de Carga</h4>
                     <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center text-center flex-1">
                       <BarChart3 size={48} className="text-slate-200 mb-4" />
@@ -1998,83 +2016,89 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               </div>
             </motion.div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-slate-400 p-8 gap-8 h-full overflow-y-auto">
-              <div className="flex flex-col items-center text-center max-w-md">
-                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
-                  {viewMode === 'general' ? (
-                    <Network size={40} className="text-slate-200" />
-                  ) : viewMode === 'organizacional' ? (
-                    <Building2 size={40} className="text-slate-200" />
-                  ) : (
-                    <FolderTree size={40} className="text-slate-200" />
-                  )}
-                </div>
-                
-                <h3 className="text-slate-800 font-bold text-lg mb-2">
-                  {viewMode === 'general' ? 'Capa de Integración' : 'Gestión de Catálogo Maestro'}
-                </h3>
-                
-                <p className="text-sm text-slate-500 leading-relaxed mb-8">
-                  {viewMode === 'general' ? (
-                    'Esta vista permite unificar la estructura organizacional con el mapa de procesos. Aquí se definen las responsabilidades institucionales vinculando dependencias con sus procesos correspondientes.'
-                  ) : viewMode === 'organizacional' ? (
-                    'Defina aquí la identidad y jerarquía de la entidad. Los cambios realizados en este catálogo maestro se reflejarán en todo el sistema de gestión.'
-                  ) : (
-                    'Administre el inventario de procesos, procedimientos y actividades. Esta estructura define el "saber hacer" de la organización.'
-                  )}
-                </p>
-
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3 w-full text-left">
-                  <div className="w-8 h-8 bg-white rounded-lg shadow-sm flex items-center justify-center text-institutional-blue shrink-0">
-                    <Search size={16} />
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 lg:p-8 h-full overflow-y-auto flex items-center justify-center text-slate-400">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center max-w-4xl w-full">
+                {/* Columna Izquierda: Info de Vista */}
+                <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                    {viewMode === 'general' ? (
+                      <Network size={32} className="text-slate-400" />
+                    ) : viewMode === 'organizacional' ? (
+                      <Building2 size={32} className="text-slate-400" />
+                    ) : (
+                      <FolderTree size={32} className="text-slate-400" />
+                    )}
                   </div>
-                  <p className="text-xs font-medium text-slate-600">
-                    Seleccione un elemento de la tabla para ver sus detalles y relaciones jerárquicas.
+                  
+                  <h3 className="text-slate-800 font-bold text-lg mb-2">
+                    {viewMode === 'general' ? 'Capa de Integración' : 'Gestión de Catálogo Maestro'}
+                  </h3>
+                  
+                  <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                    {viewMode === 'general' ? (
+                      'Esta vista permite unificar la estructura organizacional con el mapa de procesos. Aquí se definen las responsabilidades institucionales vinculando dependencias con sus procesos correspondientes.'
+                    ) : viewMode === 'organizacional' ? (
+                      'Defina aquí la identidad y jerarquía de la entidad. Los cambios realizados en este catálogo maestro se reflejarán en todo el sistema de gestión.'
+                    ) : (
+                      'Administre el inventario de procesos, procedimientos y actividades. Esta estructura define el "saber hacer" de la organización.'
+                    )}
                   </p>
-                </div>
-              </div>
 
-              <div className="w-fit min-w-[250px] bg-slate-50 rounded-2xl border border-slate-100 p-6 shrink-0">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 text-left">Resumen de Elementos</h4>
-                <div className="flex flex-col gap-3">
-                  {(viewMode === 'general' || viewMode === 'organizacional') && (
-                    <>
-                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm gap-6">
-                        <div className="flex items-center gap-3">
-                          <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-blue-50 text-blue-700 border-blue-200">Organismo</span>
-                        </div>
-                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.organismos}</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm gap-6">
-                        <div className="flex items-center gap-3">
-                          <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200">Dependencia</span>
-                        </div>
-                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.dependencias}</span>
-                      </div>
-                    </>
-                  )}
-                  {(viewMode === 'general' || viewMode === 'procedimental') && (
-                    <>
-                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm gap-6">
-                        <div className="flex items-center gap-3">
-                          <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200">Proceso</span>
-                        </div>
-                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.procesos}</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm gap-6">
-                        <div className="flex items-center gap-3">
-                          <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-purple-50 text-purple-700 border-purple-200">Procedimiento</span>
-                        </div>
-                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.procedimientos}</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm gap-6">
-                        <div className="flex items-center gap-3">
-                          <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-slate-50 text-slate-700 border-slate-200">Actividad</span>
-                        </div>
-                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.actividades}</span>
-                      </div>
-                    </>
-                  )}
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3 w-full text-left">
+                    <div className="w-8 h-8 bg-white rounded-lg shadow-sm flex items-center justify-center text-institutional-blue shrink-0">
+                      <Search size={16} />
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-600 leading-snug">
+                      Seleccione un elemento de la tabla para ver sus detalles y relaciones jerárquicas.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Columna Derecha: Resumen de Elementos */}
+                <div className="flex justify-center w-full">
+                  <div className="w-full max-w-[320px] bg-slate-50 rounded-2xl border border-slate-100 p-5 shrink-0">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3.5 text-left text-center lg:text-left">Resumen de Elementos</h4>
+                    <div className="flex flex-col gap-2.5">
+                      {(viewMode === 'general' || viewMode === 'organizacional') && (
+                        <>
+                          <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm gap-4">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-blue-50 text-blue-700 border-blue-200">Organismo</span>
+                            </div>
+                            <span className="text-base font-bold text-slate-700">{accessibleCounts.organismos}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm gap-4">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200">Dependencia</span>
+                            </div>
+                            <span className="text-base font-bold text-slate-700">{accessibleCounts.dependencias}</span>
+                          </div>
+                        </>
+                      )}
+                      {(viewMode === 'general' || viewMode === 'procedimental') && (
+                        <>
+                          <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm gap-4">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200">Proceso</span>
+                            </div>
+                            <span className="text-base font-bold text-slate-700">{accessibleCounts.procesos}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm gap-4">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-purple-50 text-purple-700 border-purple-200">Procedimiento</span>
+                            </div>
+                            <span className="text-base font-bold text-slate-700">{accessibleCounts.procedimientos}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm gap-4">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-slate-50 text-slate-700 border-slate-200">Actividad</span>
+                            </div>
+                            <span className="text-base font-bold text-slate-700">{accessibleCounts.actividades}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
