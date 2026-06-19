@@ -85,7 +85,7 @@ export const AuthService = {
           email: "admin@sisdecat.gov.co",
         };
       } else {
-        throw new Error("Contraseña incorrecta (Sugerencia dev: admin123)");
+        throw new Error("Credenciales incorrectas. Por favor, verifique su usuario o contraseña.");
       }
     }
 
