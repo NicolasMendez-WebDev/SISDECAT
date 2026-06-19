@@ -46,7 +46,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
   });
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [linkModalConfig, setLinkModalConfig] = useState<{ isOpen: boolean, parentType: string, parentId: string, childType: string } | null>(null);
+  const [linkModalConfig, setLinkModalConfig] = useState<{ isOpen: boolean, parentType: string, parentId: string, childType: string, ancestorDepId?: string } | null>(null);
   const [createModalConfig, setCreateModalConfig] = useState<{ 
     isOpen: boolean, 
     type: string, 
@@ -1253,7 +1253,21 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
       alert('No se pueden vincular elementos a este nivel.');
       return;
     }
-    setLinkModalConfig({ isOpen: true, parentType: targetType, parentId: targetId, childType });
+
+    let ancestorDepId = undefined;
+    if (selectedNode?.path) {
+      const depIdsSet = new Set(dependencias.map(d => String(d.id)));
+      const parts = selectedNode.path.split('/');
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const partid = parts[i];
+        if (depIdsSet.has(partid)) {
+          ancestorDepId = partid;
+          break;
+        }
+      }
+    }
+
+    setLinkModalConfig({ isOpen: true, parentType: targetType, parentId: targetId, childType, ancestorDepId });
   };
 
   const handleConfirmLink = (childIds: string[]) => {

@@ -4,7 +4,7 @@ import { Search, ChevronRight, ChevronLeft, CheckSquare, Square } from 'lucide-r
 import { Organismo, Dependencia, Proceso, Procedimiento, Actividad } from '../../domain/models/types';
 
 interface LinkElementModalProps {
-  config: { isOpen: boolean, parentType: string, parentId: string, childType: string } | null;
+  config: { isOpen: boolean, parentType: string, parentId: string, childType: string, ancestorDepId?: string } | null;
   onClose: () => void;
   onLink: (childIds: string[]) => void;
   organismos: Organismo[];
@@ -32,13 +32,62 @@ export const LinkElementModal: React.FC<LinkElementModalProps> = ({
 
   let itemsToLink: any[] = [];
   if (config.childType === 'Dependencia') {
-    itemsToLink = dependencias.filter(d => d.parentId !== config.parentId && !relaciones.some(r => r.type === 'Dependencia' && r.childId === d.id && r.parentId === config.parentId && r.activo !== false));
+    itemsToLink = dependencias.filter(d => {
+      if (d.id === config.parentId) return false;
+      const isNativeChild = d.parentId === config.parentId;
+      const isExcluded = relaciones.some(r => r.type === 'Dependencia' && r.childId === d.id && r.parentId === config.parentId && r.activo === false);
+      const isAlreadyLinkedActive = relaciones.some(r => r.type === 'Dependencia' && r.childId === d.id && r.parentId === config.parentId && r.activo !== false);
+
+      if (isNativeChild) {
+        return isExcluded;
+      } else {
+        return !isAlreadyLinkedActive;
+      }
+    });
   } else if (config.childType === 'Proceso') {
-    itemsToLink = procesos.filter(p => p.dependenciaId !== config.parentId && !relaciones.some(r => r.type === 'Proceso' && r.childId === p.id && r.parentId === config.parentId && r.activo !== false));
+    itemsToLink = procesos.filter(p => {
+      const isNativeChild = p.dependenciaId === config.parentId;
+      const isExcluded = relaciones.some(r => r.type === 'Proceso' && r.childId === p.id && r.parentId === config.parentId && r.activo === false);
+      const isAlreadyLinkedActive = relaciones.some(r => r.type === 'Proceso' && r.childId === p.id && r.parentId === config.parentId && r.activo !== false);
+
+      if (isNativeChild) {
+        return isExcluded;
+      } else {
+        return !isAlreadyLinkedActive;
+      }
+    });
   } else if (config.childType === 'Procedimiento') {
-    itemsToLink = procedimientos.filter(p => p.procesoId !== config.parentId && !relaciones.some(r => r.type === 'Procedimiento' && r.childId === p.id && r.parentId === config.parentId && r.activo !== false));
+    itemsToLink = procedimientos.filter(p => {
+      const belongsToThisProcess = p.procesoId === config.parentId;
+      if (!belongsToThisProcess) return false;
+
+      const isExcluded = relaciones.some(r => 
+        r.type === 'Procedimiento' && 
+        r.childId === p.id && 
+        r.activo === false && 
+        (
+          (config.ancestorDepId && String(r.parentId).toLowerCase() === String(config.ancestorDepId).toLowerCase()) ||
+          String(r.parentId).toLowerCase() === String(config.parentId).toLowerCase()
+        )
+      );
+      return isExcluded;
+    });
   } else if (config.childType === 'Actividad') {
-    itemsToLink = actividades.filter(a => a.procedimientoId !== config.parentId && !relaciones.some(r => r.type === 'Actividad' && r.childId === a.id && r.parentId === config.parentId && r.activo !== false));
+    itemsToLink = actividades.filter(a => {
+      const belongsToThisPcd = a.procedimientoId === config.parentId;
+      if (!belongsToThisPcd) return false;
+
+      const isExcluded = relaciones.some(r => 
+        r.type === 'Actividad' && 
+        r.childId === a.id && 
+        r.activo === false && 
+        (
+          (config.ancestorDepId && String(r.parentId).toLowerCase() === String(config.ancestorDepId).toLowerCase()) ||
+          String(r.parentId).toLowerCase() === String(config.parentId).toLowerCase()
+        )
+      );
+      return isExcluded;
+    });
   }
 
 
