@@ -852,6 +852,230 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
     procesos, procedimientos, actividades, relaciones, hiddenPaths
   ]);
 
+  const accessibleCounts = React.useMemo(() => {
+    const orgsSet = new Set<string>();
+    const depsSet = new Set<string>();
+    const procsSet = new Set<string>();
+    const pcdsSet = new Set<string>();
+    const actsSet = new Set<string>();
+
+    const getResolvedTypeLocal = (childId: string): string | null => {
+      const childIdStr = String(childId).toLowerCase().trim();
+      if (dependencias.some(d => String(d.id).toLowerCase().trim() === childIdStr)) return 'Dependencia';
+      if (procesos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Proceso';
+      if (procedimientos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Procedimiento';
+      if (actividades.some(a => String(a.id).toLowerCase().trim() === childIdStr)) return 'Actividad';
+      return null;
+    };
+
+    const getAncestralDepIdLocal = (pathStr: string) => {
+      if (!pathStr) return null;
+      const parts = pathStr.split('/');
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const partid = parts[i];
+        if (dependencias.some(d => d.id === partid)) {
+          return partid;
+        }
+      }
+      return null;
+    };
+
+    const traverse = (parentId: string | null, currentPath: string, parentType: string | null, allowedChildren?: string[]) => {
+      let baseChildren: any[] = [];
+
+      if (viewMode === 'organizacional') {
+        if (parentType === null) {
+          baseChildren = organismos.filter(o => !o.parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+        } else if (parentType === 'Organismo') {
+          const subOrgs = organismos.filter(o => o.parentId && parentId && String(o.parentId).toLowerCase() === String(parentId).toLowerCase()).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          const deps = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase()).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          baseChildren = [...deps, ...subOrgs];
+        } else if (parentType === 'Dependencia') {
+          baseChildren = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase()).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+        }
+      } else if (viewMode === 'procedimental') {
+        if (parentType === null) {
+          baseChildren = procesos.filter(p => !p.procesoId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+        } else if (parentType === 'Proceso') {
+          const subProcs = procesos.filter(p => p.procesoId && parentId && String(p.procesoId).toLowerCase() === String(parentId).toLowerCase()).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+          const pcds = procedimientos.filter(pcd => pcd.procesoId && parentId && String(pcd.procesoId).toLowerCase() === String(parentId).toLowerCase()).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
+          baseChildren = [...subProcs, ...pcds];
+        } else if (parentType === 'Procedimiento') {
+          baseChildren = actividades.filter(act => act.procedimientoId && parentId && String(act.procedimientoId).toLowerCase() === String(parentId).toLowerCase()).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
+        }
+      } else {
+        // viewMode === 'general'
+        if (parentType === null) {
+          baseChildren = organismos.filter(o => !o.parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+        } else if (parentType === 'Organismo') {
+          const subOrgs = organismos.filter(o => o.parentId === parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          const deps = dependencias.filter(d => d.parentId === parentId).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          baseChildren = [...deps, ...subOrgs];
+        } else if (parentType === 'Dependencia') {
+          const subDeps = dependencias.filter(d => d.parentId === parentId).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          const dId = parentId;
+          const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(dId).toLowerCase() && r.activo !== false);
+          const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(dId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
+          const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+
+          const isActividadActive = (actId: string) => {
+            const actIdStr = String(actId).toLowerCase();
+            if (excludedChildIds.has(actIdStr)) return false;
+            return activeChildIds.has(actIdStr);
+          };
+
+          const isProcedimientoActive = (pcdId: string) => {
+            const pcdIdStr = String(pcdId).toLowerCase();
+            if (excludedChildIds.has(pcdIdStr)) return false;
+            if (activeChildIds.has(pcdIdStr)) return true;
+            const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+            return childActs.some(a => isActividadActive(a.id));
+          };
+
+          const isProcesoActive = (procId: string) => {
+            const procIdStr = String(procId).toLowerCase();
+            if (excludedChildIds.has(procIdStr)) return false;
+            if (activeChildIds.has(procIdStr)) return true;
+            const childPcds = procedimientos.filter(pcd => pcd.procesoId === procId);
+            return childPcds.some(pcd => isProcedimientoActive(pcd.id));
+          };
+
+          const activeProcs = procesos.filter(p => {
+            if (excludedChildIds.has(String(p.id).toLowerCase())) return false;
+            return p.dependenciaId === dId || isProcesoActive(p.id);
+          }).map(p => ({
+            ...p,
+            type: 'Proceso',
+            isLinked: p.dependenciaId !== dId || activeChildIds.has(String(p.id).toLowerCase())
+          }));
+
+          baseChildren = [...activeProcs, ...subDeps];
+        } else if (parentType === 'Proceso') {
+          const depId = getAncestralDepIdLocal(currentPath);
+          if (depId) {
+            const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo !== false);
+            const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
+            const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+
+            const isActividadActive = (actId: string) => {
+              const actIdStr = String(actId).toLowerCase();
+              if (excludedChildIds.has(actIdStr)) return false;
+              return activeChildIds.has(actIdStr);
+            };
+
+            const isProcedimientoActive = (pcdId: string) => {
+              const pcdIdStr = String(pcdId).toLowerCase();
+              if (excludedChildIds.has(pcdIdStr)) return false;
+              if (activeChildIds.has(pcdIdStr)) return true;
+              const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+              return childActs.some(a => isActividadActive(a.id));
+            };
+
+            const hasFinerRelationsUnderProc = activeRels.some(r => {
+              const rType = getResolvedTypeLocal(r.childId);
+              return (
+                (rType === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === parentId)) ||
+                (rType === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === parentId)))
+              );
+            });
+
+            let pcdsFiltered = procedimientos.filter(pcd => pcd.procesoId === parentId);
+            if (hasFinerRelationsUnderProc) {
+              pcdsFiltered = pcdsFiltered.filter(pcd => isProcedimientoActive(pcd.id));
+            } else {
+              pcdsFiltered = pcdsFiltered.filter(pcd => !excludedChildIds.has(String(pcd.id).toLowerCase()));
+            }
+
+            const pcds = pcdsFiltered.map(pcd => ({
+              ...pcd,
+              type: 'Procedimiento',
+              isLinked: activeChildIds.has(String(pcd.id).toLowerCase())
+            }));
+
+            const subProcs = procesos.filter(p => p.procesoId === parentId && !excludedChildIds.has(String(p.id).toLowerCase())).map(p => ({
+              ...p,
+              type: 'Proceso',
+              isLinked: activeChildIds.has(String(p.id).toLowerCase())
+            }));
+
+            baseChildren = [...subProcs, ...pcds];
+          } else {
+            const subProcs = procesos.filter(p => p.procesoId === parentId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+            const pcds = procedimientos.filter(pcd => pcd.procesoId === parentId).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
+            baseChildren = [...subProcs, ...pcds];
+          }
+        } else if (parentType === 'Procedimiento') {
+          const depId = getAncestralDepIdLocal(currentPath);
+          if (depId) {
+            const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo !== false);
+            const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
+            const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+
+            const isActividadActive = (actId: string) => {
+              const actIdStr = String(actId).toLowerCase();
+              if (excludedChildIds.has(actIdStr)) return false;
+              return activeChildIds.has(actIdStr);
+            };
+
+            const hasFinerRelationsUnderPcd = activeRels.some(r => {
+              const rType = getResolvedTypeLocal(r.childId);
+              return rType === 'Actividad' && actividades.some(act => act.id === r.childId && act.procedimientoId === parentId);
+            });
+
+            let actsFiltered = actividades.filter(act => act.procedimientoId === parentId);
+            if (hasFinerRelationsUnderPcd) {
+              actsFiltered = actsFiltered.filter(act => isActividadActive(act.id));
+            } else {
+              actsFiltered = actsFiltered.filter(act => !excludedChildIds.has(String(act.id).toLowerCase()));
+            }
+
+            baseChildren = actsFiltered.map(act => ({
+              ...act,
+              type: 'Actividad',
+              isLinked: activeChildIds.has(String(act.id).toLowerCase())
+            }));
+          } else {
+            baseChildren = actividades.filter(act => act.procedimientoId === parentId).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
+          }
+        }
+      }
+
+      let allChildren = [...baseChildren];
+      if (allowedChildren && allowedChildren.length > 0) {
+        allChildren = allChildren.filter(c => allowedChildren.includes(c.id));
+      }
+
+      allChildren.forEach(child => {
+        const path = currentPath ? `${currentPath}/${child.id}` : child.id;
+        if (viewMode === 'general' && hiddenPaths.includes(path)) {
+          return;
+        }
+
+        if (child.estado !== 'Inactivo') {
+          if (child.type === 'Organismo') orgsSet.add(child.id);
+          else if (child.type === 'Dependencia') depsSet.add(child.id);
+          else if (child.type === 'Proceso') procsSet.add(child.id);
+          else if (child.type === 'Procedimiento') pcdsSet.add(child.id);
+          else if (child.type === 'Actividad') actsSet.add(child.id);
+        }
+
+        traverse(child.id, path, child.type, child.includedChildren);
+      });
+    };
+
+    traverse(null, '', null);
+
+    return {
+      organismos: orgsSet.size,
+      dependencias: depsSet.size,
+      procesos: procsSet.size,
+      procedimientos: pcdsSet.size,
+      actividades: actsSet.size
+    };
+  }, [
+    viewMode, organismos, dependencias, procesos, procedimientos, actividades, relaciones, hiddenPaths
+  ]);
+
 
   const getSelectedNodeDetails = () => {
     if (!selectedNode) return null;
@@ -1664,13 +1888,13 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                         <div className="flex items-center gap-3">
                           <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-blue-50 text-blue-700 border-blue-200">Organismo</span>
                         </div>
-                        <span className="text-lg font-bold text-slate-700">{organismos.filter(o => o.estado !== 'Inactivo').length}</span>
+                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.organismos}</span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm gap-6">
                         <div className="flex items-center gap-3">
                           <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200">Dependencia</span>
                         </div>
-                        <span className="text-lg font-bold text-slate-700">{dependencias.filter(d => d.estado !== 'Inactivo').length}</span>
+                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.dependencias}</span>
                       </div>
                     </>
                   )}
@@ -1680,19 +1904,19 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
                         <div className="flex items-center gap-3">
                           <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200">Proceso</span>
                         </div>
-                        <span className="text-lg font-bold text-slate-700">{procesos.filter(p => p.estado !== 'Inactivo').length}</span>
+                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.procesos}</span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm gap-6">
                         <div className="flex items-center gap-3">
                           <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-purple-50 text-purple-700 border-purple-200">Procedimiento</span>
                         </div>
-                        <span className="text-lg font-bold text-slate-700">{procedimientos.filter(p => p.estado !== 'Inactivo').length}</span>
+                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.procedimientos}</span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm gap-6">
                         <div className="flex items-center gap-3">
                           <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border bg-slate-50 text-slate-700 border-slate-200">Actividad</span>
                         </div>
-                        <span className="text-lg font-bold text-slate-700">{actividades.filter(a => a.estado !== 'Inactivo').length}</span>
+                        <span className="text-lg font-bold text-slate-700">{accessibleCounts.actividades}</span>
                       </div>
                     </>
                   )}
