@@ -389,68 +389,134 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
   const displayRows = React.useMemo(() => {
     const rows: any[] = [];
     
-    // Helper to find the closest ancestral "Dependencia" in the path string (which is formatted as "ID/ID/ID...")
+    // Hash map indices for O(1) lookups during traversal, resolving the freezing issue
+    const typeMap = new Map<string, string>();
+    dependencias.forEach(d => typeMap.set(String(d.id).toLowerCase().trim(), 'Dependencia'));
+    procesos.forEach(p => typeMap.set(String(p.id).toLowerCase().trim(), 'Proceso'));
+    procedimientos.forEach(p => typeMap.set(String(p.id).toLowerCase().trim(), 'Procedimiento'));
+    actividades.forEach(a => typeMap.set(String(a.id).toLowerCase().trim(), 'Actividad'));
+
+    const getResolvedChildType = (childId: string): string | null => {
+      return typeMap.get(String(childId).toLowerCase().trim()) || null;
+    };
+
+    const depIdsSet = new Set(dependencias.map(d => String(d.id)));
     const getAncestralDependenciaId = (pathStr: string) => {
       if (!pathStr) return null;
       const parts = pathStr.split('/');
       for (let i = parts.length - 1; i >= 0; i--) {
         const partid = parts[i];
-        if (dependencias.some(d => d.id === partid)) {
+        if (depIdsSet.has(partid)) {
           return partid;
         }
       }
       return null;
     };
 
-    const getResolvedChildType = (childId: string): string | null => {
-      const childIdStr = String(childId).toLowerCase().trim();
-      if (dependencias.some(d => String(d.id).toLowerCase().trim() === childIdStr)) return 'Dependencia';
-      if (procesos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Proceso';
-      if (procedimientos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Procedimiento';
-      if (actividades.some(a => String(a.id).toLowerCase().trim() === childIdStr)) return 'Actividad';
-      return null;
-    };
+    const codigoMap = new Map<string, string>();
+    organismos.forEach(o => codigoMap.set(String(o.id), o.codigo));
+    dependencias.forEach(d => codigoMap.set(String(d.id), d.codigo));
+    procesos.forEach(p => codigoMap.set(String(p.id), p.codigo));
+    procedimientos.forEach(p => codigoMap.set(String(p.id), p.codigo));
+    actividades.forEach(a => codigoMap.set(String(a.id), a.codigo));
+
+    const orgsByParent = new Map<string, any[]>();
+    const orgsNoParent: any[] = [];
+    organismos.forEach(o => {
+      if (!o.parentId) {
+        orgsNoParent.push(o);
+      } else {
+        const pKey = String(o.parentId).toLowerCase().trim();
+        if (!orgsByParent.has(pKey)) orgsByParent.set(pKey, []);
+        orgsByParent.get(pKey)!.push(o);
+      }
+    });
+
+    const depsByParent = new Map<string, any[]>();
+    dependencias.forEach(d => {
+      if (d.parentId) {
+        const pKey = String(d.parentId).toLowerCase().trim();
+        if (!depsByParent.has(pKey)) depsByParent.set(pKey, []);
+        depsByParent.get(pKey)!.push(d);
+      }
+    });
+
+    const procsByParent = new Map<string, any[]>();
+    const procsNoParent: any[] = [];
+    procesos.forEach(p => {
+      if (!p.procesoId) {
+        procsNoParent.push(p);
+      } else {
+        const pKey = String(p.procesoId).toLowerCase().trim();
+        if (!procsByParent.has(pKey)) procsByParent.set(pKey, []);
+        procsByParent.get(pKey)!.push(p);
+      }
+    });
+
+    const pcdsByParent = new Map<string, any[]>();
+    procedimientos.forEach(pcd => {
+      if (pcd.procesoId) {
+        const pKey = String(pcd.procesoId).toLowerCase().trim();
+        if (!pcdsByParent.has(pKey)) pcdsByParent.set(pKey, []);
+        pcdsByParent.get(pKey)!.push(pcd);
+      }
+    });
+
+    const actsByParent = new Map<string, any[]>();
+    actividades.forEach(act => {
+      if (act.procedimientoId) {
+        const pKey = String(act.procedimientoId).toLowerCase().trim();
+        if (!actsByParent.has(pKey)) actsByParent.set(pKey, []);
+        actsByParent.get(pKey)!.push(act);
+      }
+    });
+
+    const relacionesByParent = new Map<string, any[]>();
+    relaciones.forEach(r => {
+      if (r.parentId) {
+        const pKey = String(r.parentId).toLowerCase().trim();
+        if (!relacionesByParent.has(pKey)) relacionesByParent.set(pKey, []);
+        relacionesByParent.get(pKey)!.push(r);
+      }
+    });
 
     const countDirectChildren = (parentId: string, parentType: string, currentPath: string): number => {
       let baseChildren: any[] = [];
+      const pKey = String(parentId).toLowerCase().trim();
 
       if (viewMode === 'organizacional') {
         if (parentType === 'Organismo') {
-          const subOrgs = organismos.filter(o => o.parentId && parentId && String(o.parentId).toLowerCase() === String(parentId).toLowerCase() && o.estado !== 'Inactivo');
-          const deps = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase() && d.estado !== 'Inactivo');
+          const subOrgs = (orgsByParent.get(pKey) || []).filter(o => o.estado !== 'Inactivo');
+          const deps = (depsByParent.get(pKey) || []).filter(d => d.estado !== 'Inactivo');
           baseChildren = [...deps, ...subOrgs];
         } else if (parentType === 'Dependencia') {
-          baseChildren = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase() && d.estado !== 'Inactivo');
+          baseChildren = (depsByParent.get(pKey) || []).filter(d => d.estado !== 'Inactivo');
         }
       } else if (viewMode === 'procedimental') {
         if (parentType === 'Proceso') {
-          const subProcs = procesos.filter(p => p.procesoId && parentId && String(p.procesoId).toLowerCase() === String(parentId).toLowerCase() && p.estado !== 'Inactivo');
-          const pcds = procedimientos.filter(pcd => pcd.procesoId && parentId && String(pcd.procesoId).toLowerCase() === String(parentId).toLowerCase() && pcd.estado !== 'Inactivo');
+          const subProcs = (procsByParent.get(pKey) || []).filter(p => p.estado !== 'Inactivo');
+          const pcds = (pcdsByParent.get(pKey) || []).filter(pcd => pcd.estado !== 'Inactivo');
           baseChildren = [...subProcs, ...pcds];
         } else if (parentType === 'Procedimiento') {
-          baseChildren = actividades.filter(act => act.procedimientoId && parentId && String(act.procedimientoId).toLowerCase() === String(parentId).toLowerCase() && act.estado !== 'Inactivo');
+          baseChildren = (actsByParent.get(pKey) || []).filter(act => act.estado !== 'Inactivo');
         }
       } else {
         // viewMode === 'general'
         if (parentType === 'Organismo') {
-          const subOrgs = organismos.filter(o => o.parentId === parentId && o.estado !== 'Inactivo');
-          const deps = dependencias.filter(d => d.parentId === parentId && d.estado !== 'Inactivo');
+          const subOrgs = (orgsByParent.get(pKey) || []).filter(o => o.estado !== 'Inactivo');
+          const deps = (depsByParent.get(pKey) || []).filter(d => d.estado !== 'Inactivo');
           baseChildren = [...deps, ...subOrgs];
         } else if (parentType === 'Dependencia') {
-          const subDeps = dependencias.filter(d => d.parentId === parentId && d.estado !== 'Inactivo');
+          const subDeps = (depsByParent.get(pKey) || []).filter(d => d.estado !== 'Inactivo');
           
           const dId = parentId;
-          const activeRels = relaciones.filter(r => 
-            String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-            r.activo !== false
-          );
+          const activeRels = relacionesByParent.get(pKey) || [];
           const excludedChildIds = new Set(
-            relaciones.filter(r => 
-              String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-              r.activo === false
-            ).map(r => String(r.childId).toLowerCase())
+            activeRels.filter(r => r.activo === false).map(r => String(r.childId).toLowerCase())
           );
-          const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+          const activeChildIds = new Set(
+            activeRels.filter(r => r.activo !== false).map(r => String(r.childId).toLowerCase())
+          );
 
           const isActividadActive = (actId: string) => {
             const actIdStr = String(actId).toLowerCase();
@@ -462,7 +528,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
             const pcdIdStr = String(pcdId).toLowerCase();
             if (excludedChildIds.has(pcdIdStr)) return false;
             if (activeChildIds.has(pcdIdStr)) return true;
-            const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+            const childActs = actsByParent.get(pcdIdStr) || [];
             return childActs.some(a => isActividadActive(a.id));
           };
 
@@ -470,7 +536,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
             const procIdStr = String(procId).toLowerCase();
             if (excludedChildIds.has(procIdStr)) return false;
             if (activeChildIds.has(procIdStr)) return true;
-            const childPcds = procedimientos.filter(pcd => pcd.procesoId === procId);
+            const childPcds = pcdsByParent.get(procIdStr) || [];
             return childPcds.some(pcd => isProcedimientoActive(pcd.id));
           };
 
@@ -483,17 +549,14 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
         } else if (parentType === 'Proceso') {
           const depId = getAncestralDependenciaId(currentPath);
           if (depId) {
-            const activeRels = relaciones.filter(r => 
-              String(r.parentId).toLowerCase() === String(depId).toLowerCase() && 
-              r.activo !== false
-            );
+            const dKey = String(depId).toLowerCase().trim();
+            const activeRels = relacionesByParent.get(dKey) || [];
             const excludedChildIds = new Set(
-              relaciones.filter(r => 
-                String(r.parentId).toLowerCase() === String(depId).toLowerCase() && 
-                r.activo === false
-              ).map(r => String(r.childId).toLowerCase())
+              activeRels.filter(r => r.activo === false).map(r => String(r.childId).toLowerCase())
             );
-            const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+            const activeChildIds = new Set(
+              activeRels.filter(r => r.activo !== false).map(r => String(r.childId).toLowerCase())
+            );
 
             const isActividadActive = (actId: string) => {
               const actIdStr = String(actId).toLowerCase();
@@ -505,47 +568,50 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               const pcdIdStr = String(pcdId).toLowerCase();
               if (excludedChildIds.has(pcdIdStr)) return false;
               if (activeChildIds.has(pcdIdStr)) return true;
-              const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+              const childActs = actsByParent.get(pcdIdStr) || [];
               return childActs.some(a => isActividadActive(a.id));
             };
 
             const hasFinerRelationsUnderProc = activeRels.some(r => {
               const rType = getResolvedChildType(r.childId);
-              return (
-                (rType === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === parentId)) ||
-                (rType === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === parentId)))
-              );
+              if (rType === 'Procedimiento') {
+                return (pcdsByParent.get(pKey) || []).some(pcd => pcd.id === r.childId);
+              }
+              if (rType === 'Actividad') {
+                return (actsByParent.get(String(r.childId).toLowerCase().trim()) || []).some(act => 
+                  (pcdsByParent.get(pKey) || []).some(pcd => pcd.id === act.procedimientoId)
+                );
+              }
+              return false;
             });
 
-            let pcdsFiltered = procedimientos.filter(pcd => pcd.procesoId === parentId && pcd.estado !== 'Inactivo');
+            let pcdsFiltered = pcdsByParent.get(pKey) || [];
             if (hasFinerRelationsUnderProc) {
               pcdsFiltered = pcdsFiltered.filter(pcd => isProcedimientoActive(pcd.id));
             } else {
               pcdsFiltered = pcdsFiltered.filter(pcd => !excludedChildIds.has(String(pcd.id).toLowerCase()));
             }
+            pcdsFiltered = pcdsFiltered.filter(pcd => pcd.estado !== 'Inactivo');
 
-            const subProcs = procesos.filter(p => p.procesoId === parentId && p.estado !== 'Inactivo' && !excludedChildIds.has(String(p.id).toLowerCase()));
+            const subProcs = (procsByParent.get(pKey) || []).filter(p => p.estado !== 'Inactivo' && !excludedChildIds.has(String(p.id).toLowerCase()));
 
             baseChildren = [...subProcs, ...pcdsFiltered];
           } else {
-            const subProcs = procesos.filter(p => p.procesoId === parentId && p.estado !== 'Inactivo');
-            const pcds = procedimientos.filter(pcd => pcd.procesoId === parentId && pcd.estado !== 'Inactivo');
+            const subProcs = (procsByParent.get(pKey) || []).filter(p => p.estado !== 'Inactivo');
+            const pcds = (pcdsByParent.get(pKey) || []).filter(pcd => pcd.estado !== 'Inactivo');
             baseChildren = [...subProcs, ...pcds];
           }
         } else if (parentType === 'Procedimiento') {
           const depId = getAncestralDependenciaId(currentPath);
           if (depId) {
-            const activeRels = relaciones.filter(r => 
-              String(r.parentId).toLowerCase() === String(depId).toLowerCase() && 
-              r.activo !== false
-            );
+            const dKey = String(depId).toLowerCase().trim();
+            const activeRels = relacionesByParent.get(dKey) || [];
             const excludedChildIds = new Set(
-              relaciones.filter(r => 
-                String(r.parentId).toLowerCase() === String(depId).toLowerCase() && 
-                r.activo === false
-              ).map(r => String(r.childId).toLowerCase())
+              activeRels.filter(r => r.activo === false).map(r => String(r.childId).toLowerCase())
             );
-            const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+            const activeChildIds = new Set(
+              activeRels.filter(r => r.activo !== false).map(r => String(r.childId).toLowerCase())
+            );
 
             const isActividadActive = (actId: string) => {
               const actIdStr = String(actId).toLowerCase();
@@ -555,19 +621,20 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
 
             const hasFinerRelationsUnderPcd = activeRels.some(r => {
               const rType = getResolvedChildType(r.childId);
-              return rType === 'Actividad' && actividades.some(act => act.id === r.childId && act.procedimientoId === parentId);
+              return rType === 'Actividad' && (actsByParent.get(pKey) || []).some(act => act.id === r.childId);
             });
 
-            let actsFiltered = actividades.filter(act => act.procedimientoId === parentId && act.estado !== 'Inactivo');
+            let actsFiltered = actsByParent.get(pKey) || [];
             if (hasFinerRelationsUnderPcd) {
               actsFiltered = actsFiltered.filter(act => isActividadActive(act.id));
             } else {
               actsFiltered = actsFiltered.filter(act => !excludedChildIds.has(String(act.id).toLowerCase()));
             }
+            actsFiltered = actsFiltered.filter(act => act.estado !== 'Inactivo');
 
             baseChildren = actsFiltered;
           } else {
-            baseChildren = actividades.filter(act => act.procedimientoId === parentId && act.estado !== 'Inactivo');
+            baseChildren = (actsByParent.get(pKey) || []).filter(act => act.estado !== 'Inactivo');
           }
         }
       }
@@ -592,51 +659,48 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
 
     const addChildrenRecursive = (parentId: string | null, level: number, currentPath: string, parentType: string | null, allowedChildren?: string[]) => {
       let baseChildren: any[] = [];
+      const pKey = parentId ? String(parentId).toLowerCase().trim() : '';
 
       if (viewMode === 'organizacional') {
         if (parentType === null) {
-          baseChildren = organismos.filter(o => !o.parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          baseChildren = orgsNoParent.map(o => ({ ...o, type: 'Organismo', isLinked: false }));
         } else if (parentType === 'Organismo') {
-          const subOrgs = organismos.filter(o => o.parentId && parentId && String(o.parentId).toLowerCase() === String(parentId).toLowerCase()).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
-          const deps = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase()).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          const subOrgs = (orgsByParent.get(pKey) || []).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          const deps = (depsByParent.get(pKey) || []).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
           baseChildren = [...deps, ...subOrgs];
         } else if (parentType === 'Dependencia') {
-          baseChildren = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase()).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          baseChildren = (depsByParent.get(pKey) || []).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
         }
       } else if (viewMode === 'procedimental') {
         if (parentType === null) {
-          baseChildren = procesos.filter(p => !p.procesoId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+          baseChildren = procsNoParent.map(p => ({ ...p, type: 'Proceso', isLinked: false }));
         } else if (parentType === 'Proceso') {
-          const subProcs = procesos.filter(p => p.procesoId && parentId && String(p.procesoId).toLowerCase() === String(parentId).toLowerCase()).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
-          const pcds = procedimientos.filter(pcd => pcd.procesoId && parentId && String(pcd.procesoId).toLowerCase() === String(parentId).toLowerCase()).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
+          const subProcs = (procsByParent.get(pKey) || []).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+          const pcds = (pcdsByParent.get(pKey) || []).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
           baseChildren = [...subProcs, ...pcds];
         } else if (parentType === 'Procedimiento') {
-          baseChildren = actividades.filter(act => act.procedimientoId && parentId && String(act.procedimientoId).toLowerCase() === String(parentId).toLowerCase()).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
+          baseChildren = (actsByParent.get(pKey) || []).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
         }
       } else {
         // viewMode === 'general' (Dynamic top-down/bottom-up relationship resolution)
         if (parentType === null) {
           // Root level: Organismos with no parentId
-          baseChildren = organismos.filter(o => !o.parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          baseChildren = orgsNoParent.map(o => ({ ...o, type: 'Organismo', isLinked: false }));
         } else if (parentType === 'Organismo') {
-          const subOrgs = organismos.filter(o => o.parentId === parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
-          const deps = dependencias.filter(d => d.parentId === parentId).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          const subOrgs = (orgsByParent.get(pKey) || []).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          const deps = (depsByParent.get(pKey) || []).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
           baseChildren = [...deps, ...subOrgs];
         } else if (parentType === 'Dependencia') {
-          const subDeps = dependencias.filter(d => d.parentId === parentId).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          const subDeps = (depsByParent.get(pKey) || []).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
           
           const dId = parentId;
-          const activeRels = relaciones.filter(r => 
-            String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-            r.activo !== false
-          );
+          const activeRels = relacionesByParent.get(pKey) || [];
           const excludedChildIds = new Set(
-            relaciones.filter(r => 
-              String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
-              r.activo === false
-            ).map(r => String(r.childId).toLowerCase())
+            activeRels.filter(r => r.activo === false).map(r => String(r.childId).toLowerCase())
           );
-          const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+          const activeChildIds = new Set(
+            activeRels.filter(r => r.activo !== false).map(r => String(r.childId).toLowerCase())
+          );
 
           const isActividadActive = (actId: string) => {
             const actIdStr = String(actId).toLowerCase();
@@ -648,7 +712,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
             const pcdIdStr = String(pcdId).toLowerCase();
             if (excludedChildIds.has(pcdIdStr)) return false;
             if (activeChildIds.has(pcdIdStr)) return true;
-            const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+            const childActs = actsByParent.get(pcdIdStr) || [];
             return childActs.some(a => isActividadActive(a.id));
           };
 
@@ -656,7 +720,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
             const procIdStr = String(procId).toLowerCase();
             if (excludedChildIds.has(procIdStr)) return false;
             if (activeChildIds.has(procIdStr)) return true;
-            const childPcds = procedimientos.filter(pcd => pcd.procesoId === procId);
+            const childPcds = pcdsByParent.get(procIdStr) || [];
             return childPcds.some(pcd => isProcedimientoActive(pcd.id));
           };
 
@@ -673,17 +737,14 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
         } else if (parentType === 'Proceso') {
           const depId = getAncestralDependenciaId(currentPath);
           if (depId) {
-            const activeRels = relaciones.filter(r => 
-              String(r.parentId).toLowerCase() === String(depId).toLowerCase() && 
-              r.activo !== false
-            );
+            const dKey = String(depId).toLowerCase().trim();
+            const activeRels = relacionesByParent.get(dKey) || [];
             const excludedChildIds = new Set(
-              relaciones.filter(r => 
-                String(r.parentId).toLowerCase() === String(depId).toLowerCase() && 
-                r.activo === false
-              ).map(r => String(r.childId).toLowerCase())
+              activeRels.filter(r => r.activo === false).map(r => String(r.childId).toLowerCase())
             );
-            const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+            const activeChildIds = new Set(
+              activeRels.filter(r => r.activo !== false).map(r => String(r.childId).toLowerCase())
+            );
 
             const isActividadActive = (actId: string) => {
               const actIdStr = String(actId).toLowerCase();
@@ -695,19 +756,24 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               const pcdIdStr = String(pcdId).toLowerCase();
               if (excludedChildIds.has(pcdIdStr)) return false;
               if (activeChildIds.has(pcdIdStr)) return true;
-              const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+              const childActs = actsByParent.get(pcdIdStr) || [];
               return childActs.some(a => isActividadActive(a.id));
             };
 
             const hasFinerRelationsUnderProc = activeRels.some(r => {
               const rType = getResolvedChildType(r.childId);
-              return (
-                (rType === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === parentId)) ||
-                (rType === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === parentId)))
-              );
+              if (rType === 'Procedimiento') {
+                return (pcdsByParent.get(pKey) || []).some(pcd => pcd.id === r.childId);
+              }
+              if (rType === 'Actividad') {
+                return (actsByParent.get(String(r.childId).toLowerCase().trim()) || []).some(act => 
+                  (pcdsByParent.get(pKey) || []).some(pcd => pcd.id === act.procedimientoId)
+                );
+              }
+              return false;
             });
 
-            let pcdsFiltered = procedimientos.filter(pcd => pcd.procesoId === parentId);
+            let pcdsFiltered = pcdsByParent.get(pKey) || [];
             if (hasFinerRelationsUnderProc) {
               pcdsFiltered = pcdsFiltered.filter(pcd => isProcedimientoActive(pcd.id));
             } else {
@@ -720,7 +786,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               isLinked: activeChildIds.has(String(pcd.id).toLowerCase())
             }));
 
-            const subProcs = procesos.filter(p => p.procesoId === parentId && !excludedChildIds.has(String(p.id).toLowerCase())).map(p => ({
+            const subProcs = (procsByParent.get(pKey) || []).filter(p => !excludedChildIds.has(String(p.id).toLowerCase())).map(p => ({
               ...p,
               type: 'Proceso',
               isLinked: activeChildIds.has(String(p.id).toLowerCase())
@@ -728,24 +794,21 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
 
             baseChildren = [...subProcs, ...pcds];
           } else {
-            const subProcs = procesos.filter(p => p.procesoId === parentId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
-            const pcds = procedimientos.filter(pcd => pcd.procesoId === parentId).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
+            const subProcs = (procsByParent.get(pKey) || []).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+            const pcds = (pcdsByParent.get(pKey) || []).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
             baseChildren = [...subProcs, ...pcds];
           }
         } else if (parentType === 'Procedimiento') {
           const depId = getAncestralDependenciaId(currentPath);
           if (depId) {
-            const activeRels = relaciones.filter(r => 
-              String(r.parentId).toLowerCase() === String(depId).toLowerCase() && 
-              r.activo !== false
-            );
+            const dKey = String(depId).toLowerCase().trim();
+            const activeRels = relacionesByParent.get(dKey) || [];
             const excludedChildIds = new Set(
-              relaciones.filter(r => 
-                String(r.parentId).toLowerCase() === String(depId).toLowerCase() && 
-                r.activo === false
-              ).map(r => String(r.childId).toLowerCase())
+              activeRels.filter(r => r.activo === false).map(r => String(r.childId).toLowerCase())
             );
-            const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+            const activeChildIds = new Set(
+              activeRels.filter(r => r.activo !== false).map(r => String(r.childId).toLowerCase())
+            );
 
             const isActividadActive = (actId: string) => {
               const actIdStr = String(actId).toLowerCase();
@@ -755,10 +818,10 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
 
             const hasFinerRelationsUnderPcd = activeRels.some(r => {
               const rType = getResolvedChildType(r.childId);
-              return rType === 'Actividad' && actividades.some(act => act.id === r.childId && act.procedimientoId === parentId);
+              return rType === 'Actividad' && (actsByParent.get(pKey) || []).some(act => act.id === r.childId);
             });
 
-            let actsFiltered = actividades.filter(act => act.procedimientoId === parentId);
+            let actsFiltered = actsByParent.get(pKey) || [];
             if (hasFinerRelationsUnderPcd) {
               actsFiltered = actsFiltered.filter(act => isActividadActive(act.id));
             } else {
@@ -771,7 +834,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               isLinked: activeChildIds.has(String(act.id).toLowerCase())
             }));
           } else {
-            baseChildren = actividades.filter(act => act.procedimientoId === parentId).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
+            baseChildren = (actsByParent.get(pKey) || []).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
           }
         }
       }
@@ -816,11 +879,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
 
         const getCodigoById = (id: string | null) => {
           if (!id) return 'N/A';
-          return organismos.find(o => o.id === id)?.codigo ||
-                 dependencias.find(d => d.id === id)?.codigo ||
-                 procesos.find(p => p.id === id)?.codigo ||
-                 procedimientos.find(pcd => pcd.id === id)?.codigo ||
-                 actividades.find(a => a.id === id)?.codigo || id;
+          return codigoMap.get(id) || id;
         };
 
         rows.push({
@@ -859,64 +918,131 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
     const pcdsSet = new Set<string>();
     const actsSet = new Set<string>();
 
+    const typeMap = new Map<string, string>();
+    dependencias.forEach(d => typeMap.set(String(d.id).toLowerCase().trim(), 'Dependencia'));
+    procesos.forEach(p => typeMap.set(String(p.id).toLowerCase().trim(), 'Proceso'));
+    procedimientos.forEach(p => typeMap.set(String(p.id).toLowerCase().trim(), 'Procedimiento'));
+    actividades.forEach(a => typeMap.set(String(a.id).toLowerCase().trim(), 'Actividad'));
+
     const getResolvedTypeLocal = (childId: string): string | null => {
-      const childIdStr = String(childId).toLowerCase().trim();
-      if (dependencias.some(d => String(d.id).toLowerCase().trim() === childIdStr)) return 'Dependencia';
-      if (procesos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Proceso';
-      if (procedimientos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Procedimiento';
-      if (actividades.some(a => String(a.id).toLowerCase().trim() === childIdStr)) return 'Actividad';
-      return null;
+      return typeMap.get(String(childId).toLowerCase().trim()) || null;
     };
 
+    const depIdsSet = new Set(dependencias.map(d => String(d.id)));
     const getAncestralDepIdLocal = (pathStr: string) => {
       if (!pathStr) return null;
       const parts = pathStr.split('/');
       for (let i = parts.length - 1; i >= 0; i--) {
         const partid = parts[i];
-        if (dependencias.some(d => d.id === partid)) {
+        if (depIdsSet.has(partid)) {
           return partid;
         }
       }
       return null;
     };
 
+    const orgsByParent = new Map<string, any[]>();
+    const orgsNoParent: any[] = [];
+    organismos.forEach(o => {
+      if (!o.parentId) {
+        orgsNoParent.push(o);
+      } else {
+        const pKey = String(o.parentId).toLowerCase().trim();
+        if (!orgsByParent.has(pKey)) orgsByParent.set(pKey, []);
+        orgsByParent.get(pKey)!.push(o);
+      }
+    });
+
+    const depsByParent = new Map<string, any[]>();
+    dependencias.forEach(d => {
+      if (d.parentId) {
+        const pKey = String(d.parentId).toLowerCase().trim();
+        if (!depsByParent.has(pKey)) depsByParent.set(pKey, []);
+        depsByParent.get(pKey)!.push(d);
+      }
+    });
+
+    const procsByParent = new Map<string, any[]>();
+    const procsNoParent: any[] = [];
+    procesos.forEach(p => {
+      if (!p.procesoId) {
+        procsNoParent.push(p);
+      } else {
+        const pKey = String(p.procesoId).toLowerCase().trim();
+        if (!procsByParent.has(pKey)) procsByParent.set(pKey, []);
+        procsByParent.get(pKey)!.push(p);
+      }
+    });
+
+    const pcdsByParent = new Map<string, any[]>();
+    procedimientos.forEach(pcd => {
+      if (pcd.procesoId) {
+        const pKey = String(pcd.procesoId).toLowerCase().trim();
+        if (!pcdsByParent.has(pKey)) pcdsByParent.set(pKey, []);
+        pcdsByParent.get(pKey)!.push(pcd);
+      }
+    });
+
+    const actsByParent = new Map<string, any[]>();
+    actividades.forEach(act => {
+      if (act.procedimientoId) {
+        const pKey = String(act.procedimientoId).toLowerCase().trim();
+        if (!actsByParent.has(pKey)) actsByParent.set(pKey, []);
+        actsByParent.get(pKey)!.push(act);
+      }
+    });
+
+    const relacionesByParent = new Map<string, any[]>();
+    relaciones.forEach(r => {
+      if (r.parentId) {
+        const pKey = String(r.parentId).toLowerCase().trim();
+        if (!relacionesByParent.has(pKey)) relacionesByParent.set(pKey, []);
+        relacionesByParent.get(pKey)!.push(r);
+      }
+    });
+
     const traverse = (parentId: string | null, currentPath: string, parentType: string | null, allowedChildren?: string[]) => {
       let baseChildren: any[] = [];
+      const pKey = parentId ? String(parentId).toLowerCase().trim() : '';
 
       if (viewMode === 'organizacional') {
         if (parentType === null) {
-          baseChildren = organismos.filter(o => !o.parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          baseChildren = orgsNoParent.map(o => ({ ...o, type: 'Organismo', isLinked: false }));
         } else if (parentType === 'Organismo') {
-          const subOrgs = organismos.filter(o => o.parentId && parentId && String(o.parentId).toLowerCase() === String(parentId).toLowerCase()).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
-          const deps = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase()).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          const subOrgs = (orgsByParent.get(pKey) || []).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          const deps = (depsByParent.get(pKey) || []).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
           baseChildren = [...deps, ...subOrgs];
         } else if (parentType === 'Dependencia') {
-          baseChildren = dependencias.filter(d => d.parentId && parentId && String(d.parentId).toLowerCase() === String(parentId).toLowerCase()).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          baseChildren = (depsByParent.get(pKey) || []).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
         }
       } else if (viewMode === 'procedimental') {
         if (parentType === null) {
-          baseChildren = procesos.filter(p => !p.procesoId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+          baseChildren = procsNoParent.map(p => ({ ...p, type: 'Proceso', isLinked: false }));
         } else if (parentType === 'Proceso') {
-          const subProcs = procesos.filter(p => p.procesoId && parentId && String(p.procesoId).toLowerCase() === String(parentId).toLowerCase()).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
-          const pcds = procedimientos.filter(pcd => pcd.procesoId && parentId && String(pcd.procesoId).toLowerCase() === String(parentId).toLowerCase()).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
+          const subProcs = (procsByParent.get(pKey) || []).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+          const pcds = (pcdsByParent.get(pKey) || []).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
           baseChildren = [...subProcs, ...pcds];
         } else if (parentType === 'Procedimiento') {
-          baseChildren = actividades.filter(act => act.procedimientoId && parentId && String(act.procedimientoId).toLowerCase() === String(parentId).toLowerCase()).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
+          baseChildren = (actsByParent.get(pKey) || []).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
         }
       } else {
         // viewMode === 'general'
         if (parentType === null) {
-          baseChildren = organismos.filter(o => !o.parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          baseChildren = orgsNoParent.map(o => ({ ...o, type: 'Organismo', isLinked: false }));
         } else if (parentType === 'Organismo') {
-          const subOrgs = organismos.filter(o => o.parentId === parentId).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
-          const deps = dependencias.filter(d => d.parentId === parentId).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          const subOrgs = (orgsByParent.get(pKey) || []).map(o => ({ ...o, type: 'Organismo', isLinked: false }));
+          const deps = (depsByParent.get(pKey) || []).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
           baseChildren = [...deps, ...subOrgs];
         } else if (parentType === 'Dependencia') {
-          const subDeps = dependencias.filter(d => d.parentId === parentId).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
+          const subDeps = (depsByParent.get(pKey) || []).map(d => ({ ...d, type: 'Dependencia', isLinked: false }));
           const dId = parentId;
-          const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(dId).toLowerCase() && r.activo !== false);
-          const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(dId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
-          const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+          const activeRels = relacionesByParent.get(pKey) || [];
+          const excludedChildIds = new Set(
+            activeRels.filter(r => r.activo === false).map(r => String(r.childId).toLowerCase())
+          );
+          const activeChildIds = new Set(
+            activeRels.filter(r => r.activo !== false).map(r => String(r.childId).toLowerCase())
+          );
 
           const isActividadActive = (actId: string) => {
             const actIdStr = String(actId).toLowerCase();
@@ -928,7 +1054,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
             const pcdIdStr = String(pcdId).toLowerCase();
             if (excludedChildIds.has(pcdIdStr)) return false;
             if (activeChildIds.has(pcdIdStr)) return true;
-            const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+            const childActs = actsByParent.get(pcdIdStr) || [];
             return childActs.some(a => isActividadActive(a.id));
           };
 
@@ -936,7 +1062,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
             const procIdStr = String(procId).toLowerCase();
             if (excludedChildIds.has(procIdStr)) return false;
             if (activeChildIds.has(procIdStr)) return true;
-            const childPcds = procedimientos.filter(pcd => pcd.procesoId === procId);
+            const childPcds = pcdsByParent.get(procIdStr) || [];
             return childPcds.some(pcd => isProcedimientoActive(pcd.id));
           };
 
@@ -953,9 +1079,14 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
         } else if (parentType === 'Proceso') {
           const depId = getAncestralDepIdLocal(currentPath);
           if (depId) {
-            const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo !== false);
-            const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
-            const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+            const dKey = String(depId).toLowerCase().trim();
+            const activeRels = relacionesByParent.get(dKey) || [];
+            const excludedChildIds = new Set(
+              activeRels.filter(r => r.activo === false).map(r => String(r.childId).toLowerCase())
+            );
+            const activeChildIds = new Set(
+              activeRels.filter(r => r.activo !== false).map(r => String(r.childId).toLowerCase())
+            );
 
             const isActividadActive = (actId: string) => {
               const actIdStr = String(actId).toLowerCase();
@@ -967,19 +1098,24 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               const pcdIdStr = String(pcdId).toLowerCase();
               if (excludedChildIds.has(pcdIdStr)) return false;
               if (activeChildIds.has(pcdIdStr)) return true;
-              const childActs = actividades.filter(a => a.procedimientoId === pcdId);
+              const childActs = actsByParent.get(pcdIdStr) || [];
               return childActs.some(a => isActividadActive(a.id));
             };
 
             const hasFinerRelationsUnderProc = activeRels.some(r => {
               const rType = getResolvedTypeLocal(r.childId);
-              return (
-                (rType === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === parentId)) ||
-                (rType === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === parentId)))
-              );
+              if (rType === 'Procedimiento') {
+                return (pcdsByParent.get(pKey) || []).some(pcd => pcd.id === r.childId);
+              }
+              if (rType === 'Actividad') {
+                return (actsByParent.get(String(r.childId).toLowerCase().trim()) || []).some(act => 
+                  (pcdsByParent.get(pKey) || []).some(pcd => pcd.id === act.procedimientoId)
+                );
+              }
+              return false;
             });
 
-            let pcdsFiltered = procedimientos.filter(pcd => pcd.procesoId === parentId);
+            let pcdsFiltered = pcdsByParent.get(pKey) || [];
             if (hasFinerRelationsUnderProc) {
               pcdsFiltered = pcdsFiltered.filter(pcd => isProcedimientoActive(pcd.id));
             } else {
@@ -992,7 +1128,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               isLinked: activeChildIds.has(String(pcd.id).toLowerCase())
             }));
 
-            const subProcs = procesos.filter(p => p.procesoId === parentId && !excludedChildIds.has(String(p.id).toLowerCase())).map(p => ({
+            const subProcs = (procsByParent.get(pKey) || []).filter(p => !excludedChildIds.has(String(p.id).toLowerCase())).map(p => ({
               ...p,
               type: 'Proceso',
               isLinked: activeChildIds.has(String(p.id).toLowerCase())
@@ -1000,16 +1136,21 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
 
             baseChildren = [...subProcs, ...pcds];
           } else {
-            const subProcs = procesos.filter(p => p.procesoId === parentId).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
-            const pcds = procedimientos.filter(pcd => pcd.procesoId === parentId).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
+            const subProcs = (procsByParent.get(pKey) || []).map(p => ({ ...p, type: 'Proceso', isLinked: false }));
+            const pcds = (pcdsByParent.get(pKey) || []).map(pcd => ({ ...pcd, type: 'Procedimiento', isLinked: false }));
             baseChildren = [...subProcs, ...pcds];
           }
         } else if (parentType === 'Procedimiento') {
           const depId = getAncestralDepIdLocal(currentPath);
           if (depId) {
-            const activeRels = relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo !== false);
-            const excludedChildIds = new Set(relaciones.filter(r => String(r.parentId).toLowerCase() === String(depId).toLowerCase() && r.activo === false).map(r => String(r.childId).toLowerCase()));
-            const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
+            const dKey = String(depId).toLowerCase().trim();
+            const activeRels = relacionesByParent.get(dKey) || [];
+            const excludedChildIds = new Set(
+              activeRels.filter(r => r.activo === false).map(r => String(r.childId).toLowerCase())
+            );
+            const activeChildIds = new Set(
+              activeRels.filter(r => r.activo !== false).map(r => String(r.childId).toLowerCase())
+            );
 
             const isActividadActive = (actId: string) => {
               const actIdStr = String(actId).toLowerCase();
@@ -1019,10 +1160,10 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
 
             const hasFinerRelationsUnderPcd = activeRels.some(r => {
               const rType = getResolvedTypeLocal(r.childId);
-              return rType === 'Actividad' && actividades.some(act => act.id === r.childId && act.procedimientoId === parentId);
+              return rType === 'Actividad' && (actsByParent.get(pKey) || []).some(act => act.id === r.childId);
             });
 
-            let actsFiltered = actividades.filter(act => act.procedimientoId === parentId);
+            let actsFiltered = actsByParent.get(pKey) || [];
             if (hasFinerRelationsUnderPcd) {
               actsFiltered = actsFiltered.filter(act => isActividadActive(act.id));
             } else {
@@ -1035,7 +1176,7 @@ export const EstructuraModule: React.FC<EstructuraModuleProps> = ({
               isLinked: activeChildIds.has(String(act.id).toLowerCase())
             }));
           } else {
-            baseChildren = actividades.filter(act => act.procedimientoId === parentId).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
+            baseChildren = (actsByParent.get(pKey) || []).map(act => ({ ...act, type: 'Actividad', isLinked: false }));
           }
         }
       }

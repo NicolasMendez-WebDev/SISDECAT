@@ -2771,6 +2771,7 @@ export default function App() {
                   procedimientos={currentPcdData}
                   vigencias={availableVigencias}
                   vigenciaActiva={currentVigenciaView?.Estado === "Activo"}
+                  selectedVigenciaId={currentVigenciaId}
                   onVigenciaUpdate={async (v) => {
                     let finalVigencias = [...vigencias];
                     finalVigencias = finalVigencias.map((vig) =>

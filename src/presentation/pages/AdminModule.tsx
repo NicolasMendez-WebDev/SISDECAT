@@ -37,6 +37,7 @@ interface AdminModuleProps {
   isLoadingRecords?: boolean;
   onReorderCargos?: (c: any[]) => void;
   onReorderFactores?: (f: any[]) => void;
+  selectedVigenciaId?: string | null;
 }
 
 export const AdminModule: React.FC<AdminModuleProps> = ({ 
@@ -44,7 +45,8 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
   onReorderCargos, onReorderFactores,
   onUpdate, onDelete, organismos, dependencias, actividades, procesos, procedimientos,
   vigencias, onVigenciaUpdate, onVigenciaCreate, usuarios = [], onUpdateUsuario, onAddUsuario, currentUser,
-  vigenciasUsuarios = [], onUpdateVigenciaUsuario, onRestoreMockData, vigenciaActiva = true, showToast, isLoadingRecords
+  vigenciasUsuarios = [], onUpdateVigenciaUsuario, onRestoreMockData, vigenciaActiva = true, showToast, isLoadingRecords,
+  selectedVigenciaId
 }) => {
   // Find the active/current vigencia to display and edit organisms/roles in that active context
   const activeVigencia = vigencias.find(v => v.Estado === 'Activo') || vigencias.find(v => v.Estado === 'Borrador') || vigencias[0];
@@ -314,8 +316,13 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
           >
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Directorio de Cuentas del Sistema</h2>
-                <p className="text-sm text-slate-500">Muestra el directorio de todas las cuentas registradas que han ingresado al sistema.</p>
+                <h2 className="text-xl font-bold text-slate-800 tracking-tight text-slate-800">Directorio de Cuentas del Sistema</h2>
+                <p className="text-sm text-slate-500">
+                  Visualizando cuentas asignadas al Estudio de Cargas:{" "}
+                  <span className="font-extrabold text-institutional-blue underline decoration-2 decoration-institutional-blue/30 underline-offset-4">
+                    {vigencias.find((v) => v.IdVigencia === (selectedVigenciaId || activeVigenciaId))?.Nombre || "Cargando..."}
+                  </span>
+                </p>
               </div>
               <button 
                 disabled
@@ -332,7 +339,7 @@ export const AdminModule: React.FC<AdminModuleProps> = ({
               organismos={organismos}
               dependencias={dependencias}
               vigencias={vigencias}
-              selectedVigenciaId={activeVigenciaId}
+              selectedVigenciaId={selectedVigenciaId || activeVigenciaId}
               editMode={true}
               showRolesAndDeps={true}
               onUpdateVigenciaUsuario={onUpdateVigenciaUsuario}
