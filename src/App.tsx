@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   organismos,
@@ -36,6 +36,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null); // Enable login mode
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
   const [activeModule, setActiveModule] = useState<Module>("dashboard");
+  const lastUserRolRef = useRef<string | null>(null);
+  const lastUserIdRef = useRef<string | null>(null);
   const [focusElement, setFocusElement] = useState<
     | { id: string; parentId?: string; action?: string; multipleIds?: string[] }
     | undefined
@@ -795,6 +797,28 @@ export default function App() {
         organismoId: computedOrganismoId
       }
     : null;
+
+  useEffect(() => {
+    if (effectiveUser) {
+      const currentRole = effectiveUser.rol;
+      const currentId = effectiveUser.id;
+      
+      // Redirect users if role or user identity has changed
+      if (currentId !== lastUserIdRef.current || currentRole !== lastUserRolRef.current) {
+        lastUserIdRef.current = currentId;
+        lastUserRolRef.current = currentRole;
+        
+        if (currentRole === "Funcionario") {
+          setActiveModule("inicio");
+        } else {
+          setActiveModule("dashboard");
+        }
+      }
+    } else {
+      lastUserIdRef.current = null;
+      lastUserRolRef.current = null;
+    }
+  }, [effectiveUser?.id, effectiveUser?.rol]);
 
   if (effectiveUser?.rol === "Funcionario" && effectiveUser.organismoId) {
     currentOrgData = currentOrgData.filter(o => o.id === effectiveUser.organismoId);
@@ -2613,6 +2637,7 @@ export default function App() {
               )}
               {activeModule === "estructura" && (
                 <EstructuraModule
+                  userRol={effectiveUser?.rol || undefined}
                   hasVigencia={!!currentVigenciaId}
                   isReadOnly={
                     effectiveUser?.rol === "Funcionario" ||
