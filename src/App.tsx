@@ -1155,14 +1155,16 @@ export default function App() {
     try {
       const { captureService } =
         await import("./application/services/captureService");
-      // Fake logical delete via update
-      await captureService.updateCarga(id, { estado: "Inactivo" });
+      
+      // Real logical delete via captureService.deleteCarga which sets Activo: false in DB
+      await captureService.deleteCarga(id);
 
       setCargasTrabajo((prevCargas) =>
-        prevCargas.map((c) => (c.id === id ? { ...c, estado: "Inactivo" } : c)),
+        prevCargas.filter((c) => c.id !== id),
       );
-      showToast("Registro desactivado exitosamente (borrado lógico).");
+      showToast("Registro desactivado exitosamente.");
     } catch (error) {
+      console.error("Error al desactivar el registro:", error);
       showToast("Error al desactivar el registro", "error");
     }
   };
