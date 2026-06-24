@@ -213,7 +213,7 @@ model CargasTrabajo {
   IdCargoEjecutor      Int
   IdFactorFrecuencia   Int
 
-  Volumen              Int
+  Volumen              Decimal   @db.Decimal(18, 6)
   UnidadTiempoInput    String    @db.NVarChar(10)
 
   Tmin_Horas           Decimal   @db.Decimal(18, 6)
