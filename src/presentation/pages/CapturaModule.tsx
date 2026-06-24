@@ -200,57 +200,42 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
     const dId = formData.dependenciaId;
     const procId = formData.procesoId;
 
-    const activeRels = relaciones.filter(r => 
+    const activeRelsForDep = relaciones.filter(r => 
       String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
       r.activo !== false
     );
+
     const excludedChildIds = new Set(
       relaciones.filter(r => 
         String(r.parentId).toLowerCase() === String(dId).toLowerCase() && 
         r.activo === false
       ).map(r => String(r.childId).toLowerCase())
     );
-    const activeChildIds = new Set(activeRels.map(r => String(r.childId).toLowerCase()));
 
-    const getResolvedChildType = (childId: string): string | null => {
-      const childIdStr = String(childId).toLowerCase().trim();
-      if (dependencias.some(d => String(d.id).toLowerCase().trim() === childIdStr)) return 'Dependencia';
-      if (procesos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Proceso';
-      if (procedimientos.some(p => String(p.id).toLowerCase().trim() === childIdStr)) return 'Procedimiento';
-      if (actividades.some(a => String(a.id).toLowerCase().trim() === childIdStr)) return 'Actividad';
-      return null;
-    };
+    // Find if there is an active relationship for this specific process under this dependency
+    const relForProc = activeRelsForDep.find(r => 
+      String(r.childId).toLowerCase() === String(procId).toLowerCase()
+    );
 
-    const isActividadActive = (actId: string) => {
-      const actIdStr = String(actId).toLowerCase();
-      if (excludedChildIds.has(actIdStr)) return false;
-      return activeChildIds.has(actIdStr);
-    };
-
-    const isProcedimientoActive = (pcdId: string) => {
-      const pcdIdStr = String(pcdId).toLowerCase();
-      if (excludedChildIds.has(pcdIdStr)) return false;
-      if (activeChildIds.has(pcdIdStr)) return true;
-      const childActs = actividades.filter(a => a.procedimientoId === pcdId);
-      return childActs.some(a => isActividadActive(a.id));
-    };
-
-    const hasFinerRelationsUnderProc = activeRels.some(r => {
-      const rType = getResolvedChildType(r.childId);
-      return (
-        (rType === 'Procedimiento' && procedimientos.some(pcd => pcd.id === r.childId && pcd.procesoId === procId)) ||
-        (rType === 'Actividad' && actividades.some(act => act.id === r.childId && procedimientos.some(pcd => pcd.id === act.procedimientoId && pcd.procesoId === procId)))
-      );
-    });
+    // Check if we have fine-grained (includedChildren) relations
+    const hasFinerRelations = relForProc && Array.isArray(relForProc.includedChildren) && relForProc.includedChildren.length > 0;
 
     let candidates = procedimientos.filter(pcd => pcd.procesoId === procId);
-    if (hasFinerRelationsUnderProc) {
-      candidates = candidates.filter(pcd => isProcedimientoActive(pcd.id));
+
+    if (hasFinerRelations) {
+      // Show only procedures whose ID is in includedChildren
+      const activePcdIds = new Set(relForProc.includedChildren.map((id: string) => String(id).toLowerCase()));
+      candidates = candidates.filter(pcd => 
+        activePcdIds.has(String(pcd.id).toLowerCase()) && 
+        !excludedChildIds.has(String(pcd.id).toLowerCase())
+      );
     } else {
+      // Otherwise, show all procedures of this process, except any explicitly excluded/inactive ones
       candidates = candidates.filter(pcd => !excludedChildIds.has(String(pcd.id).toLowerCase()));
     }
+
     return candidates;
-  }, [formData.procesoId, formData.dependenciaId, procedimientos, relaciones, actividades, dependencias, procesos]);
+  }, [formData.procesoId, formData.dependenciaId, procedimientos, relaciones]);
 
   const filteredActividades = useMemo(() => {
     if (!formData.procedimientoId || !formData.dependenciaId) return [];
