@@ -1091,7 +1091,7 @@ export default function App() {
         await import("./application/services/captureService");
       const saved = await captureService.createCarga(cargaConMeta);
       setCargasTrabajo([...cargasTrabajo, saved]);
-      console.log("Carga guardada en backend simulado:", saved);
+      console.log("Carga guardada en la base de datos real:", saved);
     } catch (error) {
       showToast("Error al guardar registro", "error");
     }

@@ -79,7 +79,8 @@ export const AssignmentSettings: React.FC<AssignmentSettingsProps> = ({
           <div className="relative">
             <input
               type="number"
-              min="1"
+              min="0"
+              step="any"
               placeholder="Ej. Inspecciones por turno"
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue outline-none transition-all pl-8"
               value={formData.volumenQ}
@@ -88,7 +89,7 @@ export const AssignmentSettings: React.FC<AssignmentSettingsProps> = ({
               }}
               onChange={(e) => {
                 const val = e.target.value;
-                if (val === "" || parseInt(val) > 0) {
+                if (val === "" || parseFloat(val) > 0) {
                   setFormData({ ...formData, volumenQ: val });
                 }
               }}

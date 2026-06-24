@@ -663,6 +663,7 @@ export const CapturaModule: React.FC<CapturaModuleProps> = ({
                   <input
                     type="number"
                     min="0"
+                    step="any"
                     placeholder="0"
                     disabled={!formData.frecuencia}
                     className={`w-full px-3 py-2 border rounded-lg text-sm outline-none transition-all ${!formData.frecuencia ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed" : "bg-white border-slate-200 focus:ring-2 focus:ring-institutional-blue/20 focus:border-institutional-blue"}`}

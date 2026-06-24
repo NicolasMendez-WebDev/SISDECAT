@@ -195,7 +195,7 @@ export const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
                   </div>
                   {isEditMode ? (
                     <input 
-                      type="number" min="0" step="1"
+                      type="number" min="0" step="any"
                       className="w-full text-center text-base font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:border-institutional-blue focus:bg-white transition-colors"
                       value={editedRecord.volumenQ}
                       onChange={(e) => handleFieldChange('volumenQ', Number(e.target.value))}
